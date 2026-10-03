@@ -1,8 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2022", "lib": ["ES2022", "DOM"], "module": "ESNext",
-    "moduleResolution": "Bundler", "jsx": "react-jsx", "strict": true,
-    "noEmit": true, "skipLibCheck": true
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
   },
-  "include": ["main.tsx"]
+  "include": ["*.tsx", "*.ts"]
 }

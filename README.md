@@ -2,7 +2,7 @@
 
 ## Ambiente Docker mínimo instalado
 
-O ambiente contém a infraestrutura, uma página React/TypeScript de verificação e o backend Django modular com modelos iniciais, migrações e Django Admin. Os fluxos e as regras completas de negócio serão implementados posteriormente.
+O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante e o backend Django modular com modelos iniciais, migrações e Django Admin. As telas seguem `docs/screen0.png` e usam dados fictícios para demonstrar os fluxos. As regras completas de negócio e a integração com a API serão implementadas posteriormente.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
@@ -19,6 +19,8 @@ docker compose ps
 ```
 
 Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint verifica as conexões reais com PostgreSQL e Redis.
+
+As telas de login, perfil, filtros, descoberta, mensagens e participantes estão descritas em [Telas do frontend](<docs/Telas do frontend.md>), com endereços de acesso e limites da demonstração.
 
 ### Backend e Django Admin
 
