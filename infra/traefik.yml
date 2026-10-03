@@ -1,0 +1,11 @@
+http:
+  routers:
+    local:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [web]
+      service: nginx
+  services:
+    nginx:
+      loadBalancer:
+        servers:
+          - url: "http://nginx:80"

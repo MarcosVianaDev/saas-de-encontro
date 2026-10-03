@@ -1,5 +1,43 @@
 # SaaS de Encontro
 
+## Ambiente Docker mínimo instalado
+
+Este bootstrap prepara apenas a infraestrutura e uma página React/TypeScript de verificação. Os módulos, modelos, autenticação, migrações e a estrutura de domínio serão criados posteriormente.
+
+- Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
+- Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
+- Node 26.10.0 Current, React/TypeScript e Vite; dependências fixadas em `frontend/package-lock.json`.
+- PostgreSQL 18, Redis 8, Nginx stable e Traefik 3 em containers.
+- Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. Apenas a porta local 8080 é publicada.
+- PostgreSQL e Redis usam volumes persistentes. Storage local/MinIO e Celery Beat ficam para uma próxima etapa.
+
+Na primeira execução, copie `.env.example` para `.env` e substitua os segredos de exemplo. O arquivo `.env` local já foi gerado com valores aleatórios e não deve ser versionado.
+
+```powershell
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint verifica as conexões reais com PostgreSQL e Redis.
+
+```powershell
+# Logs e encerramento (preserva dados)
+docker compose logs -f
+docker compose down
+
+# Compilação React/TypeScript
+docker compose exec frontend npm run build
+
+# Ativar Python virtual e Node portátil local neste terminal
+. .\infra\activate.ps1
+```
+
+O Node portátil está em `.tools/node-v26.10.0-win-x64`, ignorado pelo Git. Para instalar novamente o Python local: `python -m venv .venv` e `.\.venv\Scripts\python.exe -m pip install -r requirements.lock`.
+
+As imagens de infraestrutura acompanham as séries indicadas; os locks fixam as dependências da aplicação. Este ambiente é de desenvolvimento. As decisões de produção listadas abaixo continuam pendentes.
+
+---
+
 Plataforma SaaS para experiências de encontro e relacionamento vinculadas a eventos e salas, com descoberta de participantes, likes, matches, chat, passes de revelação, moderação, auditoria e ciclo de vida de dados.
 
 > **Status:** estruturação técnica inicial. Este documento consolida a arquitetura definida para orientar a criação do repositório e o início do desenvolvimento. Itens ainda não fechados no escopo estão explicitamente marcados como **A definir**.
