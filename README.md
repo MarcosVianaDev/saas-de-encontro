@@ -2,7 +2,7 @@
 
 ## Ambiente Docker mínimo instalado
 
-Este bootstrap prepara apenas a infraestrutura e uma página React/TypeScript de verificação. Os módulos, modelos, autenticação, migrações e a estrutura de domínio serão criados posteriormente.
+O ambiente contém a infraestrutura, uma página React/TypeScript de verificação e o backend Django modular com modelos iniciais, migrações e Django Admin. Os fluxos e as regras completas de negócio serão implementados posteriormente.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
@@ -19,6 +19,30 @@ docker compose ps
 ```
 
 Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint verifica as conexões reais com PostgreSQL e Redis.
+
+### Backend e Django Admin
+
+Acesse **http://localhost:8080/admin/**. O administrador local usa o login `admin`; a senha aleatória está em `.tools/admin-credentials.json`, ignorado pelo Git. Para outro ambiente, crie seu próprio acesso:
+
+```powershell
+docker compose exec backend python manage.py createsuperuser
+```
+
+O código está em `backend/`, com `manage.py`, `config/settings`, URLs, ASGI/WSGI e Celery. Os 19 apps de `backend/apps/` seguem a proposta abaixo e possuem modelos registrados no Admin, com pesquisa e seleção de vínculos por autocomplete. O usuário customizado de `accounts` utiliza UUID e a autenticação nativa do Django; os dados operacionais se vinculam a `EventParticipant`.
+
+O container backend aplica as migrações automaticamente ao iniciar. Para verificar alterações e executar os testes:
+
+```powershell
+docker compose exec backend python manage.py check
+docker compose exec backend python manage.py makemigrations --check --dry-run
+docker compose exec backend python manage.py test tests
+```
+
+O Admin é restrito a usuários da equipe, conforme permissões nativas do Django. `AuditLog` permite apenas inclusão pelo código e consulta no Admin, com triggers PostgreSQL bloqueando alterações, exclusões e truncamento. Bloqueios existentes não podem ser editados ou excluídos pelo Admin.
+
+Os modelos são uma base inicial de cadastro. Ativação de perfis, geração automática de matches, autorização de mensagens/revelações, políticas LGPD, expiração de passes e processamento de pagamentos ainda não estão implementados. `Notification` e `EventMetric` são cadastros iniciais, sem geração automática de métricas. Repasse/settlement segue pendente e não foi criado.
+
+Os arquivos estáticos do Admin são servidos pelo Django apenas com `DJANGO_DEBUG=1`; o serviço definitivo de arquivos estáticos em produção continua pendente. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`.
 
 ```powershell
 # Logs e encerramento (preserva dados)

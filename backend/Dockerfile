@@ -4,6 +4,6 @@ WORKDIR /app
 RUN python -m venv /opt/venv
 COPY requirements.txt requirements.lock ./
 RUN pip install --no-cache-dir -r requirements.lock
-COPY infra/bootstrap.py ./bootstrap.py
+COPY backend/ ./
 EXPOSE 8000
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "bootstrap:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec daphne -b 0.0.0.0 -p 8000 config.asgi:application"]

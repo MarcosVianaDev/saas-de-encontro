@@ -2,10 +2,10 @@ name: saas-de-encontro
 x-backend: &backend
   build:
     context: .
-    dockerfile: infra/backend.Dockerfile
+    dockerfile: backend/Dockerfile
   env_file: .env
   volumes:
-    - ./infra/bootstrap.py:/app/bootstrap.py:ro
+    - ./backend:/app
   depends_on:
     db:
       condition: service_healthy
@@ -21,9 +21,9 @@ services:
       retries: 12
   celery_worker:
     <<: *backend
-    command: [celery, -A, bootstrap:celery_app, worker, --loglevel=info, --concurrency=1]
+    command: [celery, -A, config, worker, --loglevel=info, --concurrency=1]
     healthcheck:
-      test: [CMD-SHELL, "celery -A bootstrap:celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      test: [CMD-SHELL, "celery -A config inspect ping --destination celery@$$HOSTNAME --timeout 5 | grep -q pong"]
       interval: 30s
       timeout: 10s
       retries: 5
