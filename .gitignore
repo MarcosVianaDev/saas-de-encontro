@@ -7,4 +7,3 @@ __pycache__/
 .tools/
 backend/staticfiles/
 backend/media/
-docs/
