@@ -81,7 +81,7 @@ services:
       - --providers.file.filename=/etc/traefik/routes.yml
       - --ping=true
     ports:
-      - "127.0.0.1:${HTTP_PORT:-8080}:80"
+      - "${HTTP_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-8080}:80"
     volumes:
       - ./infra/traefik.yml:/etc/traefik/routes.yml:ro
     depends_on:

@@ -67,7 +67,7 @@ A URL tem o formato `/?invite=<token-assinado>`. O backend valida assinatura com
 
 Ao abrir o link, o usuário vê o evento de destino e pode entrar ou criar uma conta. Cadastro com convite válido funciona também fora de DEBUG. Cadastro sem convite continua limitado à demonstração em DEBUG. Usuários já autenticados são associados pelo endpoint de ingresso com CSRF. O token é retirado da URL após a associação; o evento escolhido fica na sessão.
 
-A URL utiliza a origem pela qual o painel foi aberto. No ambiente local atual, `localhost:8080` funciona no computador; para leitura em outro dispositivo, utilize um endereço do serviço acessível por esse dispositivo e configure hosts/origens do Django e exposição de rede correspondentes.
+A URL utiliza a origem pela qual o painel foi aberto. Para leitura em outro dispositivo, abra o painel em **http://192.168.1.32:8080** neste ambiente; o QR Code utilizará esse endereço. O Compose publica a porta em `0.0.0.0` e o Django aceita todos os hosts, mantendo CSRF para login e escritas. A regra `EventConnect-HTTP-8080` libera a porta para a sub-rede local no Firewall do Windows. O endereço `localhost:8080` continua funcionando no próprio computador, mas não representa este servidor em outro dispositivo.
 
 ## Endpoints adicionados
 

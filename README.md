@@ -8,7 +8,7 @@ O ambiente contém a infraestrutura, as seis telas React/TypeScript do participa
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
 - Node 26.10.0 Current, React/TypeScript e Vite; dependências fixadas em `frontend/package-lock.json`.
 - PostgreSQL 18, Redis 8, Nginx stable e Traefik 3 em containers.
-- Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. Apenas a porta local 8080 é publicada.
+- Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. A porta 8080 é publicada em `0.0.0.0`, permitindo acesso por qualquer interface IPv4 do host. PostgreSQL e Redis permanecem na rede interna do Compose.
 - PostgreSQL e Redis usam volumes persistentes. Fotos enviadas usam storage local em `backend/media/`, persistido pelo bind mount. MinIO/S3 e Celery Beat ficam para uma próxima etapa.
 
 Na primeira execução, copie `.env.example` para `.env` e substitua os segredos de exemplo. O arquivo `.env` local já foi gerado com valores aleatórios e não deve ser versionado.
@@ -19,6 +19,10 @@ docker compose ps
 ```
 
 Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint verifica as conexões reais com PostgreSQL e Redis.
+
+Na rede local, use `http://<IP-do-computador>:8080`. Neste ambiente, o endereço é **http://192.168.1.32:8080**. O `.env` define `HTTP_BIND_ADDRESS=0.0.0.0`, `HTTP_PORT=8080` e `DJANGO_ALLOWED_HOSTS=*`; o backend e o Vite também escutam em `0.0.0.0` dentro dos containers. Login e escritas continuam protegidos por CSRF: acessos pela mesma origem funcionam sem cadastrar cada IP em `DJANGO_CSRF_TRUSTED_ORIGINS`. Origens diferentes devem ser autorizadas explicitamente.
+
+O Firewall do Windows deste host possui a regra `EventConnect-HTTP-8080`, permitindo TCP 8080 da sub-rede local nos perfis Privado e Domínio. Em outro computador, a porta deve estar liberada no firewall correspondente. Para mudar o endereço de escuta ou a porta, ajuste o `.env` e recrie os containers com `docker compose up -d --force-recreate --wait`.
 
 As telas de login, perfil, filtros, descoberta, mensagens e participantes estão descritas em [Telas do frontend](<docs/Telas do frontend.md>), com endereços de acesso e limites da demonstração.
 
