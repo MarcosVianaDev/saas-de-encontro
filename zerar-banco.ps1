@@ -31,7 +31,7 @@ try {
     # Persiste o modo manual para as proximas inicializacoes do ambiente.
     $envPath = Join-Path $PSScriptRoot '.env'
     $envText = [System.IO.File]::ReadAllText($envPath)
-    foreach ($entry in @('DJANGO_SEED_DEMO=0', 'FRONTEND_DATA_MODE=debug')) {
+    foreach ($entry in @('DJANGO_SEED_DEMO=0', 'FRONTEND_DATA_MODE=django')) {
         $key = $entry.Split('=')[0]
         $pattern = "(?m)^\s*$key\s*=.*$"
         if ([regex]::IsMatch($envText, $pattern)) {

@@ -59,6 +59,7 @@ export const api = {
         email,
         password,
         invite: new URLSearchParams(location.search).get("invite") || undefined,
+        event: new URLSearchParams(location.search).get("event") ?? undefined,
       },
     );
     csrfToken = result.csrfToken;

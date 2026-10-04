@@ -1,8 +1,8 @@
-export type FrontendDataMode = "mock" | "debug";
+export type FrontendDataMode = "mock" | "django";
 
 const mode = import.meta.env.VITE_FRONTEND_DATA_MODE ?? "mock";
-if (mode !== "mock" && mode !== "debug") {
-  throw new Error("FRONTEND_DATA_MODE deve ser mock ou debug.");
+if (mode !== "mock" && mode !== "django") {
+  throw new Error("FRONTEND_DATA_MODE deve ser mock ou django.");
 }
 
 export const frontendConfig = {

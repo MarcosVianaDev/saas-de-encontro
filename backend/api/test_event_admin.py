@@ -1,5 +1,7 @@
 import io
 from datetime import timedelta
+from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core import signing
@@ -157,22 +159,81 @@ class EventAdministrationTests(TestCase):
     @override_settings(DEBUG=False)
     def test_invite_register_outside_debug_and_correct_event_link(self):
         self.client.logout()
-        response = self.client.post('/api/auth/register/', {'email': 'qr-new@example.com', 'password': 'Good-password-2026!', 'invite': self.token(self.other_event)}, format='json')
+        response = self.client.post('/api/auth/register/', {'email': 'qr-new@example.com', 'password': 'Good-password-2026!', 'invite': self.token(self.other_event), 'event': str(self.other_event.pk), 'is_staff': True, 'is_superuser': True}, format='json')
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(response.json()['data']['event']['id'], str(self.other_event.pk))
         user = get_user_model().objects.get(email='qr-new@example.com')
         self.assertFalse(user.event_administrations.exists())
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertEqual(self.client.session['event_id'], str(self.other_event.pk))
+        self.assertEqual(self.client.session['navigation'], 'participant')
         self.assertEqual(user.event_participations.count(), 1)
         self.assertFalse(user.event_participations.get().is_active)
 
     def test_existing_user_invite_login_and_idempotent_join(self):
         self.client.logout()
-        response = self.client.post('/api/auth/login/', {'email': self.actor.user.email, 'password': 'Demo-password-2026!', 'invite': self.token(self.other_event)}, format='json')
+        response = self.client.post('/api/auth/login/', {'email': self.actor.user.email, 'password': 'Demo-password-2026!', 'invite': self.token(self.other_event), 'event': str(self.other_event.pk)}, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['data']['event']['id'], str(self.other_event.pk))
         for _ in range(2):
-            self.assertEqual(self.client.post(f'/api/join/{self.token(self.other_event)}/').status_code, 200)
+            self.assertEqual(self.client.post(f'/api/join/{self.token(self.other_event)}/', {'event': str(self.other_event.pk)}, format='json').status_code, 200)
         self.assertEqual(EventParticipant.objects.filter(user=self.actor.user, event=self.other_event).count(), 1)
+
+    def test_qr_url_has_event_uuid_and_matching_signed_invite(self):
+        event = self.client.get('/api/event-admin/').json()['event']
+        params = parse_qs(urlsplit(event['joinPath']).query)
+        self.assertEqual(params['event'], [str(self.event.pk)])
+        self.assertEqual(signing.loads(params['invite'][0], salt='event-join'), params['event'][0])
+        response = self.client.get(f"/api/join/{params['invite'][0]}/", {'event': params['event'][0]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['id'], str(self.event.pk))
+
+    def test_uuid_mismatch_rejected_for_preview_register_login_and_join(self):
+        self.client.logout()
+        counts = (get_user_model().objects.count(), EventParticipant.objects.count())
+        body = {'email': 'mismatch@example.com', 'password': 'Good-password-2026!',
+                'event': str(self.event.pk), 'invite': self.token(self.other_event)}
+        self.assertEqual(self.client.get(f"/api/join/{body['invite']}/", {'event': body['event']}).status_code, 400)
+        self.assertEqual(self.client.post('/api/auth/register/', body, format='json').status_code, 400)
+        body.update(email=self.actor.user.email, password='Demo-password-2026!')
+        self.assertEqual(self.client.post('/api/auth/login/', body, format='json').status_code, 400)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.client.force_login(self.actor.user)
+        self.assertEqual(self.client.post(f"/api/join/{body['invite']}/", {'event': body['event']}, format='json').status_code, 400)
+        self.assertEqual(counts, (get_user_model().objects.count(), EventParticipant.objects.count()))
+
+    def test_malformed_uuid_and_missing_event_rejected_without_creating_accounts(self):
+        self.client.logout()
+        before = get_user_model().objects.count()
+        for event_id in ['', 'invalid-uuid', str(uuid4())]:
+            body = {'email': 'bad-uuid@example.com', 'password': 'Good-password-2026!',
+                    'event': event_id, 'invite': self.token(self.other_event)}
+            self.assertEqual(self.client.post('/api/auth/register/', body, format='json').status_code, 400)
+        missing_id = str(uuid4())
+        body = {'email': 'missing-event@example.com', 'password': 'Good-password-2026!',
+                'event': missing_id, 'invite': signing.dumps(missing_id, salt='event-join')}
+        self.assertEqual(self.client.post('/api/auth/register/', body, format='json').status_code, 404)
+        self.assertEqual(get_user_model().objects.count(), before)
+
+    def test_uuid_alone_does_not_allow_registration(self):
+        self.client.logout()
+        self.assertEqual(self.client.post('/api/auth/register/', {
+            'email': 'uuid-only@example.com', 'password': 'Good-password-2026!',
+            'event': str(self.other_event.pk),
+        }, format='json').status_code, 403)
+        self.assertFalse(get_user_model().objects.filter(email='uuid-only@example.com').exists())
+
+    def test_closed_or_paused_event_cannot_register_new_accounts(self):
+        self.client.logout()
+        before = get_user_model().objects.count()
+        for state in ['CLOSED', 'PAUSED']:
+            event = Event.objects.create(organization=self.event.organization, name=f'Evento {state}', state=state, ends_at=timezone.now()+timedelta(days=1))
+            self.assertEqual(self.client.post('/api/auth/register/', {
+                'email': 'closed-event@example.com', 'password': 'Good-password-2026!',
+                'event': str(event.pk), 'invite': self.token(event),
+            }, format='json').status_code, 403)
+        self.assertEqual(get_user_model().objects.count(), before)
 
     def test_invalid_expired_and_closed_event_invites_rejected(self):
         self.assertEqual(self.client.get('/api/join/not-a-token/').status_code, 400)

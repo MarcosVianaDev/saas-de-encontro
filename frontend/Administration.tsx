@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
 import "./administration.css";
+import { AdminNavigation, type AdminNavItem } from "./AdminNavigation";
 import { EventOperations } from "./EventOperations";
 import { EventConfiguration } from "./EventConfiguration";
 import { TeamManagement } from "./TeamManagement";
@@ -1442,14 +1443,10 @@ export function Administration({
             {page === "more" && (
               <>
                 <h1>Mais</h1>
-                {!mock && data.permissions?.includes("announcements") && (
-                  <Announcements readOnly={readOnly} />
-                )}
-                {!mock && moderate && <SupportPanel admin />}
-                {!mock && data.permissions?.includes("passes") && (
-                  <PassManagement role={data.role} readOnly={readOnly} />
-                )}
-                <section className="adm-card adm-actions">
+                <section
+                  className="adm-card adm-actions"
+                  aria-label="Conta e opções do evento"
+                >
                   {data.role === "ADMIN" && (
                     <button onClick={() => navigate("team")}>
                       Equipe do evento ›
@@ -1460,10 +1457,21 @@ export function Administration({
                       Relatório do evento ›
                     </button>
                   )}
-                  <button onClick={() => void run(onLogout)}>
+                  <button
+                    className="account-logout"
+                    disabled={busy}
+                    onClick={() => void run(onLogout)}
+                  >
                     Sair da conta
                   </button>
                 </section>
+                {!mock && data.permissions?.includes("announcements") && (
+                  <Announcements readOnly={readOnly} />
+                )}
+                {!mock && moderate && <SupportPanel admin />}
+                {!mock && data.permissions?.includes("passes") && (
+                  <PassManagement role={data.role} readOnly={readOnly} />
+                )}
               </>
             )}
             {page === "team" && data.role === "ADMIN" && (
@@ -1528,26 +1536,40 @@ export function Administration({
           </>
         )}
       </main>
-      <nav className="adm-bottom" aria-label="Navegação administrativa">
-        {pages
-          .filter(([p]) => p !== "moderation" || moderate)
-          .map(([p, label, icon]) => (
-            <button
-              key={p}
-              aria-label={label}
-              className={page === p ? "selected" : ""}
-              onClick={() => navigate(p)}
-            >
-              <span>
-                {icon}
-                {p === "moderation" && pending.length > 0 && (
-                  <b>{pending.length}</b>
-                )}
-              </span>
-              <small>{label}</small>
-            </button>
-          ))}
-      </nav>
+      <AdminNavigation
+        current={
+          page === "qr"
+            ? "event"
+            : ["team", "report"].includes(page)
+              ? "more"
+              : page
+        }
+        disabled={busy}
+        items={[
+          ...pages
+            .filter(([p]) => p !== "moderation" || moderate)
+            .map(([p, label]) => ({
+              key: p,
+              label,
+              icon: (
+                {
+                  dashboard: "home",
+                  participants: "people",
+                  moderation: "shield",
+                  event: "calendar",
+                  more: "more",
+                } as Record<string, AdminNavItem["icon"]>
+              )[p],
+              badge: p === "moderation" ? pending.length : undefined,
+            })),
+          ...(!mock && data.globalContext && onContext
+            ? [{ key: "global", label: "Global", icon: "global" as const }]
+            : []),
+        ]}
+        onSelect={(key) =>
+          key === "global" ? onContext?.(true) : navigate(key as Page)
+        }
+      />
       <dialog
         ref={dialog}
         className="adm-dialog"

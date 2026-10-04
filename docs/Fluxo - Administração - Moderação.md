@@ -4,7 +4,7 @@
 
 > Referência funcional preservada do DOCX. Cobertura implementada e limites atualizados em 04/10/2026: [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
-Fonte: [DOCX](<Fluxo - Administração - Moderação.md.docx>). Referência visual: [screen3.png](screen3.png). Guia: [Telas administrativas](<Telas administrativas.md>).
+Fonte: [DOCX](<Fluxo - Administração - Moderação.md.docx>). Referência visual: [screen3.png](<Imagens - Telas e Protótipos/screen3.png>). Guia: [Telas administrativas](<Telas administrativas.md>).
 
 ## 1. Objetivo
 

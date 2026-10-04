@@ -19,7 +19,7 @@ Os caminhos Python são relativos a `backend/`; os componentes são relativos a 
 
 ## Executar o MVP conectado
 
-Configure `FRONTEND_DATA_MODE=debug` no `.env` e execute:
+Configure `FRONTEND_DATA_MODE=django` no `.env` e execute:
 
 ```powershell
 docker compose up -d --build

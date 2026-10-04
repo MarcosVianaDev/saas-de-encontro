@@ -10,9 +10,9 @@ O ambiente está configurado com `FRONTEND_DATA_MODE=mock`, incluindo as telas a
 
 A demonstração administrativa contém 12 participantes com situações distintas, quatro ocorrências com relato/notas/histórico/evidências fictícios, indicadores de bloqueios, quatro membros da equipe e métricas agregadas. O seletor apresenta eventos em andamento, agendados e encerrados; o controle de papel permite simular Administrador, Moderador e Operador. Suspensão, reativação, banimento, notas, resolução/reabertura e criação de ocorrências alteram apenas dados em memória. **Restaurar demonstração** ou recarregar a página restaura os exemplos.
 
-No modo mock, o QR Code aponta para `/?demoEvent=<identificador>#login`, abrindo a prévia do participante com o nome do evento. Não cria contas nem participações no banco. As telas administrativas não consultam a API neste modo. O modo definido no `.env` vale também para URLs com convite; o ingresso real exige `FRONTEND_DATA_MODE=debug`.
+No modo mock, o QR Code aponta para `/?demoEvent=<identificador>#login`, abrindo a prévia do participante com o nome do evento. Não cria contas nem participações no banco. As telas administrativas não consultam a API neste modo. O modo definido no `.env` vale também para URLs com convite; o ingresso real exige `FRONTEND_DATA_MODE=django`.
 
-Para conectar o frontend ao Django, altere para `FRONTEND_DATA_MODE=debug` e recrie o frontend. As instruções seguintes de login, autorização, cadastro e API referem-se ao modo conectado. Após atualizar o código:
+Para conectar o frontend ao Django, altere para `FRONTEND_DATA_MODE=django` e recrie o frontend. As instruções seguintes de login, autorização, cadastro e API referem-se ao modo conectado. Após atualizar o código:
 
 ```powershell
 docker compose up -d --build --wait
@@ -71,9 +71,11 @@ Bloqueios são consultados como indicadores agregados e linha do tempo. A consul
 
 Evento e Dashboard oferecem QR Code enquanto o evento estiver aberto para ingresso. A imagem é gerada no navegador com [node-qrcode](https://github.com/soldair/node-qrcode), sem enviar a URL a um serviço externo.
 
-A URL tem o formato `/?invite=<token-assinado>`. O backend valida assinatura com salt exclusivo de ingresso, validade de 30 dias e término do evento. O encerramento recusa novos ingressos mesmo que o token ainda esteja dentro do prazo. O QR Code representa um convite compartilhável, não uma credencial administrativa.
+A URL tem o formato `/?event=<UUID-do-evento>&invite=<token-assinado>`. O backend valida o UUID e sua correspondência com o evento do convite, assinatura com salt exclusivo de ingresso, validade de 30 dias e término do evento. Links antigos que contêm apenas o convite assinado continuam aceitos. O encerramento recusa novos ingressos mesmo que o token ainda esteja dentro do prazo. O QR Code representa um convite compartilhável, não uma credencial administrativa.
 
-Ao abrir o link, o usuário vê o evento de destino e pode entrar ou criar uma conta. Cadastro com convite válido funciona também fora de DEBUG. Cadastro sem convite continua limitado à demonstração em DEBUG. Usuários já autenticados são associados pelo endpoint de ingresso com CSRF. O token é retirado da URL após a associação; o evento escolhido fica na sessão.
+Ao abrir o link, o usuário vê o evento de destino e pode entrar ou criar uma conta. O cadastro de participantes exige convite válido, inclusive em DEBUG. O acesso direto à página inicial mostra apenas o login; contas de gestão devem ser criadas no Django Admin, em `/admin/`. Usuários já autenticados são associados pelo endpoint de ingresso com CSRF. O token é retirado da URL após a associação; o evento escolhido fica na sessão.
+
+As opções de criar conta e continuar com Google/Apple aparecem somente após validar o convite do evento no modo `django`. Google/Apple permanecem desabilitados com “Em breve” até a integração dos provedores. O UUID da URL é enviado como `event` no login, cadastro e ingresso; divergência entre UUID e convite recusa a operação sem criar conta ou participação. O cadastro cria uma conta de participante sem privilégios administrativos e uma participação inicialmente inativa no evento validado.
 
 A URL utiliza a origem pela qual o painel foi aberto. Para leitura em outro dispositivo, abra o painel em **http://192.168.1.32:8080** neste ambiente; o QR Code utilizará esse endereço. O Compose publica a porta em `0.0.0.0` e o Django aceita todos os hosts, mantendo CSRF para login e escritas. A regra `EventConnect-HTTP-8080` libera a porta para a sub-rede local no Firewall do Windows. O endereço `localhost:8080` continua funcionando no próprio computador, mas não representa este servidor em outro dispositivo.
 
@@ -92,7 +94,7 @@ Todos usam `/api/`. Escritas autenticadas exigem sessão e CSRF. Login e cadastr
 | `join/<token>/` | GET | Validação pública do convite e informações do evento |
 | `join/<token>/` | POST | Associação idempotente da conta autenticada ao evento |
 
-`auth/login/` e `auth/register/` aceitam `invite` opcional. `bootstrap/` retorna o estado do participante ou o discriminador da navegação administrativa. O frontend carrega o painel em `event-admin/` após identificar a navegação.
+`auth/login/` aceita `invite` opcional; `auth/register/` exige um convite válido. `bootstrap/` retorna o estado do participante ou o discriminador da navegação administrativa. O frontend carrega o painel em `event-admin/` após identificar a navegação.
 
 ## Validação
 

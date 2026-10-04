@@ -10,9 +10,9 @@ As versões Markdown preservam o conteúdo textual dos DOCX. Nomes, contagens, h
 
 | Fluxo | Especificação completa | Fonte original | Referência visual |
 |---|---|---|---|
-| Administração do evento | [Fluxo do evento](<Fluxo - Administração do Evento.md>) | [DOCX](<Fluxo - Administração do Evento.md.docx>) | [screen1.png](screen1.png) |
-| Participantes | [Fluxo de participantes](<Fluxo - Administração - Participantes.md>) | [DOCX](<Fluxo - Administração - Participantes.md.docx>) | [screen2.png](screen2.png) |
-| Moderação | [Fluxo de moderação](<Fluxo - Administração - Moderação.md>) | [DOCX](<Fluxo - Administração - Moderação.md.docx>) | [screen3.png](screen3.png) |
+| Administração do evento | [Fluxo do evento](<Fluxo - Administração do Evento.md>) | [DOCX](<Fluxo - Administração do Evento.md.docx>) | [screen1.png](<Imagens - Telas e Protótipos/screen1.png>) |
+| Participantes | [Fluxo de participantes](<Fluxo - Administração - Participantes.md>) | [DOCX](<Fluxo - Administração - Participantes.md.docx>) | [screen2.png](<Imagens - Telas e Protótipos/screen2.png>) |
+| Moderação | [Fluxo de moderação](<Fluxo - Administração - Moderação.md>) | [DOCX](<Fluxo - Administração - Moderação.md.docx>) | [screen3.png](<Imagens - Telas e Protótipos/screen3.png>) |
 
 ## Acesso e navegação
 

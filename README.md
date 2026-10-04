@@ -4,7 +4,7 @@
 
 As etapas 1 a 8 estão implementadas, com 45 cards em [concluídos](<docs/trilha de implementacao(fechado).md>). Consulte [cobertura, operação e validação](<docs/Implementacao - etapas 1 a 8.md>): 73 testes Django aprovados, build TypeScript/Vite e fluxos verificados no navegador. As etapas 9 a 12 permanecem no [backlog aberto](<docs/trilha de implementacao(aberto).md>).
 
-Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=debug` no `.env` e execute `docker compose up -d --build`. `celery_beat` e `celery_worker` executam as automações do ciclo do evento, avisos e expiração de passes. O modo `mock` mantém a demonstração local.
+Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=django` no `.env` e execute `docker compose up -d --build`. `celery_beat` e `celery_worker` executam as automações do ciclo do evento, avisos e expiração de passes. O modo `mock` mantém a demonstração local.
 
 ## Documentação consolidada
 
@@ -12,7 +12,7 @@ O [índice de documentação](docs/README.md) reúne escopo, manuais, fluxos, gu
 
 ## Estado atual e execução local
 
-O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante, o painel administrativo do evento e o backend Django modular com migrações e Django Admin. As telas do participante seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados persistidos no PostgreSQL. O painel administrativo segue `docs/screen1.png`, `docs/screen2.png` e `docs/screen3.png` e usa a API autenticada.
+O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante, o painel administrativo do evento e o backend Django modular com migrações e Django Admin. As telas do participante seguem [docs/Imagens - Telas e Protótipos/screen0.png](<docs/Imagens - Telas e Protótipos/screen0.png>) e podem usar mocks locais ou a API real com dados persistidos no PostgreSQL. O painel administrativo segue [docs/Imagens - Telas e Protótipos/screen1.png](<docs/Imagens - Telas e Protótipos/screen1.png>), [docs/Imagens - Telas e Protótipos/screen2.png](<docs/Imagens - Telas e Protótipos/screen2.png>) e [docs/Imagens - Telas e Protótipos/screen3.png](<docs/Imagens - Telas e Protótipos/screen3.png>) e usa a API autenticada.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
@@ -43,11 +43,11 @@ FRONTEND_DATA_MODE=mock
 ```
 
 - `mock`: usa dados fictícios no frontend para participantes e administração. **Explorar administração** ou `#admin-dashboard` abre participantes, ocorrências, equipe, relatório e QR Code demonstrativo. Papéis e estados do evento podem ser simulados; ações ficam em memória e são restauradas após reload.
-- `debug`: conecta as seis telas à API real: login, perfil/fotos, filtros, descobertas, matches, favoritos, participantes e mensagens persistidos. Não há fallback para mocks.
+- `django`: conecta as seis telas à API real: login, perfil/fotos, filtros, descobertas, matches, favoritos, participantes e mensagens persistidos. Não há fallback para mocks.
 
 Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.
 
-O painel React administrativo implementa Dashboard, Evento/QR Code, Participantes, Moderação, Equipe consultiva e Relatório agregado, com base em `screen1.png`, `screen2.png` e `screen3.png`. O login reconhece vínculos e papéis por evento; o QR Code vincula login/cadastro ao evento por convite assinado. Consulte [Administração e ingresso](<docs/Administracao e ingresso no evento.md>) para acesso, permissões e limites atuais, e [Telas administrativas](<docs/Telas administrativas.md>) para os fluxos funcionais.
+O painel React administrativo implementa Dashboard, Evento/QR Code, Participantes, Moderação, Equipe consultiva e Relatório agregado, com base em [screen1.png](<docs/Imagens - Telas e Protótipos/screen1.png>), [screen2.png](<docs/Imagens - Telas e Protótipos/screen2.png>) e [screen3.png](<docs/Imagens - Telas e Protótipos/screen3.png>). O login reconhece vínculos e papéis por evento; o QR Code vincula login/cadastro ao evento por convite assinado. Consulte [Administração e ingresso](<docs/Administracao e ingresso no evento.md>) para acesso, permissões e limites atuais, e [Telas administrativas](<docs/Telas administrativas.md>) para os fluxos funcionais.
 
 ### Backend e Django Admin
 
@@ -58,7 +58,7 @@ Para reiniciar os testes manuais desde o primeiro cadastro, execute na raiz do p
 docker compose exec backend python manage.py createsuperuser
 ```
 
-O script pede `ZERAR` antes de apagar todos os dados do PostgreSQL (inclusive superusuários e auditoria) e esvaziar o Redis do projeto. Recria o schema e aplica as migrações, sem cadastrar usuários. Pode ser executado várias vezes; `-Force` dispensa a confirmação. Requer Docker Compose disponível. As fotos em `backend/media/` são preservadas. O `.env` passa a usar `DJANGO_SEED_DEMO=0` e `FRONTEND_DATA_MODE=debug`, evitando repopulação automática e usando a API real. Os serviços são reiniciados ao final; se houver falha, corrija o erro informado e execute novamente. Para voltar à carga automática de demonstração, use `DJANGO_SEED_DEMO=1` e recrie o backend.
+O script pede `ZERAR` antes de apagar todos os dados do PostgreSQL (inclusive superusuários e auditoria) e esvaziar o Redis do projeto. Recria o schema e aplica as migrações, sem cadastrar usuários. Pode ser executado várias vezes; `-Force` dispensa a confirmação. Requer Docker Compose disponível. As fotos em `backend/media/` são preservadas. O `.env` passa a usar `DJANGO_SEED_DEMO=0` e `FRONTEND_DATA_MODE=django`, evitando repopulação automática e usando a API real. Os serviços são reiniciados ao final; se houver falha, corrija o erro informado e execute novamente. Para voltar à carga automática de demonstração, use `DJANGO_SEED_DEMO=1` e recrie o backend.
 
 Acesse **http://localhost:8080/admin/**. O administrador local usa o login `admin`; a senha aleatória está em `.tools/admin-credentials.json`, ignorado pelo Git. Para outro ambiente, crie seu próprio acesso:
 

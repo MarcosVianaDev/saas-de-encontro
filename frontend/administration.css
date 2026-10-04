@@ -656,20 +656,282 @@
     min-width: 120px;
   }
 }
-.global-context { --adm-purple: #c62835; --violet: #c62835; --purple: #c62835; --primary: #c62835; accent-color: #c62835; }
-.global-context .adm-primary, .global-context .selected { background: #c62835; color: #fff; }
-.global-context .adm-topbar { border-color: #c62835; }
-.configuration-actions { justify-content: flex-end; }
-.global-context .adm-sidebar button, .global-context .adm-back, .global-context .adm-topbar button, .global-context .adm-actions button { color: #c62835; }
-.global-context .adm-sidebar button.selected, .global-context .adm-primary { color: white; }
-.global-context .event-timeline [aria-current], .global-context .adm-badge { color: #c62835; }
-.global-context .adm-back, .global-context .adm-badge { background: #fff0f1; }
-@media (max-width: 700px) {
-  .configuration-actions { position: sticky; bottom: 70px; background: white; padding: 12px; box-shadow: 0 -2px 10px #0001; z-index: 2; }
+.global-context {
+  --adm-purple: #c62835;
+  --violet: #c62835;
+  --purple: #c62835;
+  --primary: #c62835;
+  accent-color: #c62835;
 }
-.global-context.administration { max-width: 1200px; margin: auto; padding: 16px; background: #fff5f5; min-height: 100vh; }
-.event-timeline { display: flex; gap: 14px; flex-wrap: wrap; padding: 0; list-style: none; }
-.event-timeline [aria-current="step"] { font-weight: bold; color: #6328df; }
-.adm-card label { display: grid; gap: 6px; margin: 10px 0; }
-.adm-card input, .adm-card textarea, .adm-card select { max-width: 100%; padding: 10px; border: 1px solid #d9d0e8; border-radius: 8px; }
-.adm-card input:disabled { background: #eee; color: #666; }
+.global-context .adm-primary,
+.global-context .selected {
+  background: #c62835;
+  color: #fff;
+}
+.global-context .adm-topbar {
+  border-color: #c62835;
+}
+.configuration-actions {
+  justify-content: flex-end;
+}
+.global-context .adm-sidebar button,
+.global-context .adm-back,
+.global-context .adm-topbar button,
+.global-context .adm-actions button {
+  color: #c62835;
+}
+.global-context .adm-sidebar button.selected,
+.global-context .adm-primary {
+  color: white;
+}
+.global-context .event-timeline [aria-current],
+.global-context .adm-badge {
+  color: #c62835;
+}
+.global-context .adm-back,
+.global-context .adm-badge {
+  background: #fff0f1;
+}
+@media (max-width: 700px) {
+  .configuration-actions {
+    position: sticky;
+    bottom: 70px;
+    background: white;
+    padding: 12px;
+    box-shadow: 0 -2px 10px #0001;
+    z-index: 2;
+  }
+}
+.global-context.administration {
+  max-width: 1200px;
+  margin: auto;
+  padding: 16px;
+  background: #fff5f5;
+  min-height: 100vh;
+}
+.event-timeline {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 0;
+  list-style: none;
+}
+.event-timeline [aria-current="step"] {
+  font-weight: bold;
+  color: #6328df;
+}
+.adm-card label {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+.adm-card input,
+.adm-card textarea,
+.adm-card select {
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #d9d0e8;
+  border-radius: 8px;
+}
+.adm-card input:disabled {
+  background: #eee;
+  color: #666;
+}
+
+/* The mocks use the same bottom navigation on every administrative screen. */
+.adm-sidebar {
+  display: none;
+}
+.adm-main {
+  margin-left: 0;
+  margin-inline: auto;
+  padding-bottom: calc(110px + env(safe-area-inset-bottom));
+}
+.adm-bottom {
+  position: fixed;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  background: #fff;
+  border-top: 1px solid #e8e1f4;
+  padding: 10px 8px max(10px, env(safe-area-inset-bottom));
+  z-index: 10;
+  box-shadow: 0 -4px 20px #29145108;
+}
+.adm-workspace .adm-bottom button {
+  flex: 1;
+  max-width: 150px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 2px;
+  background: transparent;
+  color: #817891;
+}
+.adm-bottom button > span {
+  display: flex;
+  position: relative;
+}
+.adm-bottom small {
+  display: block;
+  font-size: 11px;
+  color: inherit;
+}
+.adm-bottom b {
+  position: absolute;
+  top: -5px;
+  left: 16px;
+  font-size: 9px;
+  margin: 0;
+}
+.adm-workspace .adm-bottom button.selected {
+  color: var(--adm-purple);
+  background: transparent;
+  font-weight: 700;
+}
+.global-context .adm-bottom {
+  border-color: #f1ccd0;
+}
+.global-context .adm-hero {
+  background: linear-gradient(130deg, #a30b20, #d62835);
+}
+.global-context .adm-topbar {
+  background: #bd152b;
+  color: #fff;
+  padding: 20px;
+  border-radius: 0 0 18px 18px;
+}
+.global-context .adm-topbar small {
+  color: #ffe0e5;
+}
+.global-context .adm-topbar .adm-badge {
+  background: #fff;
+  color: #a30b20;
+}
+.global-administration {
+  --adm-purple: #1260ed;
+  background: #f4f8ff;
+  color: #092746;
+}
+.global-administration .adm-topbar {
+  border-color: #dce6f3;
+  background: linear-gradient(130deg, #092746, #123a61);
+  padding: 24px;
+  margin-inline: -24px;
+  border-radius: 0 0 18px 18px;
+}
+.global-administration .adm-topbar small {
+  color: #cadcf3;
+}
+.global-administration .adm-topbar h1 {
+  color: #fff;
+  margin: 0;
+}
+.global-administration .adm-primary,
+.global-administration .selected {
+  background: #1260ed;
+  color: white;
+}
+.global-administration .adm-main {
+  max-width: 1100px;
+}
+.global-administration .adm-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.global-administration .adm-stats .adm-card {
+  margin-bottom: 0;
+}
+.global-administration .adm-stats strong {
+  font-size: 26px;
+}
+.global-administration .adm-stats p {
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+.global-administration .adm-stats .adm-card {
+  padding: 18px;
+}
+.global-content > h2 {
+  margin: 24px 0 16px;
+}
+.global-content > form {
+  padding: 24px;
+  border: 1px solid #dce6f3;
+  border-radius: 18px;
+  background: #fff;
+}
+.global-content label {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.global-content input,
+.global-content textarea,
+.global-content select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dce6f3;
+  border-radius: 10px;
+}
+.global-content > form .adm-actions {
+  margin-top: 24px;
+}
+.global-administration .adm-card h2 {
+  margin-top: 16px;
+}
+.global-administration .adm-card h3 {
+  margin: 12px 0;
+}
+.global-administration .adm-card p {
+  margin-bottom: 12px;
+}
+.global-administration .adm-bottom {
+  border-color: #dce6f3;
+}
+.global-list-tools {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+.global-list-tools input {
+  width: 100%;
+  background: #f3f6fb;
+}
+.global-list-tools .adm-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.global-list-tools .adm-tabs button {
+  padding: 10px;
+}
+.account-options {
+  margin-top: 20px;
+}
+.adm-workspace .account-logout,
+.account-logout {
+  color: #d21d36;
+  background: #fff0f2;
+  border: 1px solid #f6d2d9;
+  border-radius: 12px;
+  padding: 13px 18px;
+  font: inherit;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .adm-bottom small {
+    font-size: 9px;
+  }
+  .global-administration .adm-main {
+    padding-inline: 14px;
+  }
+  .global-administration .adm-topbar h1 {
+    font-size: 24px;
+  }
+  .global-administration .adm-topbar {
+    margin-inline: -14px;
+    padding-inline: 20px;
+  }
+}

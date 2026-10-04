@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import UUID
 from django.core import signing
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
@@ -33,12 +34,14 @@ def event_open(event):
         raise PermissionDenied('Este evento foi encerrado. Novos ingressos não são permitidos.')
 
 
-def invite_event(token):
+def invite_event(token, event_id=None):
     try:
-        event_id = signing.loads(token, salt='event-join', max_age=60 * 60 * 24 * 30)
-    except signing.BadSignature:
+        signed_id = UUID(signing.loads(token, salt='event-join', max_age=60 * 60 * 24 * 30))
+        if event_id is not None and UUID(str(event_id)) != signed_id:
+            raise ValidationError('O UUID do evento não corresponde ao convite.')
+    except (signing.BadSignature, ValueError, TypeError, AttributeError):
         raise ValidationError('Link de ingresso inválido ou expirado.')
-    event = get_object_or_404(Event, pk=event_id)
+    event = get_object_or_404(Event, pk=signed_id)
     event_open(event)
     return event
 
@@ -145,13 +148,13 @@ class JoinView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        event = invite_event(token)
-        return Response({'name': event.name, 'starts': event.starts_at, 'ends': event.ends_at})
+        event = invite_event(token, request.query_params.get('event'))
+        return Response({'id': str(event.pk), 'name': event.name, 'starts': event.starts_at, 'ends': event.ends_at})
 
     def post(self, request, token):
         if not request.user.is_authenticated:
             raise PermissionDenied('Entre ou crie uma conta para ingressar.')
-        event = invite_event(token)
+        event = invite_event(token, request.data.get('event', request.query_params.get('event')))
         participant = join_event(request.user, event)
         from .services import current, bootstrap
         request.session['event_id'] = str(event.pk)
@@ -179,7 +182,7 @@ class AdminBootstrapView(APIView):
                 'starts': event.starts_at, 'ends': event.ends_at,
                 'responsible': [m.user.get_full_name() or m.user.email for m in event.administrators.filter(role='ADMIN').select_related('user')],
                 'state': event.state, 'status': event.get_state_display(),
-                  'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?invite=' + token},
+                  'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?event=' + str(event.pk) + '&invite=' + token},
             'participants': [participant_payload(p, moderate) for p in participants],
             'cases': [case_payload(c) for c in cases.order_by('-created_at')],
             'metrics': {'participants': participants.count(), 'active': active_count,

@@ -47,6 +47,17 @@ class DemoFlowTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get("/api/bootstrap/").status_code, 401)
 
+    def test_registration_requires_invite_even_in_debug(self):
+        self.client.logout()
+        User = apps.get_model("accounts", "User")
+        before = User.objects.count()
+        response = self.client.post("/api/auth/register/", {
+            "email": "no-invite@example.com", "password": "Good-password-2026!",
+        }, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(User.objects.count(), before)
+        self.assertFalse(User.objects.filter(email="no-invite@example.com").exists())
+
     def test_seed_populates_every_domain(self):
         for config in apps.get_app_configs():
             if config.name.startswith("apps."):

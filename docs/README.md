@@ -59,10 +59,10 @@ As definições detalhadas de geolocalização, ciclo de vida, exportação, pas
 
 | Arquivo | Conteúdo analisado | Uso |
 |---|---|---|
-| [screen0.png](screen0.png) | Login, perfil, filtros, descoberta, mensagens e participantes. | Referência visual; favorito na Descoberta diverge da decisão posterior. |
-| [screen1.png](screen1.png) | Dashboard, evento, QR Code, participantes, moderação, equipe e relatório. | Referência visual; os três estados ilustrados não cobrem o ciclo final completo. |
-| [screen2.png](screen2.png) | Filtros/ficha de participantes, suspensão e remoção. | Ações globais exigem permissão global; não decorrem do papel de evento. |
-| [screen3.png](screen3.png) | Fila, evidências, notas, histórico e decisões de moderação. | Contagens de bloqueios são ilustrativas; aplicar os requisitos finais de denúncias. |
+| [screen0.png](<Imagens - Telas e Protótipos/screen0.png>) | Login, perfil, filtros, descoberta, mensagens e participantes. | Referência visual; favorito na Descoberta diverge da decisão posterior. |
+| [screen1.png](<Imagens - Telas e Protótipos/screen1.png>) | Dashboard, evento, QR Code, participantes, moderação, equipe e relatório. | Referência visual; os três estados ilustrados não cobrem o ciclo final completo. |
+| [screen2.png](<Imagens - Telas e Protótipos/screen2.png>) | Filtros/ficha de participantes, suspensão e remoção. | Ações globais exigem permissão global; não decorrem do papel de evento. |
+| [screen3.png](<Imagens - Telas e Protótipos/screen3.png>) | Fila, evidências, notas, histórico e decisões de moderação. | Contagens de bloqueios são ilustrativas; aplicar os requisitos finais de denúncias. |
 
 ## Limites desta análise
 

@@ -60,7 +60,9 @@ class LoginView(APIView):
             raise ValidationError("E-mail ou senha inválidos.")
         token = request.data.get('invite')
         member = user.event_administrations.filter(is_active=True).order_by('created_at').first()
-        participant = join_event(user, invite_event(token)) if token else user.event_participations.filter(event_id=DEMO_EVENT_ID).first() or user.event_participations.order_by("created_at").first()
+        if request.data.get('event') is not None and not token:
+            raise ValidationError("O UUID do evento deve acompanhar um convite válido.")
+        participant = join_event(user, invite_event(token, request.data.get('event'))) if token else user.event_participations.filter(event_id=DEMO_EVENT_ID).first() or user.event_participations.order_by("created_at").first()
         if participant is None and member is None and not user.is_superuser:
             raise PermissionDenied("Esta conta não participa de um evento.")
         login(request, user)
@@ -82,8 +84,8 @@ class RegisterView(APIView):
 
     def post(self, request):
         token = request.data.get('invite')
-        if not settings.DEBUG and not token:
-            raise PermissionDenied("Autoinscrição na demonstração disponível somente em DEBUG.")
+        if not token:
+            raise PermissionDenied("O cadastro de participantes exige um convite de evento. Contas de gestão devem ser criadas no Django Admin.")
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -91,14 +93,12 @@ class RegisterView(APIView):
             validate_password(data["password"])
         except DjangoValidationError as error:
             raise ValidationError({"password": error.messages})
-        event = invite_event(token) if token else get_object_or_404(Event, id=DEMO_EVENT_ID)
+        event = invite_event(token, request.data.get('event'))
         try:
             with transaction.atomic():
                 user = get_user_model().objects.create_user(username=data["email"].lower(), email=data["email"].lower(), password=data["password"])
                 UserProfile.objects.create(user=user)
-                participant = EventParticipant.objects.create(user=user, event=event)
-                ParticipantProfile.objects.create(participant=participant)
-                ParticipantPreference.objects.create(participant=participant, filters=DEFAULT_FILTERS)
+                participant = join_event(user, event)
                 audit(user, "account.registered", user)
         except IntegrityError:
             raise ValidationError("Este e-mail já está cadastrado.")

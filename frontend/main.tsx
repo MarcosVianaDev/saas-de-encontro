@@ -366,14 +366,21 @@ function App() {
       location.hash.startsWith("#admin-"),
   );
   const invite = new URLSearchParams(location.search).get("invite");
+  const inviteEventId = new URLSearchParams(location.search).get("event");
+  const invitePath = invite
+    ? `join/${encodeURIComponent(invite)}/${inviteEventId !== null ? `?event=${encodeURIComponent(inviteEventId)}` : ""}`
+    : "";
   const [real] = useState(!frontendConfig.useMocks);
   const mockEvent = frontendConfig.useMocks
     ? mockEventInfo(new URLSearchParams(location.search).get("demoEvent"))
     : undefined;
   const [inviteName, setInviteName] = useState(mockEvent?.name || "");
+  const canRegister = !real || Boolean(invite && inviteName);
   const [people, setPeople] = useState<Person[]>(real ? [] : mockPeople);
   const [remoteDiscovery, setRemoteDiscovery] = useState<Person[]>([]);
   const [authenticated, setAuthenticated] = useState(!real);
+  const authenticatedRef = useRef(authenticated);
+  authenticatedRef.current = authenticated;
   const [ready, setReady] = useState(!real);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -383,7 +390,7 @@ function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [eventName, setEventName] = useState(
-    mockEvent?.name || "Conecta São Paulo",
+    real ? "" : mockEvent?.name || "Conecta São Paulo",
   );
 
   const [page, setPage] = useState<Page>(readPage);
@@ -438,7 +445,7 @@ function App() {
   const [details, setDetails] = useState<Person | null>(null);
   const [match, setMatch] = useState<Person | null>(null);
   const [toast, setToast] = useState("");
-  const [loginForm, setLoginForm] = useState(false);
+  const [loginForm, setLoginForm] = useState(real);
   const [unread, setUnread] = useState<PersonId[]>(real ? [] : [3]);
   const [saved, setSaved] = useState<PersonId[]>([]);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -468,7 +475,7 @@ function App() {
       if (real && (adminMode || globalMode || contexts)) return;
       if (!real) setAdminMode(location.hash.startsWith("#admin-"));
       const next = readPage();
-      if (real && authenticated && next === "login") {
+      if (real && authenticatedRef.current && next === "login") {
         location.hash = serverActive ? "descobrir" : "perfil";
         return;
       }
@@ -590,9 +597,7 @@ function App() {
     void (async () => {
       try {
         if (invite) {
-          const event = await request<{ name: string }>(
-            `join/${encodeURIComponent(invite)}/`,
-          );
+          const event = await request<{ id: string; name: string }>(invitePath);
           if (active) {
             setInviteName(event.name);
             setEventName(event.name);
@@ -600,10 +605,13 @@ function App() {
         }
         const session = await api.session();
         if (!active) return;
-        setEmail(session.demoEmail || "");
         if (session.authenticated) {
           if (invite) {
-            await request(`join/${encodeURIComponent(invite)}/`, "POST");
+            await request(
+              invitePath,
+              "POST",
+              inviteEventId !== null ? { event: inviteEventId } : undefined,
+            );
             history.replaceState(null, "", location.pathname);
           }
           const data = await api.bootstrap();
@@ -652,7 +660,7 @@ function App() {
     }
     await run(async () => {
       await api.session();
-      const data = await api.login(email, password, registering);
+      const data = await api.login(email, password, registering && canRegister);
       applyData(data);
       setAuthenticated(true);
       setPassword("");
@@ -660,7 +668,7 @@ function App() {
       location.hash =
         data.navigation === "administration" ? "admin-dashboard" : "perfil";
       setPage("perfil");
-      notify("Conectado ao backend. Seus dados serão salvos no banco.");
+      notify("Você entrou na sua conta.");
     });
   };
   useEffect(() => {
@@ -813,22 +821,34 @@ function App() {
     });
   };
   const leave = async () => {
-    if (!real) {
-      setLoginForm(false);
-      navigate("login");
-      return;
-    }
-    await run(async () => {
+    if (real) {
       await api.logout();
-      setAuthenticated(false);
       setPeople([]);
       setPhotos([]);
       setChats({});
-      setServerActive(false);
-      setLoginForm(true);
-      location.hash = "login";
-      setPage("login");
-    });
+    }
+    authenticatedRef.current = false;
+    setAuthenticated(false);
+    setAdminMode(false);
+    setGlobalMode(false);
+    setContexts(null);
+    setServerData(null);
+    setServerActive(false);
+    setRemoteDiscovery([]);
+    setChatStates({});
+    setActiveChat(null);
+    setUnread([]);
+    setNoticeUnread(0);
+    setMailbox("messages");
+    setDetails(null);
+    setMatch(null);
+    setMessage("");
+    setEmail("");
+    setPassword("");
+    setRegistering(false);
+    setLoginForm(real);
+    location.hash = "login";
+    setPage("login");
   };
   const stage = stages.findIndex((s) => s.page === page);
   const eligibleFor = (f: Filters) =>
@@ -904,16 +924,11 @@ function App() {
       <Contexts
         contexts={contexts}
         onSelect={applyData}
-        onLogout={() => void leave()}
+        onLogout={() => void run(leave)}
       />
     );
   if (authenticated && globalMode)
-    return (
-      <GlobalAdministration
-        onSelect={applyData}
-        onLogout={() => void leave()}
-      />
-    );
+    return <GlobalAdministration onSelect={applyData} onLogout={leave} />;
   if (
     real &&
     authenticated &&
@@ -930,7 +945,7 @@ function App() {
           location.hash = "perfil";
           setPage("perfil");
         }}
-        onLogout={() => void leave()}
+        onLogout={() => void run(leave)}
       />
     );
   if (adminMode && authenticated)
@@ -948,15 +963,12 @@ function App() {
               }
             : undefined
         }
-        onLogout={async () => {
-          setAdminMode(false);
-          await leave();
-        }}
+        onLogout={leave}
       />
     );
   return (
     <div
-      className={`workspace ${busy ? "is-busy" : ""}`}
+      className={`workspace ${real ? "django-workspace" : "mock-workspace"} ${page === "login" ? "login-workspace" : "participant-workspace"} ${busy ? "is-busy" : ""}`}
       aria-busy={busy || !ready}
     >
       {!real && (
@@ -976,75 +988,66 @@ function App() {
           </button>
         </div>
       )}
-      {real && (
+      {real && (!ready || busy) && (
         <div className="backend-ribbon" role="status">
-          {!ready
-            ? "Conectando ao backend…"
-            : busy
-              ? "Salvando…"
-              : authenticated
-                ? "DEBUG · banco conectado"
-                : "DEBUG · faça login"}
-          {authenticated && <button onClick={leave}>Sair</button>}
+          {!ready ? "Conectando ao backend…" : busy ? "Salvando…" : "Conectado"}
         </div>
       )}
-      <aside className="sidebar">
-        <a className="brand" href="#login">
-          <span className="brand-icon">
-            <Icon name="people" size={28} />
-          </span>
-          <span>
-            Event<span className="brand-accent">Connect</span>
-          </span>
-        </a>
-        <div className="event-label">
-          <i className="live-dot" /> CONEXÕES QUE ACONTECEM
-        </div>
-        <h1>
-          Pessoas reais.
-          <br />
-          <span>Encontros incríveis.</span>
-        </h1>
-        <p className="sidebar-intro">
-          Encontre quem combina com você e aproveite cada momento do evento.
-        </p>
-        <nav className="stage-nav" aria-label="Etapas da experiência">
-          {stages.map((s, index) => (
-            <button
-              key={s.page}
-              className={page === s.page ? "selected" : ""}
-              onClick={() => navigate(s.page)}
-              aria-current={page === s.page ? "page" : undefined}
-            >
-              <span className="stage-number">{index + 1}</span>
-              <span>
-                {s.title}
-                <small>{s.description}</small>
-              </span>
-              {page === s.page && <i className="nav-dot" />}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <span className="preview-badge">
-            {real ? "DEBUG · BACKEND REAL" : "PRÉVIA INTERATIVA"}
-          </span>
-          <p>
-            {real
-              ? "Dados persistidos no banco de desenvolvimento."
-              : "Dados de exemplo para explorar a experiência."}
+      {!real && (
+        <aside className="sidebar">
+          <a className="brand" href="#login">
+            <span className="brand-icon">
+              <Icon name="people" size={28} />
+            </span>
+            <span>
+              Event<span className="brand-accent">Connect</span>
+            </span>
+          </a>
+          <div className="event-label">
+            <i className="live-dot" /> CONEXÕES QUE ACONTECEM
+          </div>
+          <h1>
+            Pessoas reais.
+            <br />
+            <span>Encontros incríveis.</span>
+          </h1>
+          <p className="sidebar-intro">
+            Encontre quem combina com você e aproveite cada momento do evento.
           </p>
-          <span>Feito para conectar. 💜</span>
-        </div>
-      </aside>
+          <nav className="stage-nav" aria-label="Etapas da experiência">
+            {stages.map((s, index) => (
+              <button
+                key={s.page}
+                className={page === s.page ? "selected" : ""}
+                onClick={() => navigate(s.page)}
+                aria-current={page === s.page ? "page" : undefined}
+              >
+                <span className="stage-number">{index + 1}</span>
+                <span>
+                  {s.title}
+                  <small>{s.description}</small>
+                </span>
+                {page === s.page && <i className="nav-dot" />}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <span className="preview-badge">PRÉVIA INTERATIVA</span>
+            <p>Dados de exemplo para explorar a experiência.</p>
+            <span>Feito para conectar. 💜</span>
+          </div>
+        </aside>
+      )}
       <main className="main-area">
-        <div className="desktop-heading">
-          <span>EXPERIÊNCIA DO PARTICIPANTE</span>
-          <span className="event-tag">
-            <i className="live-dot" /> Conecta São Paulo <span>/</span> Edição
-            2026
-          </span>
-        </div>
+        {!real && (
+          <div className="desktop-heading">
+            <span>EXPERIÊNCIA DO PARTICIPANTE</span>
+            <span className="event-tag">
+              <i className="live-dot" /> Conecta São Paulo <span>/</span> Edição
+              2026
+            </span>
+          </div>
+        )}
         <div className="experience-layout">
           <section
             className={`app-screen ${page === "login" ? "login-screen" : ""}`}
@@ -1054,7 +1057,7 @@ function App() {
               <div className="login-content">
                 <div className="login-top">
                   <span>SEU PRÓXIMO ENCONTRO</span>
-                  <span className="login-pill">Conecta SP</span>
+                  {!real && <span className="login-pill">Conecta SP</span>}
                 </div>
                 <div className="login-hero">
                   <span className="hero-logo">
@@ -1070,7 +1073,7 @@ function App() {
                   </p>
                   <div className="hero-line" />
                 </div>
-                {loginForm ? (
+                {loginForm || (real && !canRegister) ? (
                   <form className="login-form" onSubmit={loginSubmit}>
                     <h3>
                       {inviteName
@@ -1082,7 +1085,7 @@ function App() {
                         ? registering
                           ? inviteName
                             ? "Sua conta será vinculada a este evento. Complete o perfil após o cadastro."
-                            : "Crie uma conta no evento de desenvolvimento."
+                            : "Crie sua conta para começar."
                           : inviteName
                             ? "Entre para vincular sua participação a este evento."
                             : "Entre com sua conta. Seu vínculo determina a navegação."
@@ -1117,18 +1120,22 @@ function App() {
                       {real
                         ? registering
                           ? "Criar conta"
-                          : "Entrar no evento"
+                          : inviteName
+                            ? "Entrar no evento"
+                            : "Entrar"
                         : "Entrar na demonstração"}{" "}
                       <Icon name="arrow" size={18} />
                     </button>
-                    <button
-                      className="text-button light"
-                      type="button"
-                      onClick={() => setLoginForm(false)}
-                    >
-                      Voltar
-                    </button>
-                    {real && (
+                    {canRegister && (
+                      <button
+                        className="text-button light"
+                        type="button"
+                        onClick={() => setLoginForm(false)}
+                      >
+                        Voltar
+                      </button>
+                    )}
+                    {real && canRegister && (
                       <button
                         className="text-button light"
                         type="button"
@@ -1149,52 +1156,62 @@ function App() {
                     >
                       Entrar <Icon name="arrow" size={18} />
                     </button>
-                    <button
-                      className="secondary glass"
-                      onClick={() => {
-                        if (real) {
-                          setRegistering(true);
-                          setLoginForm(true);
-                        } else navigate("perfil");
-                      }}
-                    >
-                      Criar conta
-                    </button>
+                    {canRegister && (
+                      <button
+                        className="secondary glass"
+                        onClick={() => {
+                          if (real) {
+                            setRegistering(true);
+                            setLoginForm(true);
+                          } else navigate("perfil");
+                        }}
+                      >
+                        Criar conta
+                      </button>
+                    )}
+                    {canRegister && (
+                      <button
+                        className="demo-link"
+                        onClick={() => {
+                          if (real) {
+                            setRegistering(true);
+                            setLoginForm(true);
+                          } else navigate("perfil");
+                        }}
+                      >
+                        {real
+                          ? "Criar uma nova conta"
+                          : "Explorar demonstração"}{" "}
+                        <Icon name="arrow" size={15} />
+                      </button>
+                    )}
+                  </div>
+                )}
+                {canRegister && (
+                  <div className="login-social-options">
                     <div className="or">
                       <span />
-                      ou
+                      ou continue com
                       <span />
                     </div>
-                    <button className="social" disabled>
+                    <button className="social" type="button" disabled>
                       <span className="google-mark">G</span> Continuar com
                       Google <small>Em breve</small>
                     </button>
-                    <button className="social" disabled>
+                    <button className="social" type="button" disabled>
                       <span className="apple-mark">●</span> Continuar com Apple{" "}
                       <small>Em breve</small>
-                    </button>
-                    <button
-                      className="demo-link"
-                      onClick={() => {
-                        if (real) {
-                          setRegistering(true);
-                          setLoginForm(true);
-                        } else navigate("perfil");
-                      }}
-                    >
-                      {real ? "Criar uma nova conta" : "Explorar demonstração"}{" "}
-                      <Icon name="arrow" size={15} />
                     </button>
                   </div>
                 )}
                 <p className="login-terms">
                   Sua próxima boa conversa está aqui.
                   <br />
-                  <span>
-                    {real
-                      ? "Ambiente DEBUG com autenticação e dados reais no banco."
-                      : "Prévia com dados fictícios. Nenhuma conta é criada."}
-                  </span>
+                  {!real && (
+                    <span>
+                      Prévia com dados fictícios. Nenhuma conta é criada.
+                    </span>
+                  )}
                 </p>
               </div>
             ) : (
@@ -1398,7 +1415,9 @@ function App() {
                         className="profile-readonly-fields"
                       >
                         <h2>
-                          Vamos criar seu perfil{" "}
+                          {real && serverData?.onboardingComplete
+                            ? "Meu perfil"
+                            : "Vamos criar seu perfil"}{" "}
                           <span className="tiny-spark">✦</span>
                         </h2>
                         <p className="subtitle">
@@ -1592,6 +1611,20 @@ function App() {
                           }}
                         />
                       </fieldset>
+                      <section
+                        className="profile-account"
+                        aria-label="Conta do participante"
+                      >
+                        <h3>Conta</h3>
+                        <button
+                          type="button"
+                          className="account-logout"
+                          disabled={busy}
+                          onClick={() => void run(leave)}
+                        >
+                          Sair da conta
+                        </button>
+                      </section>
                     </form>
                   )}
                   {page === "filtros" && !serverData?.event.readOnly && (
@@ -1775,7 +1808,7 @@ function App() {
                         </div>
                         <div className="discovery-meta">
                           <span>
-                            <i className="live-dot" /> Conecta São Paulo
+                            <i className="live-dot" /> {eventName}
                           </span>
                           <span>
                             {
@@ -1827,10 +1860,12 @@ function App() {
                                   <Icon name="work" size={14} />
                                   {candidate.job}
                                 </p>
-                                <p>
-                                  <Icon name="pin" size={14} />
-                                  São Paulo, SP
-                                </p>
+                                {(candidate.city || !real) && (
+                                  <p>
+                                    <Icon name="pin" size={14} />
+                                    {candidate.city || "São Paulo, SP"}
+                                  </p>
+                                )}
                                 <div className="person-tags">
                                   {candidate.interests.map((i) => (
                                     <span key={i}>{i}</span>
@@ -2207,7 +2242,13 @@ function App() {
                       )}
                     </div>
                   )}
-                {["descobrir", "mensagens", "participantes"].includes(page) && (
+                {[
+                  "descobrir",
+                  "mensagens",
+                  "participantes",
+                  "perfil",
+                  "filtros",
+                ].includes(page) && (
                   <nav className="bottom-nav" aria-label="Navegação principal">
                     {(
                       [
@@ -2227,9 +2268,19 @@ function App() {
                     ).map((item) => (
                       <button
                         key={item.page}
-                        className={page === item.page ? "active" : ""}
+                        className={
+                          page === item.page ||
+                          (page === "filtros" && item.page === "descobrir")
+                            ? "active"
+                            : ""
+                        }
                         onClick={() => navigate(item.page)}
-                        aria-current={page === item.page ? "page" : undefined}
+                        aria-current={
+                          page === item.page ||
+                          (page === "filtros" && item.page === "descobrir")
+                            ? "page"
+                            : undefined
+                        }
                       >
                         <Icon name={item.icon} size={22} />
                         <span>{item.text}</span>
@@ -2244,81 +2295,83 @@ function App() {
               </>
             )}
           </section>
-          <aside className="context-panel">
-            <span className="eyebrow">
-              {String(stage + 1).padStart(2, "0")} / A SUA EXPERIÊNCIA
-            </span>
-            <h2>
-              {[
-                "Toda conexão tem|um começo.",
-                "Seja você.|É o melhor jeito.",
-                "Sua vibe.|Suas conexões.",
-                "O próximo encontro|pode estar aqui.",
-                "Um match.|Muitas histórias.",
-                "Gente interessante.|No mesmo lugar.",
-              ][stage]
-                .split("|")
-                .map((line, i) => (
-                  <span key={line}>
-                    {line}
-                    {i === 0 && <br />}
-                  </span>
-                ))}
-            </h2>
-            <p>
-              {stages[stage].description} Descubra uma experiência feita para
-              aproximar pessoas no mundo real.
-            </p>
-            <div className="event-preview">
-              <span className="event-art">
-                <Icon name="people" size={32} />
-                <span>
-                  conecta<span>2026</span>
-                </span>
+          {!real && (
+            <aside className="context-panel">
+              <span className="eyebrow">
+                {String(stage + 1).padStart(2, "0")} / A SUA EXPERIÊNCIA
               </span>
-              <div>
-                <small>VOCÊ ESTÁ EM</small>
-                <strong>Conecta São Paulo</strong>
-                <span>
-                  <Icon name="pin" size={13} /> São Paulo · edição 2026
-                </span>
-              </div>
-            </div>
-            <div className="community">
-              <div className="avatar-stack">
-                {people.slice(0, 4).map((p) => (
-                  <img key={p.id} src={p.image} alt="" />
-                ))}
-              </div>
-              <span>
-                <strong>{people.length} pessoas</strong> prontas para se
-                conectar
-              </span>
-            </div>
-            <div className="context-tip">
-              <span>✦</span>
+              <h2>
+                {[
+                  "Toda conexão tem|um começo.",
+                  "Seja você.|É o melhor jeito.",
+                  "Sua vibe.|Suas conexões.",
+                  "O próximo encontro|pode estar aqui.",
+                  "Um match.|Muitas histórias.",
+                  "Gente interessante.|No mesmo lugar.",
+                ][stage]
+                  .split("|")
+                  .map((line, i) => (
+                    <span key={line}>
+                      {line}
+                      {i === 0 && <br />}
+                    </span>
+                  ))}
+              </h2>
               <p>
-                {page === "perfil"
-                  ? "Um perfil completo faz toda a diferença. Escolha fotos que contem a sua história."
-                  : page === "filtros"
-                    ? "Seus filtros podem mudar junto com você. Ajuste quando quiser."
-                    : "As melhores conexões começam quando você se permite conhecer alguém novo."}
+                {stages[stage].description} Descubra uma experiência feita para
+                aproximar pessoas no mundo real.
               </p>
-            </div>
-            <span className="context-footnote">
-              {real
-                ? "DEBUG · dados do banco de desenvolvimento"
-                : "Demonstração visual · dados fictícios"}
-            </span>
-          </aside>
+              <div className="event-preview">
+                <span className="event-art">
+                  <Icon name="people" size={32} />
+                  <span>
+                    conecta<span>2026</span>
+                  </span>
+                </span>
+                <div>
+                  <small>VOCÊ ESTÁ EM</small>
+                  <strong>Conecta São Paulo</strong>
+                  <span>
+                    <Icon name="pin" size={13} /> São Paulo · edição 2026
+                  </span>
+                </div>
+              </div>
+              <div className="community">
+                <div className="avatar-stack">
+                  {people.slice(0, 4).map((p) => (
+                    <img key={p.id} src={p.image} alt="" />
+                  ))}
+                </div>
+                <span>
+                  <strong>{people.length} pessoas</strong> prontas para se
+                  conectar
+                </span>
+              </div>
+              <div className="context-tip">
+                <span>✦</span>
+                <p>
+                  {page === "perfil"
+                    ? "Um perfil completo faz toda a diferença. Escolha fotos que contem a sua história."
+                    : page === "filtros"
+                      ? "Seus filtros podem mudar junto com você. Ajuste quando quiser."
+                      : "As melhores conexões começam quando você se permite conhecer alguém novo."}
+                </p>
+              </div>
+              <span className="context-footnote">
+                Demonstração visual · dados fictícios
+              </span>
+            </aside>
+          )}
         </div>
-        <footer className="desktop-footer">
-          <span>EventConnect © 2026</span>
-          <span>Conexões que saem da tela.</span>
-          <button onClick={leave}>
-            Voltar ao início <Icon name="arrow" size={14} />
-          </button>
-        </footer>
+        {!real && (
+          <footer className="desktop-footer">
+            <span>EventConnect © 2026</span>
+            <span>Conexões que saem da tela.</span>
+            <button onClick={() => void run(leave)}>
+              Voltar ao início <Icon name="arrow" size={14} />
+            </button>
+          </footer>
+        )}
       </main>
       {toast && (
         <div className="toast" role="status">
@@ -2375,13 +2428,26 @@ function App() {
                 </span>
               </h2>
               <p className="modal-location">
-                <Icon name="pin" size={15} />
-                São Paulo, SP · {details.job}
+                {details.city && (
+                  <>
+                    <Icon name="pin" size={15} />
+                    {details.city} ·{" "}
+                  </>
+                )}
+                {!real && !details.city && (
+                  <>
+                    <Icon name="pin" size={15} />
+                    São Paulo, SP ·{" "}
+                  </>
+                )}
+                {details.job}
               </p>
-              <p>
-                {details.bio ||
-                  "Gosto de boas conversas, novas experiências e pessoas que têm histórias para contar. Vamos nos conhecer?"}
-              </p>
+              {(details.bio || !real) && (
+                <p>
+                  {details.bio ||
+                    "Gosto de boas conversas, novas experiências e pessoas que têm histórias para contar. Vamos nos conhecer?"}
+                </p>
+              )}
               <div className="chips">
                 {details.interests.map((item) => (
                   <span className="chip" key={item}>
