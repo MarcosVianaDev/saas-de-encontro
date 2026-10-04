@@ -128,6 +128,7 @@ class Command(BaseCommand):
         self.ensure("moderation.ModerationAction", "action", case=case, actor=owner, description="Registro fictício de providência.")
         self.ensure("moderation.ModerationNote", "note", case=case, author=owner, body="Nota fictícia.")
         self.ensure("moderation.UserSuspension", "suspension", user=sample_user, reason="Exemplo encerrado", ends_at=now - timedelta(days=1))
+        self.ensure('moderation.EventSuspension', 'event.suspension', participant=old_target, actor=owner, reason='Exemplo encerrado no evento histórico', ends_at=now - timedelta(days=1))
         self.ensure("moderation.EventBan", "event.ban", participant=old_target, reason="Exemplo de banimento no evento histórico.")
         self.ensure("moderation.RoomBan", "room.ban", room=past_room, participant=old_target, reason="Exemplo histórico.")
         self.ensure("retention.DataRetentionRecord", "retention", participant=old_actor, category="Demonstração; política pendente", scheduled_for=None)

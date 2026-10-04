@@ -7,6 +7,7 @@ class EventParticipant(BaseModel):
     event = models.ForeignKey("events.Event", on_delete=models.PROTECT, related_name="participants")
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="event_participations")
     is_active = models.BooleanField(default=False)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=('event', 'user'), name="participants_eventparticipant_unique")]

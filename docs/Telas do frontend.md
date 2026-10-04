@@ -2,7 +2,7 @@
 
 Referência visual: [screen0.png](screen0.png).
 
-Atualizado em 03/10/2026. Há dois modos de execução: prévia com mocks e fluxo conectado ao Django.
+Atualizado em 04/10/2026. Há dois modos de execução: prévia com mocks e fluxo conectado ao Django.
 
 As seis etapas foram implementadas no frontend React/TypeScript existente, com layout mobile-first, tons violeta, cartões claros, fotos em destaque e navegação inferior. No desktop, uma navegação lateral permite acessar diretamente todas as etapas.
 
@@ -15,9 +15,9 @@ As seis etapas foram implementadas no frontend React/TypeScript existente, com l
 | Mensagens | http://localhost:8080/#mensagens | Busca, lista de conversas e envio; no modo debug, persistência e encerramento de match |
 | Participantes | http://localhost:8080/#participantes | Busca, categorias Todos/Online/Matches, tamanho das miniaturas e detalhes do perfil |
 
-## Telas administrativas previstas
+## Telas administrativas
 
-A área do evento terá navegação Dashboard, Participantes, Moderação, Evento e Mais, usando login compartilhado e autorização por vínculo/papel no backend. Os três fluxos e mockups estão em [Telas administrativas](<Telas administrativas.md>). São requisitos para desenvolvimento futuro, distintos das seis telas do participante e do Django Admin atual; não há endereços React administrativos disponíveis.
+A área do evento possui navegação Dashboard, Participantes, Moderação, Evento e Mais, usando login compartilhado e autorização por vínculo/papel no backend. Os três fluxos e mockups estão em [Telas administrativas](<Telas administrativas.md>). Endereços `#admin-*`, QR Code, permissões, sanções, equipe consultiva e relatório agregado estão descritos em [Administração e ingresso](<Administracao e ingresso no evento.md>). O painel usa a API real; o modo mock continua restrito à prévia do participante. URLs de convite ativam o fluxo real de ingresso mesmo quando o frontend foi configurado em mock.
 
 ## Funcionamento da prévia
 
@@ -47,4 +47,4 @@ O Django Admin continua em `/admin/`. No modo `debug`, autenticação, perfil/fo
 
 No modo conectado, é necessário entrar antes de acessar as etapas. Uma conta nova precisa enviar três fotos e completar o perfil para ativar a participação. A conta demo já tem fotos e conversas iniciais. Atualizar a página recupera o estado do PostgreSQL; erros do backend são apresentados na interface sem usar mocks como alternativa. Login social continua desabilitado.
 
-O teste conectado verificou login, gravação de perfil/filtros, descoberta, participantes e envio real de mensagem, preservada após reload e restart do backend. O backend possui 15 testes aprovados. A cobertura completa das regras do escopo está registrada em [Verificação da implementação](<Verificacao da implementacao.md>).
+O teste conectado do participante verificou login, gravação de perfil/filtros, descoberta, participantes e envio real de mensagem, preservada após reload e restart do backend. A atualização administrativa possui 33 testes Django aprovados e validação no navegador, incluindo decodificação independente do QR Code. A cobertura das regras do escopo está registrada em [Verificação da implementação](<Verificacao da implementacao.md>).

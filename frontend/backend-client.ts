@@ -1,4 +1,4 @@
-import type { Bootstrap, Person, PersonId } from "./types";
+import type { Bootstrap, Person, PersonId, SessionData } from "./types";
 
 let csrfToken = "";
 export class ApiError extends Error {
@@ -16,7 +16,7 @@ function errorText(value: unknown): string {
     return Object.values(value).map(errorText).join(" ");
   return "Não foi possível concluir a operação.";
 }
-async function request<T>(
+export async function request<T>(
   path: string,
   method = "GET",
   body?: unknown,
@@ -52,10 +52,14 @@ export const api = {
     return result;
   },
   async login(email: string, password: string, register = false) {
-    const result = await request<{ csrfToken: string; data: Bootstrap }>(
+    const result = await request<{ csrfToken: string; data: SessionData }>(
       `auth/${register ? "register" : "login"}/`,
       "POST",
-      { email, password },
+      {
+        email,
+        password,
+        invite: new URLSearchParams(location.search).get("invite") || undefined,
+      },
     );
     csrfToken = result.csrfToken;
     return result.data;
@@ -64,7 +68,7 @@ export const api = {
     const result = await request<{ csrfToken: string }>("auth/logout/", "POST");
     csrfToken = result.csrfToken;
   },
-  bootstrap: () => request<Bootstrap>("bootstrap/"),
+  bootstrap: () => request<SessionData>("bootstrap/"),
   conversations: () =>
     request<Pick<Bootstrap, "chats" | "chatStates">>("conversations/"),
   saveProfile: (body: unknown) => request<Bootstrap>("profile/", "PUT", body),

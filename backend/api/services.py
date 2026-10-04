@@ -1,4 +1,5 @@
 from django.db.models import Q
+from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -7,7 +8,7 @@ from apps.discovery.models import ProfileDiscovery
 from apps.interactions.models import Interaction, InteractionHistory
 from apps.matches.models import Match
 from apps.messaging.models import Conversation
-from apps.moderation.models import EventBan, UserSuspension
+from apps.moderation.models import EventBan, UserSuspension, EventSuspension
 from apps.participants.models import EventParticipant
 from apps.profiles.models import ParticipantProfile, ParticipantPreference
 from apps.reports.models import Block
@@ -28,8 +29,14 @@ def current(request, active=False):
         user=request.user, event_id=request.session.get("event_id"))
     if EventBan.objects.filter(participant=participant).exists():
         raise PermissionDenied("Participação indisponível neste evento.")
+    if EventSuspension.objects.filter(participant=participant, revoked_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists():
+        raise PermissionDenied('Sua participação está suspensa neste evento.')
     if active and not participant.is_active:
         raise PermissionDenied("Complete e ative seu perfil antes de continuar.")
+    now = timezone.now()
+    if participant.last_seen_at is None or participant.last_seen_at < now - timedelta(minutes=1):
+        EventParticipant.objects.filter(pk=participant.pk).update(last_seen_at=now)
+        participant.last_seen_at = now
     return participant
 
 
@@ -41,7 +48,8 @@ def visible_participants(participant):
     blocked_ids = list(Block.objects.filter(participant=participant).values_list("target_id", flat=True))
     blocked_ids += list(Block.objects.filter(target=participant).values_list("participant_id", flat=True))
     suspended = UserSuspension.objects.filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).values_list("user_id", flat=True)
-    return EventParticipant.objects.filter(event=participant.event, is_active=True, user__is_active=True, ban__isnull=True).exclude(pk=participant.pk).exclude(pk__in=blocked_ids).exclude(user_id__in=suspended).select_related("profile").prefetch_related("photos").order_by("created_at", "id")
+    event_suspended = EventSuspension.objects.filter(revoked_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).values_list('participant_id', flat=True)
+    return EventParticipant.objects.filter(event=participant.event, is_active=True, user__is_active=True, ban__isnull=True).exclude(pk=participant.pk).exclude(pk__in=blocked_ids).exclude(pk__in=event_suspended).exclude(user_id__in=suspended).select_related("profile").prefetch_related("photos").order_by("created_at", "id")
 
 
 def target_for(participant, target_id):

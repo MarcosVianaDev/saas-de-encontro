@@ -24,13 +24,23 @@ from apps.messaging.models import Message
 from demo.data import DEMO_EVENT_ID
 from .serializers import LoginSerializer, ProfileSerializer, FilterSerializer, DecisionSerializer, MessageSerializer, PhotoDeleteSerializer
 from .services import current, bootstrap, target_for, blocked, visible_participants, match_for, photo_url, ordered_photos, person_payload, record_decision, audit, DEFAULT_FILTERS
+from .event_admin import navigation, invite_event, join_event
+
+
+def login_payload(request):
+    nav = navigation(request)
+    if request.session.get('navigation') == 'participant':
+        nav = {'navigation': 'participant'}
+    if nav['navigation'] == 'administration':
+        return nav
+    return {**bootstrap(current(request)), **nav}
 
 
 class SessionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        authenticated = request.user.is_authenticated and EventParticipant.objects.filter(user=request.user, event_id=request.session.get("event_id")).exists()
+        authenticated = request.user.is_authenticated and (EventParticipant.objects.filter(user=request.user, event_id=request.session.get("event_id")).exists() or request.user.event_administrations.filter(event_id=request.session.get('event_id')).exists())
         return Response({"authenticated": authenticated, "csrfToken": get_token(request),
             "demoEmail": settings.DEMO_USER_EMAIL if settings.DEBUG else None})
 
@@ -47,12 +57,15 @@ class LoginView(APIView):
         user = authenticate(request, username=data["email"].lower(), password=data["password"])
         if user is None:
             raise ValidationError("E-mail ou senha inválidos.")
-        participant = user.event_participations.filter(event_id=DEMO_EVENT_ID).first() or user.event_participations.order_by("created_at").first()
-        if participant is None:
+        token = request.data.get('invite')
+        member = user.event_administrations.order_by('created_at').first()
+        participant = join_event(user, invite_event(token)) if token else user.event_participations.filter(event_id=DEMO_EVENT_ID).first() or user.event_participations.order_by("created_at").first()
+        if participant is None and member is None:
             raise PermissionDenied("Esta conta não participa de um evento.")
         login(request, user)
-        request.session["event_id"] = str(participant.event_id)
-        return Response({"csrfToken": get_token(request), "data": bootstrap(current(request))})
+        request.session['navigation'] = 'participant' if token or not member else 'administration'
+        request.session["event_id"] = str(participant.event_id if token or not member else member.event_id)
+        return Response({"csrfToken": get_token(request), "data": login_payload(request)})
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -61,7 +74,8 @@ class RegisterView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        if not settings.DEBUG:
+        token = request.data.get('invite')
+        if not settings.DEBUG and not token:
             raise PermissionDenied("Autoinscrição na demonstração disponível somente em DEBUG.")
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -70,7 +84,7 @@ class RegisterView(APIView):
             validate_password(data["password"])
         except DjangoValidationError as error:
             raise ValidationError({"password": error.messages})
-        event = get_object_or_404(Event, id=DEMO_EVENT_ID)
+        event = invite_event(token) if token else get_object_or_404(Event, id=DEMO_EVENT_ID)
         try:
             with transaction.atomic():
                 user = get_user_model().objects.create_user(username=data["email"].lower(), email=data["email"].lower(), password=data["password"])
@@ -83,7 +97,8 @@ class RegisterView(APIView):
             raise ValidationError("Este e-mail já está cadastrado.")
         login(request, user)
         request.session["event_id"] = str(event.id)
-        return Response({"csrfToken": get_token(request), "data": bootstrap(participant)}, status=201)
+        request.session['navigation'] = 'participant'
+        return Response({"csrfToken": get_token(request), "data": {**bootstrap(participant), 'navigation': 'participant'}}, status=201)
 
 
 class LogoutView(APIView):
@@ -94,7 +109,7 @@ class LogoutView(APIView):
 
 class BootstrapView(APIView):
     def get(self, request):
-        return Response(bootstrap(current(request)))
+        return Response(login_payload(request))
 
 
 class ProfileView(APIView):

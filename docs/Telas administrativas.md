@@ -1,6 +1,6 @@
 # Telas administrativas do EventConnect
 
-Atualizado em 03/10/2026. Estes fluxos definem requisitos para a área administrativa do evento. O painel React administrativo ainda não está implementado; a administração disponível hoje é o Django Admin em `/admin/`. As seis telas do participante continuam descritas em [Telas do frontend](<Telas do frontend.md>).
+Atualizado em 04/10/2026. Estes fluxos definem requisitos para a área administrativa do evento. O painel React administrativo e seu backend foram implementados; a cobertura e as decisões adotadas estão em [Administração e ingresso](<Administracao e ingresso no evento.md>). O Django Admin permanece disponível em `/admin/`. As seis telas do participante continuam descritas em [Telas do frontend](<Telas do frontend.md>).
 
 ## Referências
 
@@ -68,10 +68,10 @@ A matriz depende da especificação de Equipe e Permissões. O backend deve vali
 - A observação da suspensão aparece opcional em `screen2.png` e obrigatória em `screen3.png`. Sua obrigatoriedade uniforme precisa de definição; motivo, contexto e rastreabilidade permanecem necessários.
 - `screen3.png` mostra período de busca, alteração de responsável, adição de evidência e “Converter em denúncia”. Esses controles precisam de regras antes da implementação. Um sinal não equivale automaticamente a denúncia.
 - O mockup mostra suspensão seguida de resolução. O texto deixa em aberto se suspender resolve automaticamente o caso ou mantém acompanhamento.
-- Permanecem abertos: critérios de atividade recente e Novos, limiares de sinais, duração/condição de suspensão, tipos e autorização de evidências, permissões definitivas, métricas/relatórios e política de retenção. Os estados conceituais não implicam alteração já realizada nos enums do backend.
+- As fontes deixaram abertos critérios de atividade recente e Novos, limiares de sinais, duração/condição de suspensão, evidências, permissões, métricas/relatórios e retenção. O [guia da implementação](<Administracao e ingresso no evento.md>) registra os critérios operacionais adotados e as pendências restantes. Os documentos completos preservam os estados conceituais originais; a implementação usa `is_active`, `EventSuspension` e `EventBan` para compor a situação administrativa.
 
 ## Relação com a implementação atual
 
-Há modelos e registros no Django Admin para eventos, participantes, denúncias, evidências, casos, ações, notas, sanções, auditoria, notificações e métricas. Essa estrutura não comprova os fluxos operacionais descritos aqui. Faltam painel dedicado, autorização completa por evento/papel, métricas automáticas, QR Code seguro de ingresso, fila e decisões de moderação, notificações e histórico administrativo completo.
+O painel dedicado possui autorização por evento/papel, métricas calculadas a partir dos registros, QR Code assinado, participantes, fila e decisões de moderação, notas, sanções por evento, notificações internas e histórico baseado em auditoria. Equipe e relatório são consultivos; coleta/upload de evidências, catálogo formal de motivos, alertas automáticos e tempo real por WebSocket permanecem pendentes. Consulte [Administração e ingresso](<Administracao e ingresso no evento.md>) para a cobertura exata.
 
-Consulte [Verificação da implementação](<Verificacao da implementacao.md>) para a cobertura atual e [Demonstração e API](<Demonstracao e API.md>) para os endpoints existentes. Esta atualização documenta requisitos; não adiciona rotas, endpoints nem comportamento à aplicação.
+Consulte [Verificação da implementação](<Verificacao da implementacao.md>) para a cobertura atual e [Demonstração e API](<Demonstracao e API.md>) para os endpoints do participante. As especificações completas preservam as fontes originais; o guia operacional distingue os requisitos implementados dos que continuam abertos.

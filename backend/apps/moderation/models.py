@@ -4,6 +4,7 @@ from common.models import BaseModel
 
 
 class ModerationCase(BaseModel):
+    priority = models.PositiveSmallIntegerField(default=1, choices=[(0, 'Baixa'), (1, 'Normal'), (2, 'Alta')])
     report = models.ForeignKey("reports.Report", on_delete=models.PROTECT, related_name="moderation_cases")
     assigned_to = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+", null=True, blank=True)
     notes = models.TextField(blank=True)
@@ -40,3 +41,11 @@ class RoomBan(BaseModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=('room', 'participant'), name="moderation_roomban_unique")]
+
+
+class EventSuspension(BaseModel):
+    participant = models.ForeignKey('participants.EventParticipant', on_delete=models.PROTECT, related_name='event_suspensions')
+    actor = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='+')
+    reason = models.TextField()
+    ends_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)

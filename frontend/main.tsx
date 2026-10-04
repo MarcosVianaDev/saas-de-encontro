@@ -8,7 +8,8 @@ import {
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { frontendConfig } from "./config";
-import { api, ApiError } from "./backend-client";
+import { api, ApiError, request } from "./backend-client";
+import { Administration } from "./Administration";
 import type {
   Person,
   PersonId,
@@ -16,6 +17,7 @@ import type {
   Filters,
   Message,
   Bootstrap,
+  SessionData,
 } from "./types";
 
 type Page =
@@ -341,7 +343,10 @@ function Avatar({
   );
 }
 function App() {
-  const real = !frontendConfig.useMocks;
+  const [adminMode, setAdminMode] = useState(false);
+  const invite = new URLSearchParams(location.search).get("invite");
+  const [real] = useState(!frontendConfig.useMocks || !!invite);
+  const [inviteName, setInviteName] = useState("");
   const [people, setPeople] = useState<Person[]>(real ? [] : mockPeople);
   const [remoteDiscovery, setRemoteDiscovery] = useState<Person[]>([]);
   const [authenticated, setAuthenticated] = useState(!real);
@@ -484,7 +489,12 @@ function App() {
       if (previous?.isConnected) previous.focus();
     };
   }, [details, match]);
-  const applyData = (data: Bootstrap) => {
+  const applyData = (data: SessionData) => {
+    if (data.navigation === "administration") {
+      setAdminMode(true);
+      return;
+    }
+    setAdminMode(false);
     setProfile(data.profile);
     setPhotos(data.photos);
     setFilters(data.filters);
@@ -527,14 +537,32 @@ function App() {
     let active = true;
     void (async () => {
       try {
+        if (invite) {
+          const event = await request<{ name: string }>(
+            `join/${encodeURIComponent(invite)}/`,
+          );
+          if (active) {
+            setInviteName(event.name);
+            setEventName(event.name);
+          }
+        }
         const session = await api.session();
         if (!active) return;
         setEmail(session.demoEmail || "");
         if (session.authenticated) {
+          if (invite) {
+            await request(`join/${encodeURIComponent(invite)}/`, "POST");
+            history.replaceState(null, "", location.pathname);
+          }
           const data = await api.bootstrap();
           if (!active) return;
           applyData(data);
           setAuthenticated(true);
+          if (data.navigation === "administration") {
+            if (!location.hash.startsWith("#admin-"))
+              location.hash = "admin-dashboard";
+            return;
+          }
           const next =
             data.active && readPage() !== "login" ? readPage() : "perfil";
           location.hash = next;
@@ -574,7 +602,9 @@ function App() {
       applyData(data);
       setAuthenticated(true);
       setPassword("");
-      location.hash = "perfil";
+      if (invite) history.replaceState(null, "", location.pathname);
+      location.hash =
+        data.navigation === "administration" ? "admin-dashboard" : "perfil";
       setPage("perfil");
       notify("Conectado ao backend. Seus dados serão salvos no banco.");
     });
@@ -793,6 +823,17 @@ function App() {
         (tab === "Online" && p.online) ||
         (tab === "Matches" && p.id in chats)),
   );
+  if (adminMode && authenticated)
+    return (
+      <Administration
+        onLogout={async () => {
+          await api.logout();
+          setAdminMode(false);
+          setAuthenticated(false);
+          navigate("login");
+        }}
+      />
+    );
   return (
     <div
       className={`workspace ${busy ? "is-busy" : ""}`}
@@ -894,12 +935,20 @@ function App() {
                 </div>
                 {loginForm ? (
                   <form className="login-form" onSubmit={loginSubmit}>
-                    <h3>Que bom ter você aqui.</h3>
+                    <h3>
+                      {inviteName
+                        ? `Participar de ${inviteName}`
+                        : "Que bom ter você aqui."}
+                    </h3>
                     <p>
                       {real
                         ? registering
-                          ? "Crie uma conta no evento de desenvolvimento."
-                          : "Entre com a conta de demonstração do backend."
+                          ? inviteName
+                            ? "Sua conta será vinculada a este evento. Complete o perfil após o cadastro."
+                            : "Crie uma conta no evento de desenvolvimento."
+                          : inviteName
+                            ? "Entre para vincular sua participação a este evento."
+                            : "Entre com sua conta. Seu vínculo determina a navegação."
                         : "Acesso de demonstração, sem autenticação real."}
                     </p>
                     <label>
@@ -942,6 +991,15 @@ function App() {
                     >
                       Voltar
                     </button>
+                    {real && (
+                      <button
+                        className="text-button light"
+                        type="button"
+                        onClick={() => setRegistering(!registering)}
+                      >
+                        {registering ? "Já tenho uma conta" : "Criar uma conta"}
+                      </button>
+                    )}
                   </form>
                 ) : (
                   <div className="login-actions">

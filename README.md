@@ -2,7 +2,7 @@
 
 ## Estado atual e execução local
 
-O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante e o backend Django modular com migrações e Django Admin. As telas seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados de demonstração persistidos no PostgreSQL.
+O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante, o painel administrativo do evento e o backend Django modular com migrações e Django Admin. As telas do participante seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados persistidos no PostgreSQL. O painel administrativo segue `docs/screen1.png`, `docs/screen2.png` e `docs/screen3.png` e usa a API autenticada.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
@@ -33,7 +33,7 @@ FRONTEND_DATA_MODE=mock
 
 Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.
 
-Os fluxos previstos de Dashboard, Evento/QR Code, Participantes administrativos e Moderação estão em [Telas administrativas](<docs/Telas administrativas.md>), com especificações completas e referências `screen1.png`, `screen2.png` e `screen3.png`. Essas telas ainda não estão implementadas; o Django Admin permanece como administração disponível.
+O painel React administrativo implementa Dashboard, Evento/QR Code, Participantes, Moderação, Equipe consultiva e Relatório agregado, com base em `screen1.png`, `screen2.png` e `screen3.png`. O login reconhece vínculos e papéis por evento; o QR Code vincula login/cadastro ao evento por convite assinado. Consulte [Administração e ingresso](<docs/Administracao e ingresso no evento.md>) para acesso, permissões e limites atuais, e [Telas administrativas](<docs/Telas administrativas.md>) para os fluxos funcionais.
 
 ### Backend e Django Admin
 
@@ -81,7 +81,7 @@ As imagens de infraestrutura acompanham as séries indicadas; os locks fixam as 
 
 Plataforma SaaS para experiências de encontro e relacionamento vinculadas a eventos e salas, com descoberta de participantes, likes, matches, chat, passes de revelação, moderação, auditoria e ciclo de vida de dados.
 
-> **Status em 03/10/2026:** ambiente Docker funcional, 19 apps no Admin, carga automática em DEBUG e seis telas integradas à API autenticada. As seções seguintes descrevem a arquitetura aprovada e requisitos do produto; não significam que todos estejam implementados. Consulte [Verificação da implementação](<docs/Verificacao da implementacao.md>) para a cobertura atual e as pendências.
+> **Status em 04/10/2026:** ambiente Docker funcional, 19 apps no Admin, carga automática em DEBUG, seis telas do participante, painel administrativo por evento/papel e ingresso por QR Code assinado. As seções seguintes descrevem a arquitetura aprovada e requisitos do produto; não significam que todos estejam implementados. Consulte [Verificação da implementação](<docs/Verificacao da implementacao.md>) para a cobertura atual e as pendências.
 
 ---
 

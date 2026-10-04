@@ -12,9 +12,12 @@ class Block(BaseModel):
 
 
 class Report(BaseModel):
-    reporter = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="reports_sent")
+    reporter = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="reports_sent", null=True, blank=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='+', null=True, blank=True)
     reported = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="reports_received")
     reason = models.TextField()
+    description = models.TextField(blank=True)
+    is_administrative = models.BooleanField(default=False)
 
 
 class ReportEvidence(BaseModel):

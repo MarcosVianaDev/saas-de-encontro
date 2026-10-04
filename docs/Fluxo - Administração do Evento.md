@@ -1,6 +1,6 @@
 # Fluxo de Administração do Evento
 
-> Status: especificação funcional prevista, ainda não implementada. Atualizado em 03/10/2026.
+> Referência funcional preservada do DOCX. Cobertura implementada e limites atualizados em 04/10/2026: [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
 Fonte: [DOCX](<Fluxo - Administração do Evento.md.docx>). Referência visual: [screen1.png](screen1.png). Guia: [Telas administrativas](<Telas administrativas.md>).
 

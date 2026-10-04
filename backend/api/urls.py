@@ -1,7 +1,14 @@
 from django.urls import path
 from . import views
+from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView
 
 urlpatterns = [
+    path('join/<str:token>/', JoinView.as_view()),
+    path('event-admin/', AdminBootstrapView.as_view()),
+    path('event-admin/evidence/<uuid:evidence_id>/content/', AdminEvidenceContentView.as_view()),
+    path('event-admin/photos/<uuid:photo_id>/content/', AdminPhotoContentView.as_view()),
+    path('event-admin/participants/<uuid:participant_id>/action/', AdminParticipantActionView.as_view()),
+    path('event-admin/cases/<uuid:case_id>/action/', AdminCaseActionView.as_view()),
     path("session/", views.SessionView.as_view()),
     path("auth/login/", views.LoginView.as_view()),
     path("auth/register/", views.RegisterView.as_view()),

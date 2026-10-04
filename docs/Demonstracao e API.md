@@ -1,6 +1,6 @@
 # Demonstração persistida e API
 
-Estado verificado em 03/10/2026. Este guia descreve o ambiente local atual.
+Atualizado em 04/10/2026. Este guia descreve a demonstração do participante. O painel administrativo, login por papel e ingresso por convite estão em [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
 Configure no `.env`:
 
@@ -31,8 +31,8 @@ Todos têm prefixo `/api/`; exceto sessão/login e cadastro de DEBUG, exigem ses
 |---|---|---|
 | `health/` | GET | Conexões com PostgreSQL e Redis, sem login |
 | `session/` | GET | Sessão e token CSRF |
-| `auth/login/`, `auth/register/`, `auth/logout/` | POST | Autenticação, cadastro de DEBUG, logout |
-| `bootstrap/` | GET | Estado inicial das telas |
+| `auth/login/`, `auth/register/`, `auth/logout/` | POST | Login identifica a navegação; `invite` vincula login/cadastro ao evento; cadastro sem convite somente em DEBUG; logout |
+| `bootstrap/` | GET | Estado do participante ou discriminador da navegação administrativa |
 | `profile/` | GET, PUT | Perfil próprio e ativação |
 | `profile/photos/` | POST, DELETE | Upload multipart `file`, remoção por `url` |
 | `photos/<uuid>/content/` | GET | Foto enviada com autorização |
@@ -52,4 +52,4 @@ Imagens enviadas ficam em `backend/media/` (ignorado no Git e persistido pelo bi
 
 Validação: `docker compose exec backend python manage.py test tests api` e `docker compose exec frontend npm run build`. A carga possui testes de idempotência, cobertura das entidades, DEBUG desativado, autenticação/CSRF, isolamento entre eventos, filtros, match, mensagens e acesso a fotos.
 
-Os containers estavam saudáveis na última verificação, com 15 testes e compilação aprovados. Mensagens foram preservadas após reload e reinicialização do Django. `docker compose down` preserva os volumes; uploads ficam no diretório local `backend/media/`. O estado de cobertura e as funcionalidades pendentes estão em [Verificação da implementação](<Verificacao da implementacao.md>).
+Na atualização de 04/10/2026, 33 testes Django e a compilação foram aprovados. A verificação anterior confirmou mensagens preservadas após reload e reinicialização do Django. `docker compose down` preserva os volumes; uploads ficam no diretório local `backend/media/`. O estado de cobertura e as funcionalidades pendentes estão em [Verificação da implementação](<Verificacao da implementacao.md>).

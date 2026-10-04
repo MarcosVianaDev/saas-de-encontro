@@ -13,3 +13,4 @@ admin.site.register(models.UserSuspension, BaseAdmin)
 admin.site.register(models.EventBan, BaseAdmin)
 
 admin.site.register(models.RoomBan, BaseAdmin)
+admin.site.register(models.EventSuspension, BaseAdmin)

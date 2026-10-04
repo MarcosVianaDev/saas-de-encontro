@@ -31,6 +31,7 @@ export type Filters = {
 };
 export type Message = { text: string; mine: boolean; time: string };
 export type Bootstrap = {
+  navigation?: "participant";
   profile: Profile;
   photos: string[];
   active: boolean;
@@ -44,3 +45,6 @@ export type Bootstrap = {
   saved: PersonId[];
   event: { id: string; name: string };
 };
+export type SessionData =
+  | Bootstrap
+  | { navigation: "administration"; role: "ADMIN" | "MODERATOR" | "OPERATOR" };

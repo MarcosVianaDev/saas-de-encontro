@@ -12,6 +12,7 @@ class Event(BaseModel):
 
 
 class EventAdministrator(BaseModel):
+    role = models.CharField(max_length=20, choices=[('ADMIN', 'Administrador'), ('MODERATOR', 'Moderador'), ('OPERATOR', 'Operador')], default='ADMIN')
     event = models.ForeignKey("events.Event", on_delete=models.PROTECT, related_name="administrators")
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="event_administrations")
 
