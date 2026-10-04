@@ -1,6 +1,6 @@
 # SaaS de Encontro
 
-## Ambiente Docker mínimo instalado
+## Estado atual e execução local
 
 O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante e o backend Django modular com migrações e Django Admin. As telas seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados de demonstração persistidos no PostgreSQL.
 
@@ -9,7 +9,7 @@ O ambiente contém a infraestrutura, as seis telas React/TypeScript do participa
 - Node 26.10.0 Current, React/TypeScript e Vite; dependências fixadas em `frontend/package-lock.json`.
 - PostgreSQL 18, Redis 8, Nginx stable e Traefik 3 em containers.
 - Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. Apenas a porta local 8080 é publicada.
-- PostgreSQL e Redis usam volumes persistentes. Storage local/MinIO e Celery Beat ficam para uma próxima etapa.
+- PostgreSQL e Redis usam volumes persistentes. Fotos enviadas usam storage local em `backend/media/`, persistido pelo bind mount. MinIO/S3 e Celery Beat ficam para uma próxima etapa.
 
 Na primeira execução, copie `.env.example` para `.env` e substitua os segredos de exemplo. O arquivo `.env` local já foi gerado com valores aleatórios e não deve ser versionado.
 
@@ -79,7 +79,7 @@ As imagens de infraestrutura acompanham as séries indicadas; os locks fixam as 
 
 Plataforma SaaS para experiências de encontro e relacionamento vinculadas a eventos e salas, com descoberta de participantes, likes, matches, chat, passes de revelação, moderação, auditoria e ciclo de vida de dados.
 
-> **Status:** estruturação técnica inicial. Este documento consolida a arquitetura definida para orientar a criação do repositório e o início do desenvolvimento. Itens ainda não fechados no escopo estão explicitamente marcados como **A definir**.
+> **Status em 03/10/2026:** ambiente Docker funcional, 19 apps no Admin, carga automática em DEBUG e seis telas integradas à API autenticada. As seções seguintes descrevem a arquitetura aprovada e requisitos do produto; não significam que todos estejam implementados. Consulte [Verificação da implementação](<docs/Verificacao da implementacao.md>) para a cobertura atual e as pendências.
 
 ---
 
@@ -488,7 +488,7 @@ Se o usuário confirmar o novo LIKE, o histórico antigo continua registrado, ma
 
 A API será implementada com **Django REST Framework**.
 
-A organização exata de URLs, versionamento (`/api/v1/`, por exemplo), autenticação de API e formato padronizado de erros ainda devem ser formalmente definidos.
+A API atual usa `/api/`, sessão Django e CSRF nas escritas. Os endpoints estão em [Demonstração e API](<docs/Demonstracao e API.md>). Versionamento, autenticação de produção e formato definitivo de erros ainda devem ser formalmente definidos.
 
 Os recursos da API deverão respeitar os limites de contexto:
 
