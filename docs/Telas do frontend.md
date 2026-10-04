@@ -17,7 +17,7 @@ As seis etapas foram implementadas no frontend React/TypeScript existente, com l
 
 ## Telas administrativas
 
-A área do evento possui navegação Dashboard, Participantes, Moderação, Evento e Mais, usando login compartilhado e autorização por vínculo/papel no backend. Os três fluxos e mockups estão em [Telas administrativas](<Telas administrativas.md>). Endereços `#admin-*`, QR Code, permissões, sanções, equipe consultiva e relatório agregado estão descritos em [Administração e ingresso](<Administracao e ingresso no evento.md>). O painel usa a API real; o modo mock continua restrito à prévia do participante. URLs de convite ativam o fluxo real de ingresso mesmo quando o frontend foi configurado em mock.
+A área do evento possui navegação Dashboard, Participantes, Moderação, Evento e Mais. No modo conectado, usa login compartilhado e autorização por vínculo/papel no backend. No modo mock, **Explorar administração** ou `#admin-dashboard` abre a demonstração com dados locais e ações em memória, sem login ou consultas à API. Os três fluxos e mockups estão em [Telas administrativas](<Telas administrativas.md>). Endereços `#admin-*`, QR Code, simulação de papéis/eventos, sanções, equipe e relatório agregado estão descritos em [Administração e ingresso](<Administracao e ingresso no evento.md>). O QR Code mock abre uma prévia vinculada visualmente ao evento; o cadastro real por convite exige o modo conectado.
 
 ## Funcionamento da prévia
 

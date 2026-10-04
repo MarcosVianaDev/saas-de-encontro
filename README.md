@@ -32,7 +32,7 @@ O `.env` seleciona a fonte de dados do frontend:
 FRONTEND_DATA_MODE=mock
 ```
 
-- `mock`: usa a demonstração com dados fictícios mantidos pelo próprio frontend.
+- `mock`: usa dados fictícios no frontend para participantes e administração. **Explorar administração** ou `#admin-dashboard` abre participantes, ocorrências, equipe, relatório e QR Code demonstrativo. Papéis e estados do evento podem ser simulados; ações ficam em memória e são restauradas após reload.
 - `debug`: conecta as seis telas à API real: login, perfil/fotos, filtros, descobertas, matches, favoritos, participantes e mensagens persistidos. Não há fallback para mocks.
 
 Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import { request } from "./backend-client";
+import { adminMock } from "./administration-mock";
 import "./administration.css";
 
-type Participant = {
+export type Participant = {
   id: string;
   name: string;
   age: number | null;
@@ -20,7 +21,7 @@ type Participant = {
   blocks: number | null;
 };
 type Entry = { id: string; author: string; body: string; created: string };
-type Case = {
+export type Case = {
   id: string;
   reference: string;
   reason: string;
@@ -38,7 +39,7 @@ type Case = {
   history: Entry[];
   evidence: { id: string; description: string; content: string | null }[];
 };
-type AdminData = {
+export type AdminData = {
   role: string;
   events: { id: string; name: string; role: string }[];
   event: {
@@ -99,9 +100,12 @@ function Badge({ children }: { children: string }) {
 
 export function Administration({
   onLogout,
+  mock = false,
 }: {
   onLogout: () => Promise<void>;
+  mock?: boolean;
 }) {
+  const adminRequest = mock ? adminMock.request : request;
   const [data, setData] = useState<AdminData | null>(null);
   const readPage = (): Page => {
     const value = location.hash.replace("#admin-", "");
@@ -157,14 +161,14 @@ export function Administration({
     return () => window.removeEventListener("hashchange", changed);
   }, []);
   const fetchData = async () => {
-    const result = await request<AdminData>("event-admin/");
+    const result = await adminRequest<AdminData>("event-admin/");
     setData(result);
   };
   useEffect(() => {
     let disposed = false;
     const refresh = async () => {
       try {
-        const result = await request<AdminData>("event-admin/");
+        const result = await adminRequest<AdminData>("event-admin/");
         if (!disposed) setData(result);
       } catch (e) {
         if (!disposed)
@@ -242,7 +246,7 @@ export function Administration({
   const execute = async (e: FormEvent) => {
     e.preventDefault();
     await run(async () => {
-      await request(
+      await adminRequest(
         caseId
           ? `event-admin/cases/${caseId}/action/`
           : `event-admin/participants/${personId}/action/`,
@@ -440,7 +444,7 @@ export function Administration({
               value={data.event.id}
               onChange={(e) =>
                 void run(async () => {
-                  await request("event-admin/", "POST", {
+                  await adminRequest("event-admin/", "POST", {
                     event: e.target.value,
                   });
                   await fetchData();
@@ -457,6 +461,53 @@ export function Administration({
           )}
           <Badge>{roleLabels[data.role]}</Badge>
         </header>
+        {mock && (
+          <section
+            className="adm-card adm-actions"
+            aria-label="Controles da demonstração"
+          >
+            <span>Prévia administrativa · dados fictícios em memória</span>
+            <label>
+              Papel de demonstração
+              <select
+                aria-label="Papel de demonstração"
+                value={data.role}
+                onChange={(e) =>
+                  void run(async () => {
+                    adminMock.setRole(e.target.value);
+                    await fetchData();
+                    navigate("dashboard");
+                  })
+                }
+              >
+                {Object.entries(roleLabels).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={() =>
+                void run(async () => {
+                  adminMock.reset();
+                  await fetchData();
+                  navigate("dashboard");
+                  setNotice("Demonstração restaurada.");
+                })
+              }
+            >
+              Restaurar demonstração
+            </button>
+            <button
+              onClick={() => {
+                location.hash = "perfil";
+              }}
+            >
+              Explorar participante
+            </button>
+          </section>
+        )}
         {error && (
           <div className="adm-alert" role="alert">
             {error}
@@ -758,7 +809,7 @@ export function Administration({
                       <button
                         onClick={() =>
                           void run(async () => {
-                            await request(
+                            await adminRequest(
                               `event-admin/cases/${occurrence.id}/action/`,
                               "POST",
                               { action: "assume" },
@@ -1270,8 +1321,9 @@ export function Administration({
                       <li>Complete seu perfil para participar.</li>
                     </ol>
                     <small>
-                      O link expira em 30 dias e deixa de aceitar ingressos ao
-                      encerrar o evento.
+                      {mock
+                        ? "QR Code demonstrativo: abre a prévia do participante neste evento, sem cadastro no banco."
+                        : "O link expira em 30 dias e deixa de aceitar ingressos ao encerrar o evento."}
                     </small>
                   </section>
                 ) : (

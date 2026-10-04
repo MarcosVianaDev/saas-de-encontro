@@ -10,6 +10,7 @@ import "./styles.css";
 import { frontendConfig } from "./config";
 import { api, ApiError, request } from "./backend-client";
 import { Administration } from "./Administration";
+import { mockEventInfo } from "./administration-mock";
 import type {
   Person,
   PersonId,
@@ -343,10 +344,17 @@ function Avatar({
   );
 }
 function App() {
-  const [adminMode, setAdminMode] = useState(false);
+  const [adminMode, setAdminMode] = useState(
+    frontendConfig.useMocks &&
+      !new URLSearchParams(location.search).has("invite") &&
+      location.hash.startsWith("#admin-"),
+  );
   const invite = new URLSearchParams(location.search).get("invite");
-  const [real] = useState(!frontendConfig.useMocks || !!invite);
-  const [inviteName, setInviteName] = useState("");
+  const [real] = useState(!frontendConfig.useMocks);
+  const mockEvent = frontendConfig.useMocks
+    ? mockEventInfo(new URLSearchParams(location.search).get("demoEvent"))
+    : undefined;
+  const [inviteName, setInviteName] = useState(mockEvent?.name || "");
   const [people, setPeople] = useState<Person[]>(real ? [] : mockPeople);
   const [remoteDiscovery, setRemoteDiscovery] = useState<Person[]>([]);
   const [authenticated, setAuthenticated] = useState(!real);
@@ -358,7 +366,9 @@ function App() {
   const [registering, setRegistering] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [eventName, setEventName] = useState("Conecta São Paulo");
+  const [eventName, setEventName] = useState(
+    mockEvent?.name || "Conecta São Paulo",
+  );
 
   const [page, setPage] = useState<Page>(readPage);
   const [profile, setProfile] = useState<Profile>(
@@ -437,6 +447,7 @@ function App() {
   };
   useEffect(() => {
     const onHash = () => {
+      if (!real) setAdminMode(location.hash.startsWith("#admin-"));
       setPage(readPage());
       setDetails(null);
       setMatch(null);
@@ -826,10 +837,11 @@ function App() {
   if (adminMode && authenticated)
     return (
       <Administration
+        mock={!real}
         onLogout={async () => {
-          await api.logout();
+          if (real) await api.logout();
           setAdminMode(false);
-          setAuthenticated(false);
+          setAuthenticated(!real);
           navigate("login");
         }}
       />
@@ -839,6 +851,23 @@ function App() {
       className={`workspace ${busy ? "is-busy" : ""}`}
       aria-busy={busy || !ready}
     >
+      {!real && (
+        <div className="backend-ribbon" role="status">
+          <span>
+            Demonstração ·{" "}
+            {mockEvent ? `Ingresso em ${mockEvent.name}` : "Participante"}
+          </span>
+          <button
+            onClick={() => {
+              setAdminMode(true);
+              setAuthenticated(true);
+              location.hash = "admin-dashboard";
+            }}
+          >
+            Explorar administração
+          </button>
+        </div>
+      )}
       {real && (
         <div className="backend-ribbon" role="status">
           {!ready

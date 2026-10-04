@@ -14,6 +14,8 @@ Fixtures incluem 12 pessoas, oito conversas, perfis/fotos, preferências, intera
 
 ## Novos fluxos administrativos documentados
 
+O frontend também oferece demonstração administrativa em `FRONTEND_DATA_MODE=mock`: três estados de evento, participantes com situações distintas, ocorrências, evidências fictícias, notas/histórico, bloqueios, equipe e relatório. As ações operam em memória e não consultam a API. A verificação no navegador cobre suspensão/reativação, assumir/adicionar nota/resolver/reabrir, simulação de papéis, troca de evento, QR Code demonstrativo e todas as áreas em 320, 375, 768 e 1440 pixels, confirmando ausência de chamadas ao backend.
+
 Foram incorporados os três documentos de administração do evento e os mockups `screen1.png`, `screen2.png` e `screen3.png`, reunidos em [Telas administrativas](<Telas administrativas.md>). Eles especificam Dashboard, Evento/QR Code, lista/ficha de participantes, filtros, sanções e fila/investigação/decisões de moderação. As versões Markdown preservam os textos originais.
 
 O painel React administrativo, direcionamento por papel/vínculo após login, ingresso por convite assinado, permissões por evento e ciclo de moderação foram implementados. Há suspensão por participação, banimento, notas, resolução/reabertura, histórico de auditoria, indicadores de bloqueios e evidências autorizadas. Métricas são calculadas na consulta; atividade recente utiliza `last_seen_at`. Equipe e relatório são consultivos. Detalhes e limites: [Administração e ingresso](<Administracao e ingresso no evento.md>).

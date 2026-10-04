@@ -4,7 +4,13 @@ Implementado em 04/10/2026, com base nos [fluxos e mockups administrativos](<Tel
 
 ## Executar e acessar
 
-Use `FRONTEND_DATA_MODE=debug` para conectar o frontend ao Django. Após atualizar o código:
+O ambiente está configurado com `FRONTEND_DATA_MODE=mock`, incluindo as telas administrativas. Abra http://192.168.1.32:8080/#admin-dashboard ou use **Explorar administração** na prévia do participante. Não é necessário fazer login.
+
+A demonstração administrativa contém 12 participantes com situações distintas, quatro ocorrências com relato/notas/histórico/evidências fictícios, indicadores de bloqueios, quatro membros da equipe e métricas agregadas. O seletor apresenta eventos em andamento, agendados e encerrados; o controle de papel permite simular Administrador, Moderador e Operador. Suspensão, reativação, banimento, notas, resolução/reabertura e criação de ocorrências alteram apenas dados em memória. **Restaurar demonstração** ou recarregar a página restaura os exemplos.
+
+No modo mock, o QR Code aponta para `/?demoEvent=<identificador>#login`, abrindo a prévia do participante com o nome do evento. Não cria contas nem participações no banco. As telas administrativas não consultam a API neste modo. O modo definido no `.env` vale também para URLs com convite; o ingresso real exige `FRONTEND_DATA_MODE=debug`.
+
+Para conectar o frontend ao Django, altere para `FRONTEND_DATA_MODE=debug` e recrie o frontend. As instruções seguintes de login, autorização, cadastro e API referem-se ao modo conectado. Após atualizar o código:
 
 ```powershell
 docker compose up -d --build --wait

@@ -532,6 +532,12 @@
   }
 }
 @media (max-width: 760px) {
+  .adm-topbar {
+    flex-wrap: wrap;
+  }
+  .adm-topbar > div {
+    flex-basis: 100%;
+  }
   .adm-sidebar {
     display: none;
   }
