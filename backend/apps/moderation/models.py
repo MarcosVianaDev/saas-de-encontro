@@ -30,6 +30,10 @@ class UserSuspension(BaseModel):
 
 
 class EventBan(BaseModel):
+    location_anomaly=models.ForeignKey('participants.LocationAnomaly',on_delete=models.PROTECT,null=True,blank=True,related_name='event_bans')
+    revoked_at=models.DateTimeField(null=True,blank=True)
+    revoked_by=models.ForeignKey('accounts.User',on_delete=models.PROTECT,null=True,blank=True,related_name='+')
+    revocation_reason=models.TextField(blank=True)
     participant = models.OneToOneField("participants.EventParticipant", on_delete=models.PROTECT, related_name="ban")
     reason = models.TextField()
 

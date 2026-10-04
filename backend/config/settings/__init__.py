@@ -50,6 +50,11 @@ DATABASES = {"default": {
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [REDIS_URL]}}}
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
+CELERY_BEAT_SCHEDULE = {
+    'event-lifecycle': {'task': 'apps.events.tasks.synchronize_events', 'schedule': 30.0},
+    'pass-expiration': {'task':'apps.passes.tasks.expire','schedule':30.0},
+    'scheduled-announcements': {'task':'apps.notifications.tasks.dispatch_announcements','schedule':30.0},
+}
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
@@ -61,6 +66,7 @@ SESSION_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
 MEDIA_ROOT = BASE_DIR / "media"
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER':'api.exceptions.exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
 }

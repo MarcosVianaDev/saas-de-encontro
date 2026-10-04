@@ -1,5 +1,7 @@
 # Documentação do SaaS de Encontro
 
+> Atualização de implementação: as etapas 1 a 8 foram concluídas. Consulte [cobertura e validação](<Implementacao - etapas 1 a 8.md>), [cards concluídos](<trilha de implementacao(fechado).md>) e [backlog das etapas seguintes](<trilha de implementacao(aberto).md>).
+
 Consolidação e análise em 04/10/2026, abrangendo o README do projeto, os documentos Markdown, os 11 DOCX e os quatro mockups de `docs`. Os Markdown são a referência de leitura e manutenção. Os DOCX originais foram preservados, inclusive as alterações locais existentes.
 
 ## Como consultar

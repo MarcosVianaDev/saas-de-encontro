@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import transaction
 
 
 class BaseAdmin(admin.ModelAdmin):
@@ -6,6 +7,27 @@ class BaseAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "created_at", "updated_at")
     list_per_page = 50
     date_hierarchy = "created_at"
+
+    def save_model(self, request, obj, form, change):
+        from apps.audit.services import record
+        with transaction.atomic():
+            super().save_model(request, obj, form, change)
+            if obj._meta.label_lower != 'audit.auditlog':
+                record(request.user, 'admin.changed' if change else 'admin.created', obj,
+                    changed_fields=form.changed_data)
+
+    def delete_model(self, request, obj):
+        from apps.audit.services import record
+        with transaction.atomic():
+            record(request.user, 'admin.deleted', obj)
+            super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        from apps.audit.services import record
+        with transaction.atomic():
+            for obj in queryset:
+                record(request.user, 'admin.deleted', obj)
+            super().delete_queryset(request, queryset)
 
     def __init__(self, model, admin_site):
         super().__init__(model, admin_site)

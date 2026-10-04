@@ -27,9 +27,11 @@ class EventAdministrationTests(TestCase):
         call_command('seed_demo', stdout=io.StringIO())
         cls.event = Event.objects.get(pk=demo_id('event.current'))
         cls.owner = get_user_model().objects.get(email='admin-demo@eventconnect.local')
+        cls.owner.is_superuser = False
+        cls.owner.save(update_fields=['is_superuser'])
         cls.actor = EventParticipant.objects.get(pk=demo_id('actor'))
         cls.peer = EventParticipant.objects.get(pk=demo_id('person.1'))
-        cls.other_event = Event.objects.create(organization=cls.event.organization, name='Outro evento', ends_at=timezone.now()+timedelta(days=1))
+        cls.other_event = Event.objects.create(organization=cls.event.organization, name='Outro evento', state='OPEN', ends_at=timezone.now()+timedelta(days=1))
 
     def setUp(self):
         self.client = APIClient()
@@ -73,7 +75,8 @@ class EventAdministrationTests(TestCase):
     def test_participant_login_and_no_admin_authority(self):
         self.client.logout()
         response = self.client.post('/api/auth/login/', {'email': self.actor.user.email, 'password': 'Demo-password-2026!'}, format='json')
-        self.assertEqual(response.json()['data']['navigation'], 'participant')
+        self.assertEqual(response.json()['data']['navigation'], 'selection')
+        self.client.post('/api/contexts/',{'key':f'participant:{self.event.pk}'},format='json')
         self.assertEqual(self.client.get('/api/event-admin/').status_code, 404)
         self.assertEqual(self.action('suspend').status_code, 404)
 

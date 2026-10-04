@@ -3,6 +3,17 @@ import QRCode from "qrcode";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
 import "./administration.css";
+import { EventOperations } from "./EventOperations";
+import { EventConfiguration } from "./EventConfiguration";
+import { TeamManagement } from "./TeamManagement";
+import {
+  ParticipantOperation,
+  PassManagement,
+  FinancialReport,
+  Announcements,
+  ProfileIntervention,
+} from "./AdminOperations";
+import { SupportPanel, NotificationCenter } from "./ParticipantExtras";
 
 export type Participant = {
   id: string;
@@ -29,6 +40,7 @@ export type Case = {
   description: string;
   kind: string;
   priority: number;
+  unfounded?: boolean;
   reporter: Participant | null;
   author: string;
   status: string;
@@ -37,12 +49,20 @@ export type Case = {
   responsible: string | null;
   notes: Entry[];
   history: Entry[];
-  evidence: { id: string; description: string; content: string | null }[];
+  evidence: {
+    id: string;
+    description: string;
+    content: string | null;
+    snapshot?: { body?: string; photoChanged?: boolean };
+  }[];
 };
 export type AdminData = {
+  permissions?: string[];
+  globalContext?: boolean;
   role: string;
   events: { id: string; name: string; role: string }[];
   event: {
+    state?: string;
     id: string;
     name: string;
     description: string;
@@ -101,14 +121,16 @@ function Badge({ children }: { children: string }) {
 export function Administration({
   onLogout,
   mock = false,
+  onContext,
 }: {
   onLogout: () => Promise<void>;
   mock?: boolean;
+  onContext?: (global?: boolean) => void;
 }) {
   const adminRequest = mock ? adminMock.request : request;
   const [data, setData] = useState<AdminData | null>(null);
   const readPage = (): Page => {
-    const value = location.hash.replace("#admin-", "");
+    const value = location.hash.replace("#admin-", "").split("?")[0];
     return [
       "dashboard",
       "participants",
@@ -123,7 +145,9 @@ export function Administration({
       : "dashboard";
   };
   const [page, setPage] = useState<Page>(readPage);
-  const [personId, setPersonId] = useState<string | null>(null);
+  const [personId, setPersonId] = useState<string | null>(
+    new URLSearchParams(location.hash.split("?")[1]).get("participant"),
+  );
   const [caseId, setCaseId] = useState<string | null>(null);
   const [origin, setOrigin] = useState<{
     caseId?: string;
@@ -142,6 +166,7 @@ export function Administration({
   const [casePeriod, setCasePeriod] = useState("Todos");
   const [caseOrder, setCaseOrder] = useState("Mais recentes");
   const [action, setAction] = useState<string | null>(null);
+  const [unfounded, setUnfounded] = useState(false);
   const [reason, setReason] = useState("");
   const [selectedReason, setSelectedReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -154,7 +179,9 @@ export function Administration({
   useEffect(() => {
     const changed = () => {
       setPage(readPage());
-      setPersonId(null);
+      setPersonId(
+        new URLSearchParams(location.hash.split("?")[1]).get("participant"),
+      );
       setCaseId(null);
     };
     window.addEventListener("hashchange", changed);
@@ -241,6 +268,7 @@ export function Administration({
     setReason("");
     setSelectedReason("");
     setConfirmed(false);
+    setUnfounded(Boolean(data?.cases.find((c) => c.id === caseId)?.unfounded));
     setAction(next);
   };
   const execute = async (e: FormEvent) => {
@@ -256,6 +284,7 @@ export function Administration({
           reason: [selectedReason, reason].filter(Boolean).join(": "),
           category: action === "report" ? selectedReason : undefined,
           confirmed,
+          unfounded: action === "resolve" ? unfounded : undefined,
         },
       );
       await fetchData();
@@ -272,8 +301,11 @@ export function Administration({
         <button onClick={() => void onLogout()}>Sair</button>
       </main>
     );
-  const moderate = data.role !== "OPERATOR";
+  const moderate =
+    ["ADMIN", "MODERATOR"].includes(data.role) ||
+    Boolean(data.permissions?.includes("reports"));
   const person = data.participants.find((p) => p.id === personId);
+  const readOnly = ["CLOSED", "ARCHIVED"].includes(data.event.state || "");
   const occurrence = data.cases.find((c) => c.id === caseId);
   const signal = data.blockSignals.find((s) => s.participant.id === signalId);
   const pending = data.cases.filter((c) => c.status !== "Resolvida");
@@ -403,7 +435,10 @@ export function Administration({
     </div>
   );
   return (
-    <div className="adm-workspace" aria-busy={busy}>
+    <div
+      className={`adm-workspace ${data.globalContext ? "global-context" : ""}`}
+      aria-busy={busy}
+    >
       <aside className="adm-sidebar">
         <a
           className="adm-brand"
@@ -433,6 +468,30 @@ export function Administration({
         <button onClick={() => void run(onLogout)}>Sair da conta</button>
       </aside>
       <main className="adm-main">
+        {!mock && onContext && (
+          <button
+            className="adm-back"
+            onClick={() => onContext(Boolean(data.globalContext))}
+          >
+            {data.globalContext
+              ? "← Voltar à Administração Global"
+              : "Trocar contexto"}
+          </button>
+        )}
+        {!mock && data.role === "DELEGATED" && (
+          <button
+            onClick={() =>
+              void run(async () => {
+                await request("event-admin/team/", "POST", {
+                  action: "reclaim",
+                });
+                await fetchData();
+              })
+            }
+          >
+            Reassumir administração
+          </button>
+        )}
         <header className="adm-topbar">
           <div>
             <small>PAINEL DO EVENTO</small>
@@ -637,7 +696,7 @@ export function Administration({
                   .map(caseRow)}
               </>
             )}
-            {moderate && (
+            {moderate && !readOnly && (
               <section className="adm-card">
                 <h2>Ações administrativas</h2>
                 <div className="adm-actions">
@@ -664,6 +723,38 @@ export function Administration({
                   )}
                 </div>
               </section>
+            )}
+            {!mock && (
+              <ParticipantOperation
+                id={person.id}
+                manager={data.role === "ADMIN"}
+                historyAllowed={["PAUSED", "CLOSED", "ARCHIVED"].includes(
+                  data.event.state || "",
+                )}
+                canInvestigate={
+                  data.role === "ADMIN" && data.event.state === "PAUSED"
+                }
+                permissions={readOnly ? [] : data.permissions || []}
+                onChanged={() => void fetchData()}
+              />
+            )}
+            {!mock &&
+              !readOnly &&
+              data.permissions?.some((p) =>
+                ["remove_photo", "edit_bio"].includes(p),
+              ) && (
+                <ProfileIntervention
+                  id={person.id}
+                  permissions={data.permissions}
+                  onChanged={() => void fetchData()}
+                />
+              )}
+            {!mock && data.permissions?.includes("passes") && (
+              <PassManagement
+                participantId={person.id}
+                role={data.role}
+                readOnly={readOnly}
+              />
             )}
           </>
         ) : occurrence ? (
@@ -771,6 +862,9 @@ export function Administration({
                   occurrence.evidence.map((e) => (
                     <p key={e.id}>
                       {e.description || "Evidência registrada sem descrição"}
+                      {e.snapshot?.body && (
+                        <blockquote>{e.snapshot.body}</blockquote>
+                      )}
                       {e.content && (
                         <>
                           <br />
@@ -794,55 +888,46 @@ export function Administration({
                 </small>
               </section>
             )}
-            <section className="adm-card">
-              <h2>Decisão e acompanhamento</h2>
-              <div className="adm-actions">
-                {occurrence.status === "Resolvida" ? (
-                  data.role === "ADMIN" && (
-                    <button onClick={() => openAction("reopen")}>
-                      Reabrir ocorrência
-                    </button>
-                  )
-                ) : (
-                  <>
-                    {!occurrence.responsible && (
-                      <button
-                        onClick={() =>
-                          void run(async () => {
-                            await adminRequest(
-                              `event-admin/cases/${occurrence.id}/action/`,
-                              "POST",
-                              { action: "assume" },
-                            );
-                            await fetchData();
-                          })
-                        }
-                      >
-                        Assumir ocorrência
+            {!readOnly && (
+              <section className="adm-card">
+                <h2>Decisão e acompanhamento</h2>
+                <div className="adm-actions">
+                  {occurrence.status === "Resolvida" ? (
+                    data.role === "ADMIN" && (
+                      <button onClick={() => openAction("reopen")}>
+                        Reabrir ocorrência
                       </button>
-                    )}
-                    <button onClick={() => openAction("resolve")}>
-                      Resolver ocorrência
-                    </button>
-                    <button onClick={() => openAction("suspend")}>
-                      Suspender participante
-                    </button>
-                    {data.role === "ADMIN" && (
-                      <button
-                        className="adm-danger-button"
-                        onClick={() => openAction("ban")}
-                      >
-                        Banir do evento
+                    )
+                  ) : (
+                    <>
+                      {!occurrence.responsible && (
+                        <button onClick={() => openAction("assume")}>
+                          Assumir caso
+                        </button>
+                      )}
+                      <button onClick={() => openAction("resolve")}>
+                        Arquivar sem ação
                       </button>
-                    )}
-                  </>
-                )}
-              </div>
-              <small>
-                Sanções permanecem em acompanhamento até a resolução explícita
-                do caso.
-              </small>
-            </section>
+                      <button onClick={() => openAction("suspend")}>
+                        Suspender participante
+                      </button>
+                      {data.role === "ADMIN" && (
+                        <button
+                          className="adm-danger-button"
+                          onClick={() => openAction("ban")}
+                        >
+                          Banir do evento
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <small>
+                  Sanções permanecem em acompanhamento até a resolução explícita
+                  do caso.
+                </small>
+              </section>
+            )}
           </>
         ) : (
           <>
@@ -858,7 +943,7 @@ export function Administration({
                     Ver evento ›
                   </button>
                 </section>
-                {stats}
+                {data.role === "ADMIN" && stats}
                 {moderate && (
                   <button
                     className="adm-attention"
@@ -880,43 +965,49 @@ export function Administration({
                     </span>
                   </button>
                 )}
-                <div className="adm-columns">
-                  <section className="adm-card">
-                    <h2>Cadastros recentes</h2>
-                    <strong className="adm-number">+{data.metrics.new}</strong>
-                    <p>Participantes na última hora</p>
-                    <button
-                      onClick={() => {
-                        navigate("participants");
-                        setRecent(true);
-                      }}
-                    >
-                      Ver novos participantes →
-                    </button>
-                  </section>
-                  <section className="adm-card">
-                    <h2>Resumo do evento</h2>
-                    <p>
-                      {data.metrics.active} ativos agora ·{" "}
-                      {
-                        data.participants.filter(
-                          (p) => p.status === "Cadastro incompleto",
-                        ).length
-                      }{" "}
-                      cadastros incompletos
-                    </p>
-                    {moderate && (
+                {data.role === "ADMIN" && (
+                  <div className="adm-columns">
+                    <section className="adm-card">
+                      <h2>Cadastros recentes</h2>
+                      <strong className="adm-number">
+                        +{data.metrics.new}
+                      </strong>
+                      <p>Participantes na última hora</p>
+                      <button
+                        onClick={() => {
+                          navigate("participants");
+                          setRecent(true);
+                        }}
+                      >
+                        Ver novos participantes →
+                      </button>
+                    </section>
+                    <section className="adm-card">
+                      <h2>Resumo do evento</h2>
                       <p>
-                        {data.cases.length} ocorrências · {data.metrics.blocks}{" "}
-                        bloqueios
+                        {data.metrics.active} ativos agora ·{" "}
+                        {
+                          data.participants.filter(
+                            (p) => p.status === "Cadastro incompleto",
+                          ).length
+                        }{" "}
+                        cadastros incompletos
                       </p>
-                    )}
-                    <small>
-                      Atividade recente: acesso à API nos últimos cinco minutos.
-                      Situação administrativa e presença são independentes.
-                    </small>
-                  </section>
-                </div>
+                      {moderate && (
+                        <p>
+                          {data.cases.length} ocorrências ·{" "}
+                          {data.metrics.blocks} bloqueios
+                        </p>
+                      )}
+                      <small>
+                        Atividade recente: acesso à API nos últimos cinco
+                        minutos. Situação administrativa e presença são
+                        independentes.
+                      </small>
+                    </section>
+                  </div>
+                )}
+                {!mock && <NotificationCenter visible onUnread={() => {}} />}
                 {joinUrl && (
                   <button
                     className="adm-primary adm-wide"
@@ -1217,6 +1308,23 @@ export function Administration({
             {page === "event" && (
               <>
                 <h1>Dados do evento</h1>
+                {!mock && data.role === "ADMIN" && (
+                  <EventOperations
+                    eventId={data.event.id}
+                    onChanged={() => {
+                      void adminRequest<AdminData>("event-admin/").then(
+                        setData,
+                      );
+                    }}
+                  />
+                )}
+                {!mock && data.role === "ADMIN" && (
+                  <EventConfiguration
+                    key={`${data.event.id}:${data.event.state}`}
+                    eventId={data.event.id}
+                    canEditDates={data.globalContext}
+                  />
+                )}
                 <section className="adm-event-cover">
                   <h2>{data.event.name}</h2>
                   <p>{data.event.description}</p>
@@ -1334,23 +1442,41 @@ export function Administration({
             {page === "more" && (
               <>
                 <h1>Mais</h1>
+                {!mock && data.permissions?.includes("announcements") && (
+                  <Announcements readOnly={readOnly} />
+                )}
+                {!mock && moderate && <SupportPanel admin />}
+                {!mock && data.permissions?.includes("passes") && (
+                  <PassManagement role={data.role} readOnly={readOnly} />
+                )}
                 <section className="adm-card adm-actions">
-                  <button onClick={() => navigate("team")}>
-                    Equipe do evento ›
-                  </button>
-                  <button onClick={() => navigate("report")}>
-                    Relatório do evento ›
-                  </button>
+                  {data.role === "ADMIN" && (
+                    <button onClick={() => navigate("team")}>
+                      Equipe do evento ›
+                    </button>
+                  )}
+                  {data.role === "ADMIN" && (
+                    <button onClick={() => navigate("report")}>
+                      Relatório do evento ›
+                    </button>
+                  )}
                   <button onClick={() => void run(onLogout)}>
                     Sair da conta
                   </button>
                 </section>
               </>
             )}
-            {page === "team" && (
+            {page === "team" && data.role === "ADMIN" && (
               <>
                 <h1>Equipe do evento</h1>
                 <p>Papéis e vínculos administrativos</p>
+                {!mock && (
+                  <TeamManagement
+                    eventId={data.event.id}
+                    readOnly={readOnly}
+                    onChanged={() => void fetchData()}
+                  />
+                )}
                 <section className="adm-card">
                   {data.team.map((m) => (
                     <article key={m.id}>
@@ -1360,16 +1486,19 @@ export function Administration({
                       </p>
                     </article>
                   ))}
-                  <small>
-                    Alterações de equipe são realizadas no Django Admin pela
-                    equipe autorizada.
-                  </small>
+                  {mock && (
+                    <small>
+                      Alterações de equipe são realizadas no Django Admin pela
+                      equipe autorizada.
+                    </small>
+                  )}
                 </section>
               </>
             )}
-            {page === "report" && (
+            {page === "report" && data.role === "ADMIN" && (
               <>
                 <h1>Relatório do evento</h1>
+                {!mock && <FinancialReport />}
                 <p>
                   {data.event.status === "Encerrado"
                     ? "Consolidação final"
@@ -1434,21 +1563,39 @@ export function Administration({
             ×
           </button>
           <h2>
-            {action === "ban"
-              ? "Banir participante do evento"
-              : action === "suspend"
-                ? "Suspender participante"
-                : action === "reactivate"
-                  ? "Reativar participante"
-                  : action === "note"
-                    ? "Adicionar nota interna"
-                    : action === "reopen"
-                      ? "Reabrir ocorrência"
-                      : action === "report"
-                        ? "Abrir ocorrência administrativa"
-                        : "Resolver ocorrência"}
+            {action === "assume"
+              ? "Assumir caso"
+              : action === "ban"
+                ? "Banir participante do evento"
+                : action === "suspend"
+                  ? "Suspender participante"
+                  : action === "reactivate"
+                    ? "Reativar participante"
+                    : action === "note"
+                      ? "Adicionar nota interna"
+                      : action === "reopen"
+                        ? "Reabrir ocorrência"
+                        : action === "report"
+                          ? "Abrir ocorrência administrativa"
+                          : "Resolver ocorrência"}
           </h2>
           <p>{occurrence?.reported.name || person?.name}</p>
+          {action === "assume" && (
+            <p>
+              Confirmar que deseja assumir a responsabilidade por este caso?
+            </p>
+          )}
+          {action === "resolve" && (
+            <label>
+              <input
+                type="checkbox"
+                checked={unfounded}
+                onChange={(e) => setUnfounded(e.target.checked)}
+              />
+              Denúncia considerada infundada; não entra nos limites de dez e
+              vinte denúncias.
+            </label>
+          )}
           {action === "ban" && (
             <p>O acesso a este evento será removido definitivamente.</p>
           )}
@@ -1494,7 +1641,7 @@ export function Administration({
           <label>
             {action === "note" ? "Nota interna" : "Motivo e justificativa"}
             <textarea
-              required
+              required={action !== "assume"}
               maxLength={3500}
               value={reason}
               onChange={(e) => setReason(e.target.value)}

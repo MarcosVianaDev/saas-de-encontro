@@ -18,6 +18,16 @@ class EventPassOffer(BaseModel):
 
 
 class ParticipantPass(BaseModel):
+    offer_name=models.CharField(max_length=200,blank=True)
+    granted_by = models.ForeignKey('accounts.User',on_delete=models.PROTECT,null=True,blank=True,related_name='+')
+    origin = models.CharField(max_length=100,blank=True)
+    reference = models.CharField(max_length=500,blank=True)
+    sale_amount = models.DecimalField(max_digits=12,decimal_places=2,default=0,validators=[MinValueValidator(0)])
+    reveal_limit = models.PositiveIntegerField(null=True,blank=True)
+    revoked_at = models.DateTimeField(null=True,blank=True)
+    revoked_by = models.ForeignKey('accounts.User',on_delete=models.PROTECT,null=True,blank=True,related_name='+')
+    revocation_reason = models.TextField(blank=True)
+    expiry_notified_at = models.DateTimeField(null=True,blank=True)
     participant = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="passes")
     offer = models.ForeignKey("passes.EventPassOffer", on_delete=models.PROTECT, related_name="participant_passes")
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -26,6 +36,9 @@ class ParticipantPass(BaseModel):
 class PassUsage(BaseModel):
     participant_pass = models.ForeignKey("passes.ParticipantPass", on_delete=models.PROTECT, related_name="usages")
     revealed_participant = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="revelations")
+
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=['participant_pass','revealed_participant'],name='pass_usage_peer_unique')]
 
 
 class PassActivation(BaseModel):

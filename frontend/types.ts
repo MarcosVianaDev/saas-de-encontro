@@ -13,6 +13,7 @@ export type Person = {
   bio?: string;
   photos?: string[];
   outfit?: string | null;
+  photoEvidence?: { id: string; url: string }[];
 };
 export type Profile = {
   first: string;
@@ -29,11 +30,40 @@ export type Filters = {
   interests: string[];
   purpose: string;
 };
-export type Message = { text: string; mine: boolean; time: string };
+export type Message = {
+  id?: string;
+  unread?: boolean;
+  text: string;
+  mine: boolean;
+  time: string;
+};
 export type Bootstrap = {
+  registrationStatus?: string;
+  onboardingComplete?: boolean;
+  activated?: boolean;
+  socialAvailable?: boolean;
+  locationConsent?: boolean;
+  presence?: string;
+  location?: {
+    retries: number;
+    failed: boolean;
+    exhausted: boolean;
+    technicalInactive: boolean;
+    nextDue: string | null;
+    exceptionUntil: string | null;
+  };
+  profileFields?: {
+    id: string;
+    name: string;
+    required: boolean;
+    kind: string;
+    version: number;
+    options: string[];
+  }[];
   navigation?: "participant";
   profile: Profile;
   photos: string[];
+  publicPhotos?: string[];
   active: boolean;
   filters: Filters;
   people: Person[];
@@ -43,8 +73,26 @@ export type Bootstrap = {
   seen: PersonId[];
   liked: PersonId[];
   saved: PersonId[];
-  event: { id: string; name: string };
+  event: {
+    id: string;
+    name: string;
+    state?: string;
+    status?: string;
+    mode?: string;
+    ends?: string | null;
+    locationInterval?: number;
+    endingSoon?: boolean;
+    readOnly?: boolean;
+  };
 };
 export type SessionData =
   | Bootstrap
-  | { navigation: "administration"; role: "ADMIN" | "MODERATOR" | "OPERATOR" };
+  | { navigation: "administration"; role: string; globalContext?: boolean }
+  | { navigation: "global" }
+  | { navigation: "selection"; contexts: Context[] };
+export type Context = {
+  key: string;
+  navigation: string;
+  name: string;
+  event?: string;
+};

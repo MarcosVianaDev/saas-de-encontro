@@ -1,5 +1,7 @@
 # Verificação da implementação
 
+> **Verificação atual:** as etapas 1 a 8 foram implementadas e validadas com 73 testes Django, build do frontend e fluxos no navegador. Consulte [Implementação das etapas 1 a 8](<Implementacao - etapas 1 a 8.md>). As seções abaixo preservam o registro anterior a essa implementação; suas pendências não substituem a cobertura atual.
+
 > Os DOCX foram consolidados em Markdown em 04/10/2026. As decisões finais de escopo ampliam os requisitos considerados por esta verificação. Favoritos pós-match, outfit obrigatório, imutabilidade das fotos públicas, permissões delegáveis, geolocalização, automações do ciclo completo, alertas de 10/20 denúncias, concessão manual de passes e exportação auditável precisam de nova verificação específica. A cobertura e os testes registrados abaixo não foram reexecutados nesta alteração documental. Consulte o [índice e análise](README.md).
 
 Atualizado em 04/10/2026, após a implementação do painel administrativo e do ingresso por QR Code.

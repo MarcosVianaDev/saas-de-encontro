@@ -10,6 +10,17 @@ import "./styles.css";
 import { frontendConfig } from "./config";
 import { api, ApiError, request } from "./backend-client";
 import { Administration } from "./Administration";
+import { GlobalAdministration } from "./GlobalAdministration";
+import { Contexts } from "./Contexts";
+import type { Context } from "./types";
+import { ParticipantOnboarding } from "./ParticipantOnboarding";
+import { SocialSafety } from "./SocialSafety";
+import {
+  NotificationCenter,
+  SupportPanel,
+  LikesReceived,
+} from "./ParticipantExtras";
+import { LocationControl } from "./LocationControl";
 import { mockEventInfo } from "./administration-mock";
 import type {
   Person,
@@ -344,6 +355,11 @@ function Avatar({
   );
 }
 function App() {
+  const [serverData, setServerData] = useState<Bootstrap | null>(null);
+  const [mailbox, setMailbox] = useState("messages");
+  const [noticeUnread, setNoticeUnread] = useState(0);
+  const [globalMode, setGlobalMode] = useState(false);
+  const [contexts, setContexts] = useState<Context[] | null>(null);
   const [adminMode, setAdminMode] = useState(
     frontendConfig.useMocks &&
       !new URLSearchParams(location.search).has("invite") &&
@@ -437,9 +453,11 @@ function App() {
       real &&
       authenticated &&
       !serverActive &&
-      !["login", "perfil"].includes(next)
+      !["login", "perfil", "filtros", "mensagens"].includes(next)
     )
       next = "perfil";
+    if (real && authenticated && next === "login")
+      next = serverActive ? "descobrir" : "perfil";
     if (next !== "mensagens") setActiveChat(null);
     location.hash = next;
     setPage(next);
@@ -447,14 +465,20 @@ function App() {
   };
   useEffect(() => {
     const onHash = () => {
+      if (real && (adminMode || globalMode || contexts)) return;
       if (!real) setAdminMode(location.hash.startsWith("#admin-"));
-      setPage(readPage());
+      const next = readPage();
+      if (real && authenticated && next === "login") {
+        location.hash = serverActive ? "descobrir" : "perfil";
+        return;
+      }
+      setPage(next);
       setDetails(null);
       setMatch(null);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [real, authenticated, serverActive, adminMode, globalMode, contexts]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 3500);
@@ -501,11 +525,19 @@ function App() {
     };
   }, [details, match]);
   const applyData = (data: SessionData) => {
+    setGlobalMode(data.navigation === "global");
+    setContexts(data.navigation === "selection" ? data.contexts : null);
+    if (data.navigation === "global" || data.navigation === "selection") {
+      setAdminMode(false);
+      return;
+    }
     if (data.navigation === "administration") {
       setAdminMode(true);
+      location.hash = "admin-dashboard";
       return;
     }
     setAdminMode(false);
+    setServerData(data);
     setProfile(data.profile);
     setPhotos(data.photos);
     setFilters(data.filters);
@@ -513,12 +545,21 @@ function App() {
     setPeople(data.people);
     setRemoteDiscovery(data.discovery);
     setChats(data.chats);
+    setUnread(
+      Object.keys(data.chats).filter((key) =>
+        data.chats[key].some((m) => m.unread),
+      ),
+    );
     setChatStates(data.chatStates);
     setSeen(data.seen);
     setLiked(data.liked);
     setSaved(data.saved);
     setServerActive(data.active);
     setEventName(data.event.name);
+    if (readPage() === "login") {
+      location.hash = "perfil";
+      setPage("perfil");
+    }
   };
   const run = async (action: () => Promise<void>) => {
     if (busyRef.current) return;
@@ -569,6 +610,8 @@ function App() {
           if (!active) return;
           applyData(data);
           setAuthenticated(true);
+          if (data.navigation === "global" || data.navigation === "selection")
+            return;
           if (data.navigation === "administration") {
             if (!location.hash.startsWith("#admin-"))
               location.hash = "admin-dashboard";
@@ -621,16 +664,30 @@ function App() {
     });
   };
   useEffect(() => {
-    if (!real || !authenticated || !serverActive || page !== "mensagens")
-      return;
+    if (!real || !authenticated || adminMode || globalMode || contexts) return;
     let disposed = false;
     const refresh = async () => {
       if (busyRef.current || document.hidden) return;
       try {
-        const data = await api.conversations();
+        if (
+          page === "mensagens" &&
+          mailbox === "messages" &&
+          activeChat !== null
+        )
+          await request(`conversations/${activeChat}/messages/`);
+        const data = await request<Bootstrap>("bootstrap/");
         if (!disposed && !busyRef.current) {
           setChats(data.chats);
           setChatStates(data.chatStates);
+          setUnread(
+            Object.keys(data.chats).filter((key) =>
+              data.chats[key].some((m) => m.unread),
+            ),
+          );
+          setServerData(data);
+          setServerActive(data.active);
+          setPeople(data.people);
+          setRemoteDiscovery(data.discovery);
         }
       } catch (error) {
         if (!disposed)
@@ -647,7 +704,16 @@ function App() {
       disposed = true;
       clearInterval(timer);
     };
-  }, [real, authenticated, serverActive, page]);
+  }, [
+    real,
+    authenticated,
+    adminMode,
+    globalMode,
+    contexts,
+    page,
+    mailbox,
+    activeChat,
+  ]);
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault();
     if (profile.bio.trim().length < 50) {
@@ -664,9 +730,8 @@ function App() {
     }
     await run(async () => {
       applyData(await api.saveProfile(profile));
-      location.hash = "filtros";
-      setPage("filtros");
-      notify("Perfil salvo e ativado.");
+      navigate("descobrir");
+      notify("Perfil salvo.");
     });
   };
   const applyFilters = async () => {
@@ -834,15 +899,58 @@ function App() {
         (tab === "Online" && p.online) ||
         (tab === "Matches" && p.id in chats)),
   );
+  if (authenticated && contexts)
+    return (
+      <Contexts
+        contexts={contexts}
+        onSelect={applyData}
+        onLogout={() => void leave()}
+      />
+    );
+  if (authenticated && globalMode)
+    return (
+      <GlobalAdministration
+        onSelect={applyData}
+        onLogout={() => void leave()}
+      />
+    );
+  if (
+    real &&
+    authenticated &&
+    !adminMode &&
+    serverData &&
+    serverData.onboardingComplete === false &&
+    !serverData.event.readOnly
+  )
+    return (
+      <ParticipantOnboarding
+        data={serverData}
+        onComplete={(d) => {
+          applyData(d);
+          location.hash = "perfil";
+          setPage("perfil");
+        }}
+        onLogout={() => void leave()}
+      />
+    );
   if (adminMode && authenticated)
     return (
       <Administration
         mock={!real}
+        onContext={
+          real
+            ? (global) => {
+                void request<SessionData>(
+                  "contexts/",
+                  global ? "POST" : "GET",
+                  global ? { key: "global" } : undefined,
+                ).then(applyData);
+              }
+            : undefined
+        }
         onLogout={async () => {
-          if (real) await api.logout();
           setAdminMode(false);
-          setAuthenticated(!real);
-          navigate("login");
+          await leave();
         }}
       />
     );
@@ -1091,13 +1199,13 @@ function App() {
               </div>
             ) : (
               <>
-                {(page === "perfil" || page === "filtros") && (
+                {(page === "perfil" || page === "filtros") && !real && (
                   <div className="onboarding-progress">
                     <button
                       className="icon-button"
                       aria-label="Voltar"
                       onClick={() =>
-                        navigate(page === "perfil" ? "login" : "perfil")
+                        navigate(page === "perfil" ? "descobrir" : "perfil")
                       }
                     >
                       <Icon name="back" />
@@ -1113,190 +1221,380 @@ function App() {
                 <div
                   className={`screen-content ${page === "descobrir" ? "discovery-content" : ""} ${page === "mensagens" && activeChat !== null ? "chat-content" : ""}`}
                 >
+                  {real && authenticated && serverData && (
+                    <>
+                      {serverData.event.endingSoon &&
+                        !serverData.event.readOnly && (
+                          <p className="event-banner">
+                            O evento encerra às{" "}
+                            {serverData.event.ends
+                              ? new Date(
+                                  serverData.event.ends,
+                                ).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : ""}
+                            .
+                          </p>
+                        )}
+                      {serverData.event.state === "PAUSED" && (
+                        <section className="event-banner">
+                          <strong>Evento pausado pela organização</strong>
+                          <p>
+                            Novas descobertas estão temporariamente
+                            indisponíveis. Suas conversas e matches continuam
+                            acessíveis.
+                          </p>
+                          <button onClick={() => navigate("mensagens")}>
+                            Ir para mensagens
+                          </button>
+                        </section>
+                      )}
+                      {serverData.event.state === "OPEN" && (
+                        <section className="event-banner">
+                          <strong>O evento ainda não começou</strong>
+                          <p>
+                            A descoberta de participantes será liberada quando o
+                            evento começar.
+                          </p>
+                          <button onClick={() => navigate("perfil")}>
+                            Ver meu perfil
+                          </button>
+                        </section>
+                      )}
+                      {serverData.event.readOnly && (
+                        <section className="event-banner">
+                          <strong>Este evento foi encerrado</strong>
+                          <p>
+                            Perfil e conversas estão disponíveis somente para
+                            consulta.
+                          </p>
+                          {page === "perfil" && (
+                            <>
+                              <h3>O que deseja fazer com seu perfil?</h3>
+                              <button
+                                onClick={() =>
+                                  void run(async () => {
+                                    applyData(
+                                      await request<Bootstrap>(
+                                        "profile/disposition/",
+                                        "POST",
+                                        { action: "persist" },
+                                      ),
+                                    );
+                                    notify(
+                                      "Perfil salvo para futuros eventos.",
+                                    );
+                                  })
+                                }
+                              >
+                                Salvar perfil para futuros eventos
+                              </button>
+                              <details>
+                                <summary>Excluir perfil deste evento</summary>
+                                <p>
+                                  Seu perfil deixará de aparecer socialmente.
+                                  Dados sujeitos a obrigações legais, segurança
+                                  ou preservação poderão permanecer pelo período
+                                  aplicável.
+                                </p>
+                                <button
+                                  onClick={(e) =>
+                                    e.currentTarget
+                                      .closest("details")
+                                      ?.removeAttribute("open")
+                                  }
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    void run(async () => {
+                                      applyData(
+                                        await request<Bootstrap>(
+                                          "profile/disposition/",
+                                          "POST",
+                                          { action: "delete", confirmed: true },
+                                        ),
+                                      );
+                                      notify("Exposição social removida.");
+                                    })
+                                  }
+                                >
+                                  Solicitar exclusão
+                                </button>
+                              </details>
+                            </>
+                          )}
+                        </section>
+                      )}
+                      {serverData.registrationStatus === "PENDING" && (
+                        <p className="event-banner">
+                          Aguardando ativação. Procure a equipe para capturar a
+                          foto do look e validar seu perfil.
+                        </p>
+                      )}
+                      {serverData.registrationStatus === "INACTIVE" && (
+                        <p className="event-banner">
+                          Seu perfil está temporariamente desativado ou em
+                          análise. Você pode falar com o Suporte em Mensagens.
+                          <button
+                            onClick={() => {
+                              navigate("mensagens");
+                              setMailbox("support");
+                            }}
+                          >
+                            Falar com o suporte
+                          </button>
+                        </p>
+                      )}
+                      <LocationControl
+                        data={serverData}
+                        onSupport={() => {
+                          navigate("mensagens");
+                          setMailbox("support");
+                        }}
+                        onChanged={(d) => {
+                          setServerData(d);
+                          setServerActive(d.active);
+                          setPeople(d.people);
+                          setRemoteDiscovery(d.discovery);
+                        }}
+                      />
+                      <NotificationCenter
+                        visible={
+                          page === "mensagens" && mailbox === "notifications"
+                        }
+                        onUnread={setNoticeUnread}
+                      />
+                      {page === "mensagens" && (
+                        <>
+                          <div className="mailbox-tabs">
+                            <button onClick={() => setMailbox("messages")}>
+                              Mensagens
+                            </button>
+                            <button onClick={() => setMailbox("notifications")}>
+                              Notificações{" "}
+                              {noticeUnread > 0 ? `(${noticeUnread})` : ""}
+                            </button>
+                            <button onClick={() => setMailbox("support")}>
+                              Suporte
+                            </button>
+                          </div>
+                          {mailbox === "support" && <SupportPanel />}
+                        </>
+                      )}
+                    </>
+                  )}
                   {page === "perfil" && (
                     <form
                       className="profile-form"
                       id="profile-form"
                       onSubmit={saveProfile}
                     >
-                      <h2>
-                        Vamos criar seu perfil{" "}
-                        <span className="tiny-spark">✦</span>
-                      </h2>
-                      <p className="subtitle">
-                        Conte um pouco sobre você para
-                        <br />
-                        conectar com pessoas incríveis.
-                      </p>
-                      <div className="profile-avatar">
-                        <img
-                          src={photos[0] || "/images/profile-placeholder.svg"}
-                          alt="Foto principal do seu perfil"
-                        />
-                        <button
-                          type="button"
-                          className="camera-button"
-                          aria-label="Adicionar fotos ao perfil"
-                          onClick={() => uploadRef.current?.click()}
-                        >
-                          <Icon name="camera" size={19} />
-                        </button>
-                      </div>
-                      <div className="form-row">
-                        <label className="field">
-                          <span>Nome</span>
-                          <input
-                            value={profile.first}
-                            onChange={(e) =>
-                              setProfile({ ...profile, first: e.target.value })
-                            }
-                            required
-                            maxLength={150}
+                      <fieldset
+                        disabled={Boolean(serverData?.event.readOnly)}
+                        className="profile-readonly-fields"
+                      >
+                        <h2>
+                          Vamos criar seu perfil{" "}
+                          <span className="tiny-spark">✦</span>
+                        </h2>
+                        <p className="subtitle">
+                          Conte um pouco sobre você para
+                          <br />
+                          conectar com pessoas incríveis.
+                        </p>
+                        <div className="profile-avatar">
+                          <img
+                            src={photos[0] || "/images/profile-placeholder.svg"}
+                            alt="Foto principal do seu perfil"
                           />
-                        </label>
-                        <label className="field">
-                          <span>Sobrenome</span>
-                          <input
-                            value={profile.last}
-                            onChange={(e) =>
-                              setProfile({ ...profile, last: e.target.value })
-                            }
-                            required
-                            maxLength={150}
-                          />
-                        </label>
-                      </div>
-                      <fieldset className="birth-field">
-                        <legend>Nascimento</legend>
+                          <button
+                            type="button"
+                            className="camera-button"
+                            aria-label="Adicionar fotos ao perfil"
+                            onClick={() => uploadRef.current?.click()}
+                          >
+                            <Icon name="camera" size={19} />
+                          </button>
+                        </div>
                         <div className="form-row">
-                          <label>
-                            Mês
-                            <select
-                              value={profile.month}
+                          <label className="field">
+                            <span>Nome</span>
+                            <input
+                              value={profile.first}
                               onChange={(e) =>
                                 setProfile({
                                   ...profile,
-                                  month: e.target.value,
+                                  first: e.target.value,
                                 })
                               }
-                            >
-                              {[
-                                "Janeiro",
-                                "Fevereiro",
-                                "Março",
-                                "Abril",
-                                "Maio",
-                                "Junho",
-                                "Julho",
-                                "Agosto",
-                                "Setembro",
-                                "Outubro",
-                                "Novembro",
-                                "Dezembro",
-                              ].map((month, i) => (
-                                <option key={month} value={i + 1}>
-                                  {month}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            Ano
-                            <input
-                              type="number"
-                              min="1900"
-                              max={new Date().getFullYear()}
-                              value={profile.year}
                               required
+                              maxLength={150}
+                            />
+                          </label>
+                          <label className="field">
+                            <span>Sobrenome</span>
+                            <input
+                              value={profile.last}
                               onChange={(e) =>
-                                setProfile({ ...profile, year: e.target.value })
+                                setProfile({ ...profile, last: e.target.value })
                               }
+                              required
+                              maxLength={150}
                             />
                           </label>
                         </div>
-                      </fieldset>
-                      <label className="field">
-                        <span>Gênero</span>
-                        <select
-                          value={profile.gender}
-                          onChange={(e) =>
-                            setProfile({ ...profile, gender: e.target.value })
-                          }
-                        >
-                          <option>Mulheres</option>
-                          <option>Homens</option>
-                          <option>Não binário</option>
-                          <option>Prefiro não informar</option>
-                        </select>
-                      </label>
-                      <label className="field bio-field">
-                        <span>Sobre você</span>
-                        <textarea
-                          value={profile.bio}
-                          onChange={(e) =>
-                            setProfile({ ...profile, bio: e.target.value })
-                          }
-                          rows={3}
-                          maxLength={200}
-                          minLength={50}
-                          required
-                        />
-                      </label>
-                      <div className="field-help">
-                        <span>Mínimo de 50 caracteres</span>
-                        <span>{profile.bio.length}/200</span>
-                      </div>
-                      <div className="section-label">
-                        <h3>Fotos do seu perfil</h3>
-                        <span>{photos.length}/10</span>
-                      </div>
-                      <p className="microcopy">
-                        As 3 primeiras são públicas. As demais, só após o match.
-                      </p>
-                      <div className="photo-grid">
-                        {photos.map((url, index) => (
-                          <div className="photo-tile" key={url + index}>
-                            <img
-                              src={url}
-                              alt={`Foto ${index + 1} do perfil`}
-                            />
-                            <button
-                              className="remove-photo"
-                              type="button"
-                              aria-label={`Remover foto ${index + 1}`}
-                              onClick={() => removePhoto(url, index)}
-                            >
-                              <Icon name="close" size={12} />
-                            </button>
-                            {index === 0 && <span>Principal</span>}
+                        <fieldset className="birth-field">
+                          <legend>Nascimento</legend>
+                          <div className="form-row">
+                            <label>
+                              Mês
+                              <select
+                                value={profile.month}
+                                onChange={(e) =>
+                                  setProfile({
+                                    ...profile,
+                                    month: e.target.value,
+                                  })
+                                }
+                              >
+                                {[
+                                  "Janeiro",
+                                  "Fevereiro",
+                                  "Março",
+                                  "Abril",
+                                  "Maio",
+                                  "Junho",
+                                  "Julho",
+                                  "Agosto",
+                                  "Setembro",
+                                  "Outubro",
+                                  "Novembro",
+                                  "Dezembro",
+                                ].map((month, i) => (
+                                  <option key={month} value={i + 1}>
+                                    {month}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Ano
+                              <input
+                                type="number"
+                                min="1900"
+                                max={new Date().getFullYear()}
+                                value={profile.year}
+                                required
+                                onChange={(e) =>
+                                  setProfile({
+                                    ...profile,
+                                    year: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
                           </div>
-                        ))}
-                        {photos.length < 10 && (
-                          <button
-                            type="button"
-                            className="add-photo"
-                            aria-label="Adicionar foto"
-                            onClick={() => uploadRef.current?.click()}
+                        </fieldset>
+                        <label className="field">
+                          <span>Gênero</span>
+                          <select
+                            value={profile.gender}
+                            onChange={(e) =>
+                              setProfile({ ...profile, gender: e.target.value })
+                            }
                           >
-                            <Icon name="plus" />
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        ref={uploadRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        hidden
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          e.target.value = "";
-                          void uploadPhotos(files);
-                        }}
-                      />
+                            <option>Mulheres</option>
+                            <option>Homens</option>
+                            <option>Não binário</option>
+                            <option>Prefiro não informar</option>
+                          </select>
+                        </label>
+                        <label className="field bio-field">
+                          <span>Sobre você</span>
+                          <textarea
+                            value={profile.bio}
+                            onChange={(e) =>
+                              setProfile({ ...profile, bio: e.target.value })
+                            }
+                            rows={3}
+                            maxLength={200}
+                            minLength={50}
+                            required
+                          />
+                        </label>
+                        <div className="field-help">
+                          <span>Mínimo de 50 caracteres</span>
+                          <span>{profile.bio.length}/200</span>
+                        </div>
+                        <div className="section-label">
+                          <h3>Fotos do seu perfil</h3>
+                          <span>{photos.length}/10</span>
+                        </div>
+                        <p className="microcopy">
+                          As 3 primeiras são públicas. As demais, só após o
+                          match.
+                        </p>
+                        <div className="photo-grid">
+                          {photos.map((url, index) => (
+                            <div className="photo-tile" key={url + index}>
+                              <img
+                                src={url}
+                                alt={`Foto ${index + 1} do perfil`}
+                              />
+                              <button
+                                className="remove-photo"
+                                disabled={Boolean(
+                                  real &&
+                                  serverData?.activated &&
+                                  serverData.publicPhotos?.includes(url),
+                                )}
+                                title={
+                                  real &&
+                                  serverData?.activated &&
+                                  serverData.publicPhotos?.includes(url)
+                                    ? "Esta foto faz parte do perfil aprovado para este evento e não pode ser alterada diretamente."
+                                    : undefined
+                                }
+                                type="button"
+                                aria-label={`Remover foto ${index + 1}`}
+                                onClick={() => removePhoto(url, index)}
+                              >
+                                <Icon name="close" size={12} />
+                              </button>
+                              {index === 0 && <span>Principal</span>}
+                            </div>
+                          ))}
+                          {photos.length < 10 && (
+                            <button
+                              type="button"
+                              className="add-photo"
+                              aria-label="Adicionar foto"
+                              onClick={() => uploadRef.current?.click()}
+                            >
+                              <Icon name="plus" />
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          ref={uploadRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          hidden
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            void uploadPhotos(files);
+                          }}
+                        />
+                      </fieldset>
                     </form>
                   )}
-                  {page === "filtros" && (
+                  {page === "filtros" && !serverData?.event.readOnly && (
                     <div className="filters-form">
                       <h2>Definir filtros</h2>
                       <p className="subtitle">
@@ -1459,139 +1757,141 @@ function App() {
                       </div>
                     </div>
                   )}
-                  {page === "descobrir" && (
-                    <>
-                      <div className="screen-title">
-                        <h2>Descobrir pessoas</h2>
-                        <button
-                          className="icon-button purple"
-                          aria-label="Alterar filtros"
-                          onClick={() => {
-                            setDraft(filters);
-                            navigate("filtros");
-                          }}
-                        >
-                          <Icon name="filter" />
-                        </button>
-                      </div>
-                      <div className="discovery-meta">
-                        <span>
-                          <i className="live-dot" /> Conecta São Paulo
-                        </span>
-                        <span>
-                          {eligible.filter((p) => !seen.includes(p.id)).length}{" "}
-                          para descobrir
-                        </span>
-                      </div>
-                      {candidate ? (
-                        <>
-                          <div className="discovery-card">
-                            <img
-                              src={candidate.image}
-                              alt={`Retrato de ${candidate.name}`}
-                              className="discovery-photo"
-                            />
-                            <span className="online-pill">
-                              {candidate.online
-                                ? "● Online agora"
-                                : "No evento"}
-                            </span>
-                            <div className="card-person">
-                              <div className="person-heading">
-                                <h3>
-                                  {candidate.name}, {candidate.age}{" "}
-                                  <span
-                                    className="verified"
-                                    title="Participante validado"
-                                  >
-                                    <Icon name="check" size={13} />
-                                  </span>
-                                </h3>
-                                <button
-                                  className="info-button"
-                                  aria-label={`Ver perfil de ${candidate.name}`}
-                                  onClick={() => showDetails(candidate)}
-                                >
-                                  i
-                                </button>
-                              </div>
-                              <p>
-                                <Icon name="work" size={14} />
-                                {candidate.job}
-                              </p>
-                              <p>
-                                <Icon name="pin" size={14} />
-                                São Paulo, SP
-                              </p>
-                              <div className="person-tags">
-                                {candidate.interests.map((i) => (
-                                  <span key={i}>{i}</span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="discovery-actions">
-                            <button
-                              className="action-circle pass"
-                              aria-label={`Passar ${candidate.name}`}
-                              onClick={() => select(candidate, false)}
-                            >
-                              <Icon name="close" size={32} />
-                            </button>
-                            <button
-                              className={`action-circle favorite ${saved.includes(candidate.id) ? "is-saved" : ""}`}
-                              aria-label={`Favoritar ${candidate.name}`}
-                              aria-pressed={saved.includes(candidate.id)}
-                              onClick={() => toggleFavorite(candidate)}
-                            >
-                              <Icon name="star" size={29} />
-                            </button>
-                            <button
-                              className="action-circle like"
-                              aria-label={`Curtir ${candidate.name}`}
-                              onClick={() => select(candidate, true)}
-                            >
-                              <Icon name="heart" size={32} />
-                            </button>
-                          </div>
-                          <div className="actions-caption">
-                            <span>Passar</span>
-                            <span>Favoritar</span>
-                            <span>Gostei</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="empty-state">
-                          <Icon name="search" size={34} />
-                          <h3>Você chegou ao fim por aqui.</h3>
-                          <p>
-                            Não há mais perfis com seus filtros atuais. Que tal
-                            revisar suas preferências?
-                          </p>
+                  {page === "descobrir" &&
+                    (!real || serverData?.socialAvailable) && (
+                      <>
+                        <div className="screen-title">
+                          <h2>Descobrir pessoas</h2>
                           <button
-                            className="primary"
+                            className="icon-button purple"
+                            aria-label="Alterar filtros"
                             onClick={() => {
                               setDraft(filters);
                               navigate("filtros");
                             }}
                           >
-                            Revisar filtros
-                          </button>
-                          <button
-                            className="text-button"
-                            onClick={() => {
-                              if (!real) setSeen([]);
-                            }}
-                          >
-                            {real
-                              ? "Histórico preservado no banco"
-                              : "Rever perfis da demonstração"}
+                            <Icon name="filter" />
                           </button>
                         </div>
-                      )}
-                    </>
-                  )}
+                        <div className="discovery-meta">
+                          <span>
+                            <i className="live-dot" /> Conecta São Paulo
+                          </span>
+                          <span>
+                            {
+                              eligible.filter((p) => !seen.includes(p.id))
+                                .length
+                            }{" "}
+                            para descobrir
+                          </span>
+                        </div>
+                        {candidate ? (
+                          <>
+                            <div className="discovery-card">
+                              {real && (
+                                <SocialSafety
+                                  person={candidate}
+                                  onChanged={(d) => applyData(d)}
+                                />
+                              )}
+                              <img
+                                src={candidate.image}
+                                alt={`Retrato de ${candidate.name}`}
+                                className="discovery-photo"
+                              />
+                              <span className="online-pill">
+                                {candidate.online
+                                  ? "● Online agora"
+                                  : "No evento"}
+                              </span>
+                              <div className="card-person">
+                                <div className="person-heading">
+                                  <h3>
+                                    {candidate.name}, {candidate.age}{" "}
+                                    <span
+                                      className="verified"
+                                      title="Participante validado"
+                                    >
+                                      <Icon name="check" size={13} />
+                                    </span>
+                                  </h3>
+                                  <button
+                                    className="info-button"
+                                    aria-label={`Ver perfil de ${candidate.name}`}
+                                    onClick={() => showDetails(candidate)}
+                                  >
+                                    i
+                                  </button>
+                                </div>
+                                <p>
+                                  <Icon name="work" size={14} />
+                                  {candidate.job}
+                                </p>
+                                <p>
+                                  <Icon name="pin" size={14} />
+                                  São Paulo, SP
+                                </p>
+                                <div className="person-tags">
+                                  {candidate.interests.map((i) => (
+                                    <span key={i}>{i}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="discovery-actions">
+                              <button
+                                className="action-circle pass"
+                                aria-label={`Passar ${candidate.name}`}
+                                onClick={() => select(candidate, false)}
+                              >
+                                <Icon name="close" size={32} />
+                              </button>
+                              <button
+                                className="action-circle like"
+                                aria-label={`Curtir ${candidate.name}`}
+                                onClick={() => select(candidate, true)}
+                              >
+                                <Icon name="heart" size={32} />
+                              </button>
+                            </div>
+                            <div className="actions-caption">
+                              <span>Passar</span>
+                              <span>Gostei</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="empty-state">
+                            <Icon name="search" size={34} />
+                            <h3>Você chegou ao fim por aqui.</h3>
+                            <p>
+                              Não há mais perfis com seus filtros atuais. Que
+                              tal revisar suas preferências?
+                            </p>
+                            <button
+                              className="primary"
+                              onClick={() => {
+                                setDraft(filters);
+                                navigate("filtros");
+                              }}
+                            >
+                              Revisar filtros
+                            </button>
+                            <button
+                              className="text-button"
+                              onClick={() => {
+                                if (!real) setSeen([]);
+                              }}
+                            >
+                              {real
+                                ? "Histórico preservado no banco"
+                                : "Rever perfis da demonstração"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   {page === "mensagens" &&
+                    (!real || mailbox === "messages") &&
                     (activeChat === null ? (
                       <>
                         <div className="screen-title">
@@ -1704,6 +2004,38 @@ function App() {
                             </button>
                           )}
                         </div>
+                        {real && (
+                          <details className="conversation-menu">
+                            <summary aria-label="Opções da conversa">⋮</summary>
+                            <button
+                              onClick={() =>
+                                void showDetails(
+                                  people.find((p) => p.id === activeChat)!,
+                                )
+                              }
+                            >
+                              Ver perfil
+                            </button>
+                            {chatStates[String(activeChat)]?.active && (
+                              <button
+                                onClick={() =>
+                                  void toggleFavorite(
+                                    people.find((p) => p.id === activeChat)!,
+                                  )
+                                }
+                              >
+                                {saved.includes(activeChat)
+                                  ? "Desfavoritar"
+                                  : "Favoritar"}
+                              </button>
+                            )}
+                            <SocialSafety
+                              person={people.find((p) => p.id === activeChat)!}
+                              allowBlock
+                              onChanged={(d) => applyData(d)}
+                            />
+                          </details>
+                        )}
                         <div className="message-history">
                           <span className="day-divider">Hoje</span>
                           <p className="match-note">
@@ -1726,136 +2058,155 @@ function App() {
                           ))}
                           <div ref={bottomRef} />
                         </div>
-                        <form className="message-composer" onSubmit={send}>
-                          <input
-                            aria-label="Mensagem"
-                            disabled={
-                              real &&
-                              activeChat !== null &&
-                              chatStates[String(activeChat)]?.active === false
-                            }
-                            placeholder={
-                              real &&
-                              activeChat !== null &&
-                              chatStates[String(activeChat)]?.active === false
-                                ? "Conversa em modo somente leitura"
-                                : "Escreva sua mensagem…"
-                            }
-                            value={message}
-                            maxLength={2000}
-                            onChange={(e) => setMessage(e.target.value)}
-                          />
-                          <button
-                            className="send-button"
-                            aria-label="Enviar mensagem"
-                            disabled={
-                              !message.trim() ||
-                              busy ||
-                              (real &&
+                        {real && serverData?.event.readOnly ? (
+                          <p>
+                            Este evento terminou. A conversa está disponível
+                            somente para consulta.
+                          </p>
+                        ) : (
+                          <form className="message-composer" onSubmit={send}>
+                            <input
+                              aria-label="Mensagem"
+                              disabled={
+                                real &&
                                 activeChat !== null &&
-                                chatStates[String(activeChat)]?.active ===
-                                  false)
-                            }
-                          >
-                            <Icon name="send" size={20} />
-                          </button>
-                        </form>
+                                chatStates[String(activeChat)]?.active === false
+                              }
+                              placeholder={
+                                real &&
+                                activeChat !== null &&
+                                chatStates[String(activeChat)]?.active === false
+                                  ? "Conversa em modo somente leitura"
+                                  : "Escreva sua mensagem…"
+                              }
+                              value={message}
+                              maxLength={2000}
+                              onChange={(e) => setMessage(e.target.value)}
+                            />
+                            <button
+                              className="send-button"
+                              aria-label="Enviar mensagem"
+                              disabled={
+                                !message.trim() ||
+                                busy ||
+                                (real &&
+                                  activeChat !== null &&
+                                  chatStates[String(activeChat)]?.active ===
+                                    false)
+                              }
+                            >
+                              <Icon name="send" size={20} />
+                            </button>
+                          </form>
+                        )}
                       </>
                     ))}
-                  {page === "participantes" && (
-                    <>
-                      <div className="screen-title">
-                        <h2>Participantes</h2>
-                        <button
-                          className="icon-button purple"
-                          aria-label={
-                            compact
-                              ? "Aumentar miniaturas"
-                              : "Diminuir miniaturas"
-                          }
-                          aria-pressed={compact}
-                          onClick={() => setCompact(!compact)}
-                        >
-                          <Icon name="grid" />
-                        </button>
-                      </div>
-                      <p className="subtitle">
-                        {people.length} pessoas, muitas possibilidades.
-                      </p>
-                      <div className="search-field">
-                        <Icon name="search" size={18} />
-                        <input
-                          aria-label="Buscar participantes"
-                          placeholder="Buscar participantes"
-                          value={participantSearch}
-                          onChange={(e) => setParticipantSearch(e.target.value)}
-                        />
-                      </div>
-                      <div
-                        className="participant-tabs"
-                        role="group"
-                        aria-label="Filtrar participantes"
-                      >
-                        {["Todos", "Online", "Matches"].map((item) => (
+                  {page === "participantes" &&
+                    (!real || serverData?.socialAvailable) && (
+                      <>
+                        <div className="screen-title">
+                          <h2>Participantes</h2>
+                          {real && (
+                            <details>
+                              <summary>Likes recebidos</summary>
+                              <LikesReceived
+                                onPerson={(p) => void showDetails(p)}
+                              />
+                            </details>
+                          )}
                           <button
-                            className={`chip ${tab === item ? "active" : ""}`}
-                            aria-pressed={tab === item}
-                            key={item}
-                            onClick={() => setTab(item)}
+                            className="icon-button purple"
+                            aria-label={
+                              compact
+                                ? "Aumentar miniaturas"
+                                : "Diminuir miniaturas"
+                            }
+                            aria-pressed={compact}
+                            onClick={() => setCompact(!compact)}
                           >
-                            {item}
+                            <Icon name="grid" />
                           </button>
-                        ))}
-                      </div>
-                      <div
-                        className={`participants-grid ${compact ? "compact" : ""}`}
-                      >
-                        {shownParticipants.map((p) => (
-                          <button
-                            className="participant-tile"
-                            key={p.id}
-                            onClick={() => showDetails(p)}
-                          >
-                            <Avatar person={p} large />
-                            <strong>{p.name}</strong>
-                            <span>{p.age} anos</span>
-                            {p.id in chats && (
-                              <span className="match-label">Seu match</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      {!shownParticipants.length && (
-                        <div className="empty-state">
-                          <Icon name="search" size={32} />
-                          <h3>Ninguém por aqui</h3>
-                          <p>Tente outro nome ou outra categoria.</p>
                         </div>
-                      )}
-                      <p className="participants-note">
-                        Todos os participantes validados, independentemente dos
-                        seus filtros de descoberta.
-                      </p>
-                    </>
-                  )}
-                </div>
-                {(page === "perfil" || page === "filtros") && (
-                  <div className="onboarding-footer">
-                    {page === "perfil" ? (
-                      <button
-                        type="submit"
-                        form="profile-form"
-                        className="primary"
-                      >
-                        Continuar <Icon name="arrow" size={19} />
-                      </button>
-                    ) : (
-                      <button className="primary" onClick={applyFilters}>
-                        Aplicar filtros <Icon name="arrow" size={19} />
-                      </button>
+                        <p className="subtitle">
+                          {people.length} pessoas, muitas possibilidades.
+                        </p>
+                        <div className="search-field">
+                          <Icon name="search" size={18} />
+                          <input
+                            aria-label="Buscar participantes"
+                            placeholder="Buscar participantes"
+                            value={participantSearch}
+                            onChange={(e) =>
+                              setParticipantSearch(e.target.value)
+                            }
+                          />
+                        </div>
+                        <div
+                          className="participant-tabs"
+                          role="group"
+                          aria-label="Filtrar participantes"
+                        >
+                          {["Todos", "Online", "Matches"].map((item) => (
+                            <button
+                              className={`chip ${tab === item ? "active" : ""}`}
+                              aria-pressed={tab === item}
+                              key={item}
+                              onClick={() => setTab(item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                        <div
+                          className={`participants-grid ${compact ? "compact" : ""}`}
+                        >
+                          {shownParticipants.map((p) => (
+                            <button
+                              className="participant-tile"
+                              key={p.id}
+                              onClick={() => showDetails(p)}
+                            >
+                              <Avatar person={p} large />
+                              <strong>{p.name}</strong>
+                              <span>{p.age} anos</span>
+                              {p.id in chats && (
+                                <span className="match-label">Seu match</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        {!shownParticipants.length && (
+                          <div className="empty-state">
+                            <Icon name="search" size={32} />
+                            <h3>Ninguém por aqui</h3>
+                            <p>Tente outro nome ou outra categoria.</p>
+                          </div>
+                        )}
+                        <p className="participants-note">
+                          Todos os participantes validados, independentemente
+                          dos seus filtros de descoberta.
+                        </p>
+                      </>
                     )}
-                  </div>
-                )}
+                </div>
+                {(page === "perfil" || page === "filtros") &&
+                  !serverData?.event.readOnly && (
+                    <div className="onboarding-footer">
+                      {page === "perfil" ? (
+                        <button
+                          type="submit"
+                          form="profile-form"
+                          className="primary"
+                        >
+                          Continuar <Icon name="arrow" size={19} />
+                        </button>
+                      ) : (
+                        <button className="primary" onClick={applyFilters}>
+                          Aplicar filtros <Icon name="arrow" size={19} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 {["descobrir", "mensagens", "participantes"].includes(page) && (
                   <nav className="bottom-nav" aria-label="Navegação principal">
                     {(
@@ -1882,9 +2233,10 @@ function App() {
                       >
                         <Icon name={item.icon} size={22} />
                         <span>{item.text}</span>
-                        {item.page === "mensagens" && unread.length > 0 && (
-                          <i className="nav-unread" />
-                        )}
+                        {item.page === "mensagens" &&
+                          (unread.length > 0 || noticeUnread > 0) && (
+                            <i className="nav-unread" />
+                          )}
                       </button>
                     ))}
                   </nav>
@@ -1996,10 +2348,26 @@ function App() {
             </button>
             <img
               className="modal-photo"
-              src={details.image}
+              src={details.outfit || details.image}
               alt={details.name}
             />
             <div className="modal-body">
+              {real && (
+                <SocialSafety
+                  person={details}
+                  allowBlock
+                  onChanged={(d) => applyData(d)}
+                />
+              )}
+
+              {details.photos?.map((url, i) => (
+                <img
+                  className="modal-photo"
+                  key={url}
+                  src={url}
+                  alt={`Foto pública ou pós-match ${i + 1}`}
+                />
+              ))}
               <h2>
                 {details.name}, {details.age}{" "}
                 <span className="verified">

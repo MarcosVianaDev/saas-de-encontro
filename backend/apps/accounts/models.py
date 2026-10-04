@@ -11,6 +11,7 @@ class User(AbstractUser):
 
 
 class UserProfile(BaseModel):
+    recurring_reported = models.BooleanField(default=False)
     user = models.OneToOneField("accounts.User", on_delete=models.PROTECT, related_name="profile")
     bio = models.TextField(blank=True)
     preferences = models.JSONField(default=dict, blank=True)

@@ -1938,3 +1938,17 @@ img {
 .is-busy .app-screen button {
   cursor: progress;
 }
+.participant-onboarding { max-width: 600px; margin: auto; padding: 24px; min-height: 100vh; background: #fcf9ff; }
+.participant-onboarding label, .participant-tools label, dialog label { display: grid; gap: 6px; margin: 12px 0; }
+.participant-onboarding input, .participant-onboarding select, .participant-onboarding textarea, .participant-tools textarea, dialog textarea { width: 100%; border: 1px solid #dad0ed; border-radius: 10px; padding: 10px; }
+.onboarding-photos { display: flex; gap: 10px; }
+.onboarding-photos article { width: 33%; }
+.onboarding-photos img { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; }
+.onboarding-actions, .mailbox-tabs, .conversation-menu, .safety-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.onboarding-actions { justify-content: flex-end; }
+.participant-tools, .event-banner { padding: 16px; border: 1px solid #e5d9fa; background: #f9f3ff; border-radius: 12px; margin: 12px 0; }
+.participant-tools .unread { border-left: 3px solid #7028e8; padding-left: 10px; }
+dialog { max-width: min(600px, 94vw); max-height: 90vh; overflow-y: auto; border: 1px solid #dacbee; border-radius: 16px; padding: 24px; }
+dialog::backdrop { background: #1c103baa; }
+.discovery-card .safety-controls { position: absolute; z-index: 2; top: 12px; left: 12px; }
+.discovery-actions, .actions-caption { justify-content: space-around; }

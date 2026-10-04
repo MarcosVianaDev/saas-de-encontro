@@ -18,6 +18,7 @@ class ParticipantProfile(BaseModel):
 
 
 class ParticipantPhoto(BaseModel):
+    removed_at = models.DateTimeField(null=True, blank=True)
     participant = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="photos")
     storage_key = models.CharField(max_length=1024)
     is_primary = models.BooleanField(default=False)
@@ -26,11 +27,14 @@ class ParticipantPhoto(BaseModel):
 
 
 class EventOutfitPhoto(BaseModel):
+    captured_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='+')
     participant = models.OneToOneField("participants.EventParticipant", on_delete=models.PROTECT, related_name="outfit_photo")
     storage_key = models.CharField(max_length=1024)
 
 
 class ProfileField(BaseModel):
+    version = models.PositiveIntegerField(default=1)
+    kind = models.CharField(max_length=20, default='text', choices=[('text','Texto'),('consent','Consentimento'),('choice','Opções')])
     event = models.ForeignKey("events.Event", on_delete=models.PROTECT, related_name="profile_fields", null=True, blank=True)
     name = models.CharField(max_length=200)
     is_required = models.BooleanField(default=False)

@@ -25,13 +25,14 @@ from demo.data import DEMO_EVENT_ID
 from .serializers import LoginSerializer, ProfileSerializer, FilterSerializer, DecisionSerializer, MessageSerializer, PhotoDeleteSerializer
 from .services import current, bootstrap, target_for, blocked, visible_participants, match_for, photo_url, ordered_photos, person_payload, record_decision, audit, DEFAULT_FILTERS
 from .event_admin import navigation, invite_event, join_event
+from .services import ensure_social, ensure_writable
 
 
 def login_payload(request):
     nav = navigation(request)
     if request.session.get('navigation') == 'participant':
         nav = {'navigation': 'participant'}
-    if nav['navigation'] == 'administration':
+    if nav['navigation'] in ['administration','global','selection']:
         return nav
     return {**bootstrap(current(request)), **nav}
 
@@ -40,7 +41,7 @@ class SessionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        authenticated = request.user.is_authenticated and (EventParticipant.objects.filter(user=request.user, event_id=request.session.get("event_id")).exists() or request.user.event_administrations.filter(event_id=request.session.get('event_id')).exists())
+        authenticated = request.user.is_authenticated
         return Response({"authenticated": authenticated, "csrfToken": get_token(request),
             "demoEmail": settings.DEMO_USER_EMAIL if settings.DEBUG else None})
 
@@ -58,13 +59,19 @@ class LoginView(APIView):
         if user is None:
             raise ValidationError("E-mail ou senha inválidos.")
         token = request.data.get('invite')
-        member = user.event_administrations.order_by('created_at').first()
+        member = user.event_administrations.filter(is_active=True).order_by('created_at').first()
         participant = join_event(user, invite_event(token)) if token else user.event_participations.filter(event_id=DEMO_EVENT_ID).first() or user.event_participations.order_by("created_at").first()
-        if participant is None and member is None:
+        if participant is None and member is None and not user.is_superuser:
             raise PermissionDenied("Esta conta não participa de um evento.")
         login(request, user)
-        request.session['navigation'] = 'participant' if token or not member else 'administration'
-        request.session["event_id"] = str(participant.event_id if token or not member else member.event_id)
+        from .contexts import available, select
+        contexts = available(user)
+        if token:
+            request.session['navigation'] = 'participant'; request.session['event_id'] = str(participant.event_id)
+        elif len(contexts) > 1:
+            request.session['navigation'] = 'selection'; request.session.pop('event_id',None)
+        else:
+            select(request,contexts[0]['key'])
         return Response({"csrfToken": get_token(request), "data": login_payload(request)})
 
 
@@ -123,6 +130,7 @@ class ProfileView(APIView):
         data = serializer.validated_data
         with transaction.atomic():
             participant = current(request)
+            ensure_writable(participant)
             EventParticipant.objects.select_for_update().get(pk=participant.pk)
             photos = ordered_photos(participant)
             if not 3 <= len(photos) <= 10 or len([p for p in photos if p.visibility == "PRE_MATCH"]) != 3 or len([p for p in photos if p.is_primary]) != 1:
@@ -135,9 +143,10 @@ class ProfileView(APIView):
                 setattr(profile, target, data[source])
             profile.full_clean()
             profile.save()
-            participant.is_active = True
-            participant.save(update_fields=["is_active", "updated_at"])
-            audit(request.user, "profile.activated", profile)
+            participant.registration_status = 'ACTIVE' if participant.is_active else 'INACTIVE' if participant.deactivation_reason else 'PENDING'
+            participant.onboarding_completed_at = participant.onboarding_completed_at or timezone.now()
+            participant.save()
+            audit(request.user, "profile.updated" if participant.is_active else 'profile.pending', profile)
         return Response(bootstrap(participant))
 
 
@@ -146,7 +155,8 @@ class FiltersView(APIView):
         serializer = FilterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
-            participant = current(request, active=True)
+            participant = current(request)
+            ensure_writable(participant)
             EventParticipant.objects.select_for_update().get(pk=participant.pk)
             preference = participant.preference
             preference.filters = {**serializer.validated_data, "favorites": preference.filters.get("favorites", [])}
@@ -158,6 +168,7 @@ class FiltersView(APIView):
 class ParticipantsView(APIView):
     def get(self, request):
         participant = current(request, active=True)
+        ensure_social(participant)
         queryset = visible_participants(participant)
         search = request.query_params.get("search", "").strip()
         if search:
@@ -175,13 +186,16 @@ class ParticipantView(APIView):
         result = person_payload(peer)
         result["photos"] = [photo_url(p) for p in ordered_photos(peer) if p.visibility == "PRE_MATCH" or matched]
         outfit = getattr(peer, "outfit_photo", None)
-        result["outfit"] = outfit.storage_key if matched and outfit else None
+        result["photoEvidence"] = [{'id':str(p.pk),'url':photo_url(p)} for p in ordered_photos(peer) if p.visibility=='PRE_MATCH' or matched]
+        result["outfit"] = f'/api/outfits/{peer.pk}/content/' if matched and outfit else None
         return Response(result)
 
 
 class DiscoveryView(APIView):
     def get(self, request):
-        return Response(bootstrap(current(request, active=True))["discovery"])
+        participant = current(request,active=True)
+        ensure_social(participant)
+        return Response(bootstrap(participant)['discovery'])
 
 
 class InteractionView(APIView):
@@ -190,6 +204,7 @@ class InteractionView(APIView):
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             participant = current(request, active=True)
+            ensure_social(participant)
             target = target_for(participant, peer_id)
             list(EventParticipant.objects.select_for_update().filter(pk__in=[participant.pk, target.pk]).order_by("id"))
             target = target_for(participant, peer_id)
@@ -202,6 +217,9 @@ class FavoriteView(APIView):
         with transaction.atomic():
             participant = current(request, active=True)
             target_for(participant, peer_id)
+            ensure_writable(participant)
+            match = match_for(participant,peer_id)
+            if not match.is_active: raise PermissionDenied('Favoritar está disponível somente após match ativo.')
             EventParticipant.objects.select_for_update().get(pk=participant.pk)
             preference = participant.preference
             favorites = preference.filters.get("favorites", [])
@@ -213,28 +231,34 @@ class FavoriteView(APIView):
 
 class ConversationsView(APIView):
     def get(self, request):
-        data = bootstrap(current(request, active=True))
+        data = bootstrap(current(request))
         return Response({"chats": data["chats"], "chatStates": data["chatStates"]})
 
 
 class MessagesView(APIView):
+    @transaction.atomic
     def get(self, request, peer_id):
-        participant = current(request, active=True)
-        match_for(participant, peer_id)
+        participant = current(request)
+        match = match_for(participant, peer_id)
+        match.conversation.messages.exclude(sender=participant).filter(read_at__isnull=True).update(read_at=timezone.now())
         return Response(bootstrap(participant)["chats"].get(str(peer_id), []))
 
     def post(self, request, peer_id):
         serializer = MessageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
-            participant = current(request, active=True)
+            participant = current(request)
+            ensure_writable(participant)
+            if participant.event.state not in ['RUNNING','PAUSED']:
+                raise PermissionDenied('O evento ainda não começou.')
             match = match_for(participant, peer_id)
             from apps.matches.models import Match
             match = Match.objects.select_for_update().get(pk=match.pk)
             peer = match.partner if match.participant_id == participant.pk else match.participant
             if not match.is_active or blocked(participant, peer):
                 raise PermissionDenied("Esta conversa está em modo somente leitura.")
-            target_for(participant, peer_id)
+            if peer.social_deleted_at or not peer.user.is_active or peer.active_ban:
+                raise PermissionDenied('Esta conversa está disponível somente para consulta.')
             message = Message.objects.create(conversation=match.conversation, sender=participant, body=serializer.validated_data["text"])
             audit(request.user, "message.sent", message)
         return Response(bootstrap(participant), status=201)
@@ -244,6 +268,7 @@ class EndMatchView(APIView):
     def post(self, request, peer_id):
         with transaction.atomic():
             participant = current(request, active=True)
+            ensure_writable(participant)
             match = match_for(participant, peer_id)
             from apps.matches.models import Match
             match = Match.objects.select_for_update().get(pk=match.pk)
@@ -260,8 +285,9 @@ def normalize_photos(participant):
     photos = ordered_photos(participant)
     for index, photo in enumerate(photos):
         photo.position = index
-        photo.is_primary = index == 0
-        photo.visibility = "PRE_MATCH" if index < 3 else "POST_MATCH"
+        if not participant.activated_at:
+            photo.is_primary = index == 0
+            photo.visibility = "PRE_MATCH" if index < 3 else "POST_MATCH"
         photo.save()
     if len(photos) < 3:
         participant.is_active = False
@@ -287,11 +313,13 @@ class PhotosView(APIView):
         try:
             with transaction.atomic():
                 participant = current(request)
+                ensure_writable(participant)
                 EventParticipant.objects.select_for_update().get(pk=participant.pk)
-                if participant.photos.count() >= 10:
+                if participant.photos.filter(removed_at__isnull=True).count() >= 10:
                     raise ValidationError("Limite de 10 fotos por perfil.")
                 key = default_storage.save(f"participants/{participant.pk}/{uuid.uuid4()}{extension}", upload)
-                photo = ParticipantPhoto.objects.create(participant=participant, storage_key=key, position=participant.photos.count())
+                replacement=participant.deactivation_reason=='PHOTO_REVIEW' and participant.photos.filter(visibility='PRE_MATCH',removed_at__isnull=True).count()<3
+                photo = ParticipantPhoto.objects.create(participant=participant, storage_key=key, position=participant.photos.filter(removed_at__isnull=True).count(),visibility='PRE_MATCH' if replacement or not participant.activated_at else 'POST_MATCH',is_primary=replacement and not participant.photos.filter(removed_at__isnull=True,is_primary=True).exists())
                 photos = normalize_photos(participant)
                 audit(request.user, "photo.uploaded", photo)
         except Exception:
@@ -305,15 +333,19 @@ class PhotosView(APIView):
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             participant = current(request)
+            ensure_writable(participant)
             EventParticipant.objects.select_for_update().get(pk=participant.pk)
             photo = next((p for p in participant.photos.all() if photo_url(p) == serializer.validated_data["url"]), None)
             if photo is None:
                 raise Http404
+            if photo.removed_at:
+                raise Http404
+            if participant.activated_at and photo.visibility == 'PRE_MATCH':
+                raise PermissionDenied('Esta foto faz parte do perfil aprovado para este evento e não pode ser alterada diretamente.')
             key = photo.storage_key
             audit(request.user, "photo.deleted", photo)
-            photo.delete()
-            if not key.startswith("/images/"):
-                transaction.on_commit(lambda: default_storage.delete(key))
+            photo.removed_at = timezone.now()
+            photo.save(update_fields=['removed_at','updated_at'])
             photos = normalize_photos(participant)
         return Response({"photos": photos, "active": participant.is_active})
 
@@ -321,7 +353,7 @@ class PhotosView(APIView):
 class PhotoContentView(APIView):
     def get(self, request, photo_id):
         participant = current(request)
-        photo = get_object_or_404(ParticipantPhoto, pk=photo_id)
+        photo = get_object_or_404(ParticipantPhoto, pk=photo_id,removed_at__isnull=True)
         if photo.participant_id != participant.pk:
             current(request, active=True)
             peer = target_for(participant, photo.participant_id)

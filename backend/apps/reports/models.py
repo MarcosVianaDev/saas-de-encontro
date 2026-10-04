@@ -4,6 +4,7 @@ from common.models import BaseModel
 
 
 class Block(BaseModel):
+    reason = models.TextField(blank=True)
     participant = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="blocks_sent")
     target = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="blocks_received")
 
@@ -12,6 +13,8 @@ class Block(BaseModel):
 
 
 class Report(BaseModel):
+    reasons = models.JSONField(default=list,blank=True)
+    is_unfounded = models.BooleanField(default=False)
     reporter = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="reports_sent", null=True, blank=True)
     created_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='+', null=True, blank=True)
     reported = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="reports_received")
@@ -21,6 +24,7 @@ class Report(BaseModel):
 
 
 class ReportEvidence(BaseModel):
+    snapshot = models.JSONField(default=dict,blank=True)
     report = models.ForeignKey("reports.Report", on_delete=models.PROTECT, related_name="evidence")
     description = models.TextField(blank=True)
     storage_key = models.CharField(max_length=1024, blank=True)

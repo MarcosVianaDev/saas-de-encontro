@@ -1,5 +1,11 @@
 # SaaS de Encontro
 
+## MVP — etapas 1 a 8
+
+As etapas 1 a 8 estão implementadas, com 45 cards em [concluídos](<docs/trilha de implementacao(fechado).md>). Consulte [cobertura, operação e validação](<docs/Implementacao - etapas 1 a 8.md>): 73 testes Django aprovados, build TypeScript/Vite e fluxos verificados no navegador. As etapas 9 a 12 permanecem no [backlog aberto](<docs/trilha de implementacao(aberto).md>).
+
+Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=debug` no `.env` e execute `docker compose up -d --build`. `celery_beat` e `celery_worker` executam as automações do ciclo do evento, avisos e expiração de passes. O modo `mock` mantém a demonstração local.
+
 ## Documentação consolidada
 
 O [índice de documentação](docs/README.md) reúne escopo, manuais, fluxos, guias operacionais e a análise de divergências. Os arquivos Markdown são a referência de leitura; os DOCX permanecem como fontes originais. As definições finais de [Escopo Técnico](<docs/Escopo Técnico.md>) e [Escopo e Ideias](<docs/Escopo e Ideias.md>) atualizam as propostas iniciais deste README, especialmente permissões, outfit obrigatório, favoritos pós-match, geolocalização, ciclo de vida e exportação auditável. O escopo atual de passes prevê concessão manual auditável; integração financeira fica para evolução futura. A cobertura existente continua registrada em [Verificação da implementação](<docs/Verificacao da implementacao.md>).
@@ -65,7 +71,7 @@ docker compose exec backend python manage.py test tests api
 
 O Admin é restrito a usuários da equipe, conforme permissões nativas do Django. `AuditLog` permite apenas inclusão pelo código e consulta no Admin, com triggers PostgreSQL bloqueando alterações, exclusões e truncamento. Bloqueios existentes não podem ser editados ou excluídos pelo Admin.
 
-Perfil, filtros, descoberta, favoritos, match recíproco e mensagens têm endpoints autenticados. Encerrar um match preserva o histórico e impede novos envios. Políticas LGPD, revelações comerciais, expiração automática de passes e processamento de pagamentos seguem pendentes. `Notification` e `EventMetric` têm exemplos para inspeção no Admin, sem geração automática de métricas. Repasse/settlement segue pendente.
+Perfil, filtros, descoberta, favoritos pós-match e mensagens têm endpoints autenticados e obedecem ao estado do evento. Encerrar um match preserva o histórico e impede novos envios. Passes por quantidade e tempo, concessão manual, revelação cronológica, expiração e notificações persistidas estão implementados. Políticas LGPD operacionais completas, processamento de pagamentos e repasse/settlement seguem pendentes. O dashboard consulta os dados operacionais; `EventMetric` mantém os exemplos históricos para inspeção no Admin.
 
 Os arquivos estáticos do Admin são servidos pelo Django apenas com `DJANGO_DEBUG=1`; o serviço definitivo de arquivos estáticos em produção continua pendente. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`.
 

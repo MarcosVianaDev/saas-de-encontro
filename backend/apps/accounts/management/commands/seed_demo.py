@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
     def participant(self, key, event, user, name, data=None):
         data = data or {}
-        participant = self.ensure("participants.EventParticipant", key, event=event, user=user, is_active=True)
+        participant = self.ensure("participants.EventParticipant", key, event=event, user=user, is_active=True, registration_status='ACTIVE',activated_at=timezone.now(),onboarding_completed_at=timezone.now())
         self.ensure("profiles.ParticipantProfile", key + ".profile", participant=participant,
             first_name=name, last_name="Demo", birth_month=6,
             birth_year=timezone.localdate().year - data.get("age", 28),
@@ -66,6 +66,13 @@ class Command(BaseCommand):
             self.ensure("profiles.ParticipantPhoto", key + f".photo.{position}", participant=participant,
                 storage_key=url, position=position, is_primary=position == 0, visibility="PRE_MATCH")
         self.ensure("profiles.EventOutfitPhoto", key + ".outfit", participant=participant, storage_key=image)
+        if key == 'actor':
+            reading=self.ensure('participants.LocationReading','location.reading',participant=participant,latitude=-23.55,longitude=-46.63,accuracy_m=20,distance_m=0,measured_at=timezone.now())
+            self.ensure('participants.LocationAnomaly','location.anomaly',participant=participant,reading=reading,criterion='SPEED',resolution='DISCARDED',reason='Exemplo fictício descartado')
+            self.ensure('participants.LocationException','location.exception',participant=participant,actor=user,reason='Exemplo fictício expirado',expires_at=timezone.now()-timedelta(days=1))
+            thread=self.ensure('notifications.SupportThread','support.thread',participant=participant,subject='Atendimento fictício de demonstração')
+            self.ensure('notifications.SupportMessage','support.message',thread=thread,author=user,body='Solicitação fictícia para conhecer o fluxo de suporte.')
+            self.ensure('notifications.EventAnnouncement','announcement.draft',event=event,author=user,title='Aviso fictício de demonstração',body='Este aviso permanece como rascunho.')
         return participant
 
     def seed(self):
@@ -74,7 +81,7 @@ class Command(BaseCommand):
         actor = self.user("user.actor", settings.DEMO_USER_EMAIL, "Alex", login=True)
         organization = self.ensure("organizations.Organization", "organization", name="EventConnect Demo", description="Organização fictícia de desenvolvimento.")
         self.ensure("organizations.OrganizationMember", "membership", organization=organization, user=owner)
-        event = self.ensure("events.Event", "event.current", organization=organization, name="Conecta São Paulo", description="Demonstração completa do fluxo do participante.", starts_at=now, ends_at=now + timedelta(days=2))
+        event = self.ensure("events.Event", "event.current", organization=organization, name="Conecta São Paulo", description="Demonstração completa do fluxo do participante.", state='RUNNING', opening_origin='manual', opened_at=now, responsible=owner, starts_at=now, ends_at=now + timedelta(days=2))
         assert event.id == DEMO_EVENT_ID
         self.ensure("events.EventAdministrator", "event.admin", event=event, user=owner)
         room = self.ensure("rooms.Room", "room", event=event, name="Encontros e conexões", description="Sala principal da demonstração.")
@@ -116,7 +123,7 @@ class Command(BaseCommand):
         self.ensure("consent.ConsentRecord", "consent", user=actor, event=event, purpose="Demonstração local", policy_version="demo-1", granted=True)
         self.ensure("analytics.EventMetric", "metric", event=event, name="participantes_demo", value=13, measured_at=now)
         # Exemplos de moderação/governança ficam em outro evento para não bloquear o fluxo principal.
-        past = self.ensure("events.Event", "event.history", organization=organization, name="Histórico de demonstração", starts_at=now - timedelta(days=7), ends_at=now - timedelta(days=6))
+        past = self.ensure("events.Event", "event.history", organization=organization, name="Histórico de demonstração", state='CLOSED', closed_at=now-timedelta(days=6), starts_at=now - timedelta(days=7), ends_at=now - timedelta(days=6))
         old_actor = self.participant("history.actor", past, actor, "Alex")
         sample_user = self.user("user.history", "historico@eventconnect.local", "Exemplo")
         old_target = self.participant("history.target", past, sample_user, "Exemplo")

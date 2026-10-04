@@ -4,6 +4,11 @@ from common.models import BaseModel
 
 
 class Organization(BaseModel):
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
+    onboarding_draft = models.JSONField(default=dict, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
 

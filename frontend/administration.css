@@ -511,6 +511,9 @@
 }
 .adm-loading {
   padding: 40px;
+  min-height: 100dvh;
+  background: #f6f4fc;
+  color: #25203d;
 }
 .adm-filters select {
   display: block;
@@ -653,3 +656,20 @@
     min-width: 120px;
   }
 }
+.global-context { --adm-purple: #c62835; --violet: #c62835; --purple: #c62835; --primary: #c62835; accent-color: #c62835; }
+.global-context .adm-primary, .global-context .selected { background: #c62835; color: #fff; }
+.global-context .adm-topbar { border-color: #c62835; }
+.configuration-actions { justify-content: flex-end; }
+.global-context .adm-sidebar button, .global-context .adm-back, .global-context .adm-topbar button, .global-context .adm-actions button { color: #c62835; }
+.global-context .adm-sidebar button.selected, .global-context .adm-primary { color: white; }
+.global-context .event-timeline [aria-current], .global-context .adm-badge { color: #c62835; }
+.global-context .adm-back, .global-context .adm-badge { background: #fff0f1; }
+@media (max-width: 700px) {
+  .configuration-actions { position: sticky; bottom: 70px; background: white; padding: 12px; box-shadow: 0 -2px 10px #0001; z-index: 2; }
+}
+.global-context.administration { max-width: 1200px; margin: auto; padding: 16px; background: #fff5f5; min-height: 100vh; }
+.event-timeline { display: flex; gap: 14px; flex-wrap: wrap; padding: 0; list-style: none; }
+.event-timeline [aria-current="step"] { font-weight: bold; color: #6328df; }
+.adm-card label { display: grid; gap: 6px; margin: 10px 0; }
+.adm-card input, .adm-card textarea, .adm-card select { max-width: 100%; padding: 10px; border: 1px solid #d9d0e8; border-radius: 8px; }
+.adm-card input:disabled { background: #eee; color: #666; }
