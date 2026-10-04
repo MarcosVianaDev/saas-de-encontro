@@ -12,6 +12,12 @@ Infraestrutura Docker funcional com Django/DRF/Daphne, React/TypeScript/Vite, Po
 
 Fixtures incluem 12 pessoas, oito conversas, perfis/fotos, preferências, interações, matches, organizações, eventos, salas, passes, pagamentos fictícios e exemplos de governança. Moderação fica em um evento histórico separado. Os registros financeiros não executam cobranças.
 
+## Novos fluxos administrativos documentados
+
+Foram incorporados os três documentos de administração do evento e os mockups `screen1.png`, `screen2.png` e `screen3.png`, reunidos em [Telas administrativas](<Telas administrativas.md>). Eles especificam Dashboard, Evento/QR Code, lista/ficha de participantes, filtros, sanções e fila/investigação/decisões de moderação. As versões Markdown preservam os textos originais.
+
+O painel React administrativo, direcionamento por papel após login, ingresso por QR Code seguro, permissões completas por evento, métricas automáticas e ciclo operacional de moderação continuam pendentes. As matrizes de papéis são preliminares. Nenhuma tela, API ou regra foi implementada nesta atualização documental; a validação de código registrada abaixo se refere à implementação anterior.
+
 ## Cobertura por domínio
 
 | Domínio | Implementado | Pendente |

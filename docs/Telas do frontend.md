@@ -15,6 +15,10 @@ As seis etapas foram implementadas no frontend React/TypeScript existente, com l
 | Mensagens | http://localhost:8080/#mensagens | Busca, lista de conversas e envio; no modo debug, persistência e encerramento de match |
 | Participantes | http://localhost:8080/#participantes | Busca, categorias Todos/Online/Matches, tamanho das miniaturas e detalhes do perfil |
 
+## Telas administrativas previstas
+
+A área do evento terá navegação Dashboard, Participantes, Moderação, Evento e Mais, usando login compartilhado e autorização por vínculo/papel no backend. Os três fluxos e mockups estão em [Telas administrativas](<Telas administrativas.md>). São requisitos para desenvolvimento futuro, distintos das seis telas do participante e do Django Admin atual; não há endereços React administrativos disponíveis.
+
 ## Funcionamento da prévia
 
 O modo é selecionado no `.env` raiz por `FRONTEND_DATA_MODE=mock|debug`. `mock` habilita as telas abaixo com estado em memória; `debug` conecta todas as etapas à API real, com sessão Django e persistência no PostgreSQL. Não usa mocks em caso de falha. Após alterar, recrie o frontend com `docker compose up -d --no-deps --force-recreate frontend`. `DJANGO_DEBUG` controla o Django separadamente. Consulte [Demonstração e API](<Demonstracao e API.md>) para a carga automática, credenciais e endpoints.

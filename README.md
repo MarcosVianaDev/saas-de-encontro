@@ -33,6 +33,8 @@ FRONTEND_DATA_MODE=mock
 
 Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.
 
+Os fluxos previstos de Dashboard, Evento/QR Code, Participantes administrativos e Moderação estão em [Telas administrativas](<docs/Telas administrativas.md>), com especificações completas e referências `screen1.png`, `screen2.png` e `screen3.png`. Essas telas ainda não estão implementadas; o Django Admin permanece como administração disponível.
+
 ### Backend e Django Admin
 
 Acesse **http://localhost:8080/admin/**. O administrador local usa o login `admin`; a senha aleatória está em `.tools/admin-credentials.json`, ignorado pelo Git. Para outro ambiente, crie seu próprio acesso:
