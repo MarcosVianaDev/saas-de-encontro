@@ -3,7 +3,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
-DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+DEBUG = os.getenv("DJANGO_DEBUG", "0").lower() in {"1", "true", "yes"}
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
 CSRF_TRUSTED_ORIGINS = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080").split(",")
 INSTALLED_APPS = [
@@ -59,3 +59,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SESSION_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
+MEDIA_ROOT = BASE_DIR / "media"
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+}
+DEMO_USER_EMAIL = os.getenv("DEMO_USER_EMAIL", "demo@eventconnect.local")
+DEMO_USER_PASSWORD = os.getenv("DEMO_USER_PASSWORD", "")

@@ -9,6 +9,72 @@
   --muted: #81779e;
   --border: #ebe4f7;
 }
+.debug-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 30px 20px;
+  background: radial-gradient(circle at top right, #dfc7f6, #f7f0ff 65%);
+}
+.debug-card {
+  max-width: 560px;
+  width: 100%;
+  padding: 32px;
+  background: #fefbff;
+  border-radius: 24px;
+  box-shadow: 0 20px 70px #40166318;
+}
+.debug-card h1 {
+  color: #7125f5;
+  margin: 20px 0 12px;
+  font-size: 32px;
+}
+.debug-card p {
+  color: #79618a;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.debug-status {
+  margin: 25px 0;
+  padding: 20px;
+  background: #f2e9fb;
+  border-radius: 14px;
+}
+.debug-status h2,
+.debug-pending h2 {
+  font-size: 17px;
+  letter-spacing: -0.4px;
+  margin-bottom: 12px;
+}
+.debug-status dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 0;
+}
+.debug-status dd {
+  margin: 0;
+  text-align: right;
+  color: #7125f5;
+}
+.debug-status .debug-error {
+  color: #a3294b;
+}
+.debug-admin {
+  display: block;
+  text-align: center;
+  padding: 20px;
+  color: #7125f5;
+  font-size: 13px;
+}
+.debug-pending {
+  padding-top: 20px;
+  border-top: 1px solid #e9dcf3;
+}
+.debug-pending p + p {
+  margin-top: 12px;
+}
 * {
   box-sizing: border-box;
 }
@@ -1840,4 +1906,35 @@ img {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+/* Connection status stays visible without changing the screen layout. */
+.backend-ribbon {
+  position: fixed;
+  z-index: 60;
+  top: 8px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #fff;
+  color: #55308c;
+  box-shadow: 0 2px 14px #28104620;
+  font-size: 11px;
+}
+.backend-ribbon button {
+  color: inherit;
+  text-decoration: underline;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.end-match {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 7px;
+}
+.is-busy .app-screen button {
+  cursor: progress;
 }

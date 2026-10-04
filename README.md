@@ -2,7 +2,7 @@
 
 ## Ambiente Docker mínimo instalado
 
-O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante e o backend Django modular com modelos iniciais, migrações e Django Admin. As telas seguem `docs/screen0.png` e usam dados fictícios para demonstrar os fluxos. As regras completas de negócio e a integração com a API serão implementadas posteriormente.
+O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante e o backend Django modular com migrações e Django Admin. As telas seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados de demonstração persistidos no PostgreSQL.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
@@ -22,6 +22,17 @@ Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint ver
 
 As telas de login, perfil, filtros, descoberta, mensagens e participantes estão descritas em [Telas do frontend](<docs/Telas do frontend.md>), com endereços de acesso e limites da demonstração.
 
+O `.env` seleciona a fonte de dados do frontend:
+
+```dotenv
+FRONTEND_DATA_MODE=mock
+```
+
+- `mock`: usa a demonstração com dados fictícios mantidos pelo próprio frontend.
+- `debug`: conecta as seis telas à API real: login, perfil/fotos, filtros, descobertas, matches, favoritos, participantes e mensagens persistidos. Não há fallback para mocks.
+
+Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.
+
 ### Backend e Django Admin
 
 Acesse **http://localhost:8080/admin/**. O administrador local usa o login `admin`; a senha aleatória está em `.tools/admin-credentials.json`, ignorado pelo Git. Para outro ambiente, crie seu próprio acesso:
@@ -32,17 +43,19 @@ docker compose exec backend python manage.py createsuperuser
 
 O código está em `backend/`, com `manage.py`, `config/settings`, URLs, ASGI/WSGI e Celery. Os 19 apps de `backend/apps/` seguem a proposta abaixo e possuem modelos registrados no Admin, com pesquisa e seleção de vínculos por autocomplete. O usuário customizado de `accounts` utiliza UUID e a autenticação nativa do Django; os dados operacionais se vinculam a `EventParticipant`.
 
-O container backend aplica as migrações automaticamente ao iniciar. Para verificar alterações e executar os testes:
+O container backend aplica as migrações automaticamente ao iniciar e executa `seed_demo` somente com `DJANGO_DEBUG=1`. Configure `DEMO_USER_EMAIL` e `DEMO_USER_PASSWORD` no `.env`. A carga preenche os 19 apps uma única vez, preservando alterações e mensagens nas reinicializações. No ambiente local, as credenciais estão em `.tools/demo-credentials.json`; a senha não é enviada ao frontend. Consulte [Demonstração e API](<docs/Demonstracao e API.md>).
+
+Para verificar alterações e executar os testes:
 
 ```powershell
 docker compose exec backend python manage.py check
 docker compose exec backend python manage.py makemigrations --check --dry-run
-docker compose exec backend python manage.py test tests
+docker compose exec backend python manage.py test tests api
 ```
 
 O Admin é restrito a usuários da equipe, conforme permissões nativas do Django. `AuditLog` permite apenas inclusão pelo código e consulta no Admin, com triggers PostgreSQL bloqueando alterações, exclusões e truncamento. Bloqueios existentes não podem ser editados ou excluídos pelo Admin.
 
-Os modelos são uma base inicial de cadastro. Ativação de perfis, geração automática de matches, autorização de mensagens/revelações, políticas LGPD, expiração de passes e processamento de pagamentos ainda não estão implementados. `Notification` e `EventMetric` são cadastros iniciais, sem geração automática de métricas. Repasse/settlement segue pendente e não foi criado.
+Perfil, filtros, descoberta, favoritos, match recíproco e mensagens têm endpoints autenticados. Encerrar um match preserva o histórico e impede novos envios. Políticas LGPD, revelações comerciais, expiração automática de passes e processamento de pagamentos seguem pendentes. `Notification` e `EventMetric` têm exemplos para inspeção no Admin, sem geração automática de métricas. Repasse/settlement segue pendente.
 
 Os arquivos estáticos do Admin são servidos pelo Django apenas com `DJANGO_DEBUG=1`; o serviço definitivo de arquivos estáticos em produção continua pendente. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`.
 

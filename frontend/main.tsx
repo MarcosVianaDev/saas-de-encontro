@@ -7,6 +7,16 @@ import {
 } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { frontendConfig } from "./config";
+import { api, ApiError } from "./backend-client";
+import type {
+  Person,
+  PersonId,
+  Profile,
+  Filters,
+  Message,
+  Bootstrap,
+} from "./types";
 
 type Page =
   "login" | "perfil" | "filtros" | "descobrir" | "mensagens" | "participantes";
@@ -113,18 +123,7 @@ function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   );
 }
 const photo = (id: string) => `/images/${id}.jpg`;
-type Person = {
-  id: number;
-  name: string;
-  age: number;
-  gender: string;
-  job: string;
-  image: string;
-  interests: string[];
-  online: boolean;
-  mutual: boolean;
-};
-const people: Person[] = [
+const mockPeople: Person[] = [
   {
     id: 1,
     name: "Camila",
@@ -308,15 +307,7 @@ const purposes = [
   "Troca de ideias",
   "Outros",
 ];
-type Filters = {
-  min: number;
-  max: number;
-  gender: string;
-  interests: string[];
-  purpose: string;
-};
-type Message = { text: string; mine: boolean; time: string };
-const initialChats: Record<number, Message[]> = {
+const initialChats: Record<string, Message[]> = {
   3: [
     { text: "Oi! Adorei nosso papo no evento! 😊", mine: false, time: "14:30" },
   ],
@@ -350,20 +341,49 @@ function Avatar({
   );
 }
 function App() {
+  const real = !frontendConfig.useMocks;
+  const [people, setPeople] = useState<Person[]>(real ? [] : mockPeople);
+  const [remoteDiscovery, setRemoteDiscovery] = useState<Person[]>([]);
+  const [authenticated, setAuthenticated] = useState(!real);
+  const [ready, setReady] = useState(!real);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [serverActive, setServerActive] = useState(false);
+  const [chatStates, setChatStates] = useState<Bootstrap["chatStates"]>({});
+  const [registering, setRegistering] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [eventName, setEventName] = useState("Conecta São Paulo");
+
   const [page, setPage] = useState<Page>(readPage);
-  const [profile, setProfile] = useState({
-    first: "Camila",
-    last: "Souza",
-    month: "6",
-    year: "1998",
-    gender: "Mulheres",
-    bio: "Amo música, viagens e boas conversas. Aqui para conhecer pessoas incríveis e criar boas histórias neste evento!",
-  });
-  const [photos, setPhotos] = useState([
-    people[0].image,
-    people[2].image,
-    photo("photo-1476514525535-07fb3b4ae5f1"),
-  ]);
+  const [profile, setProfile] = useState<Profile>(
+    real
+      ? {
+          first: "",
+          last: "",
+          month: "1",
+          year: "",
+          gender: "Prefiro não informar",
+          bio: "",
+        }
+      : {
+          first: "Camila",
+          last: "Souza",
+          month: "6",
+          year: "1998",
+          gender: "Mulheres",
+          bio: "Amo música, viagens e boas conversas. Aqui para conhecer pessoas incríveis e criar boas histórias neste evento!",
+        },
+  );
+  const [photos, setPhotos] = useState<string[]>(
+    real
+      ? []
+      : [
+          mockPeople[0].image,
+          mockPeople[2].image,
+          photo("photo-1476514525535-07fb3b4ae5f1"),
+        ],
+  );
   const [filters, setFilters] = useState<Filters>({
     min: 18,
     max: 35,
@@ -373,10 +393,12 @@ function App() {
   });
   const [draft, setDraft] = useState(filters);
   const [interestSearch, setInterestSearch] = useState("");
-  const [seen, setSeen] = useState<number[]>([]);
-  const [liked, setLiked] = useState<number[]>([]);
-  const [chats, setChats] = useState(initialChats);
-  const [activeChat, setActiveChat] = useState<number | null>(null);
+  const [seen, setSeen] = useState<PersonId[]>([]);
+  const [liked, setLiked] = useState<PersonId[]>([]);
+  const [chats, setChats] = useState<Record<string, Message[]>>(
+    real ? {} : initialChats,
+  );
+  const [activeChat, setActiveChat] = useState<PersonId | null>(null);
   const [chatSearch, setChatSearch] = useState("");
   const [message, setMessage] = useState("");
   const [participantSearch, setParticipantSearch] = useState("");
@@ -386,12 +408,23 @@ function App() {
   const [match, setMatch] = useState<Person | null>(null);
   const [toast, setToast] = useState("");
   const [loginForm, setLoginForm] = useState(false);
-  const [unread, setUnread] = useState<number[]>([3]);
-  const [saved, setSaved] = useState<number[]>([]);
+  const [unread, setUnread] = useState<PersonId[]>(real ? [] : [3]);
+  const [saved, setSaved] = useState<PersonId[]>([]);
   const uploadRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const notify = (text: string) => setToast(text);
   const navigate = (next: Page) => {
+    if (real && next !== "login" && !authenticated) {
+      next = "login";
+      setLoginForm(true);
+    }
+    if (
+      real &&
+      authenticated &&
+      !serverActive &&
+      !["login", "perfil"].includes(next)
+    )
+      next = "perfil";
     if (next !== "mensagens") setActiveChat(null);
     location.hash = next;
     setPage(next);
@@ -451,6 +484,246 @@ function App() {
       if (previous?.isConnected) previous.focus();
     };
   }, [details, match]);
+  const applyData = (data: Bootstrap) => {
+    setProfile(data.profile);
+    setPhotos(data.photos);
+    setFilters(data.filters);
+    setDraft(data.filters);
+    setPeople(data.people);
+    setRemoteDiscovery(data.discovery);
+    setChats(data.chats);
+    setChatStates(data.chatStates);
+    setSeen(data.seen);
+    setLiked(data.liked);
+    setSaved(data.saved);
+    setServerActive(data.active);
+    setEventName(data.event.name);
+  };
+  const run = async (action: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível conectar ao backend.",
+      );
+      if (error instanceof ApiError && error.status === 401) {
+        setAuthenticated(false);
+        location.hash = "login";
+        setPage("login");
+        setLoginForm(true);
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (!real) return;
+    let active = true;
+    void (async () => {
+      try {
+        const session = await api.session();
+        if (!active) return;
+        setEmail(session.demoEmail || "");
+        if (session.authenticated) {
+          const data = await api.bootstrap();
+          if (!active) return;
+          applyData(data);
+          setAuthenticated(true);
+          const next =
+            data.active && readPage() !== "login" ? readPage() : "perfil";
+          location.hash = next;
+          setPage(next);
+        } else {
+          location.hash = "login";
+          setPage("login");
+          setLoginForm(true);
+        }
+      } catch (error) {
+        if (active) {
+          notify(
+            error instanceof Error ? error.message : "Backend indisponível.",
+          );
+          location.hash = "login";
+          setPage("login");
+          setLoginForm(true);
+        }
+      } finally {
+        if (active) setReady(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+  const loginSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!real) {
+      navigate("perfil");
+      notify("Você entrou na demonstração. Explore seu perfil!");
+      return;
+    }
+    await run(async () => {
+      await api.session();
+      const data = await api.login(email, password, registering);
+      applyData(data);
+      setAuthenticated(true);
+      setPassword("");
+      location.hash = "perfil";
+      setPage("perfil");
+      notify("Conectado ao backend. Seus dados serão salvos no banco.");
+    });
+  };
+  useEffect(() => {
+    if (!real || !authenticated || !serverActive || page !== "mensagens")
+      return;
+    let disposed = false;
+    const refresh = async () => {
+      if (busyRef.current || document.hidden) return;
+      try {
+        const data = await api.conversations();
+        if (!disposed && !busyRef.current) {
+          setChats(data.chats);
+          setChatStates(data.chatStates);
+        }
+      } catch (error) {
+        if (!disposed)
+          notify(
+            error instanceof Error
+              ? error.message
+              : "Falha ao atualizar mensagens.",
+          );
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5000);
+    return () => {
+      disposed = true;
+      clearInterval(timer);
+    };
+  }, [real, authenticated, serverActive, page]);
+  const saveProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    if (profile.bio.trim().length < 50) {
+      notify("A bio precisa de pelo menos 50 caracteres.");
+      return;
+    }
+    if (photos.length < 3) {
+      notify("Adicione pelo menos 3 fotos para continuar.");
+      return;
+    }
+    if (!real) {
+      navigate("filtros");
+      return;
+    }
+    await run(async () => {
+      applyData(await api.saveProfile(profile));
+      location.hash = "filtros";
+      setPage("filtros");
+      notify("Perfil salvo e ativado.");
+    });
+  };
+  const applyFilters = async () => {
+    if (!real) {
+      setFilters({ ...draft, interests: [...draft.interests] });
+      navigate("descobrir");
+      notify("Preferências aplicadas. Boas conexões!");
+      return;
+    }
+    await run(async () => {
+      applyData(await api.saveFilters(draft));
+      navigate("descobrir");
+      notify("Preferências salvas no backend.");
+    });
+  };
+  const showDetails = async (person: Person) => {
+    if (!real) {
+      setDetails(person);
+      return;
+    }
+    await run(async () => setDetails(await api.person(person.id)));
+  };
+  const toggleFavorite = async (person: Person) => {
+    if (real) {
+      await run(async () => {
+        const result = await api.favorite(person.id);
+        setSaved(result.saved);
+        notify("Favoritos atualizados.");
+      });
+      return;
+    }
+    setSaved((old) =>
+      old.includes(person.id)
+        ? old.filter((id) => id !== person.id)
+        : [...old, person.id],
+    );
+    notify(
+      saved.includes(person.id)
+        ? "Perfil removido dos favoritos."
+        : "Perfil salvo nos favoritos desta sessão.",
+    );
+  };
+  const removePhoto = async (url: string, index: number) => {
+    if (real) {
+      await run(async () => {
+        const result = await api.removePhoto(url);
+        setPhotos(result.photos);
+        setServerActive(result.active);
+      });
+      return;
+    }
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    setPhotos((old) => old.filter((_, i) => i !== index));
+  };
+  const uploadPhotos = async (files: File[]) => {
+    const valid = files.filter(
+      (f) =>
+        ["image/jpeg", "image/png", "image/webp"].includes(f.type) &&
+        f.size <= 10 * 1024 * 1024,
+    );
+    if (valid.length !== files.length)
+      notify("Use fotos JPG, PNG ou WebP de até 10 MB.");
+    if (valid.length + photos.length > 10)
+      notify("Você pode adicionar até 10 fotos.");
+    const selected = valid.slice(0, 10 - photos.length);
+    if (!real) {
+      setPhotos((old) => [
+        ...old,
+        ...selected.map((f) => URL.createObjectURL(f)),
+      ]);
+      return;
+    }
+    await run(async () => {
+      for (const file of selected) {
+        const result = await api.upload(file);
+        setPhotos(result.photos);
+        setServerActive(result.active);
+      }
+    });
+  };
+  const leave = async () => {
+    if (!real) {
+      setLoginForm(false);
+      navigate("login");
+      return;
+    }
+    await run(async () => {
+      await api.logout();
+      setAuthenticated(false);
+      setPeople([]);
+      setPhotos([]);
+      setChats({});
+      setServerActive(false);
+      setLoginForm(true);
+      location.hash = "login";
+      setPage("login");
+    });
+  };
   const stage = stages.findIndex((s) => s.page === page);
   const eligibleFor = (f: Filters) =>
     people.filter(
@@ -461,9 +734,18 @@ function App() {
         (!f.interests.length ||
           f.interests.some((i) => p.interests.includes(i))),
     );
-  const eligible = eligibleFor(filters);
+  const eligible = real ? remoteDiscovery : eligibleFor(filters);
   const candidate = eligible.find((p) => !seen.includes(p.id));
-  const select = (person: Person, like: boolean) => {
+  const select = async (person: Person, like: boolean) => {
+    if (real) {
+      await run(async () => {
+        const result = await api.decide(person.id, like);
+        applyData(result.data);
+        if (result.match) setMatch(result.match);
+        else if (like) notify(`Seu like para ${person.name} foi enviado 💜`);
+      });
+      return;
+    }
     setSeen((old) => [...new Set([...old, person.id])]);
     if (like) {
       setLiked((old) => [...new Set([...old, person.id])]);
@@ -473,14 +755,21 @@ function App() {
       } else notify(`Seu like para ${person.name} foi enviado 💜`);
     }
   };
-  const openChat = (id: number) => {
+  const openChat = (id: PersonId) => {
     setActiveChat(id);
     setUnread((old) => old.filter((item) => item !== id));
     navigate("mensagens");
   };
-  const send = (event: FormEvent) => {
+  const send = async (event: FormEvent) => {
     event.preventDefault();
     if (!message.trim() || activeChat === null) return;
+    if (real) {
+      await run(async () => {
+        applyData(await api.send(activeChat, message.trim()));
+        setMessage("");
+      });
+      return;
+    }
     const entry = {
       text: message.trim(),
       mine: true,
@@ -505,7 +794,22 @@ function App() {
         (tab === "Matches" && p.id in chats)),
   );
   return (
-    <div className="workspace">
+    <div
+      className={`workspace ${busy ? "is-busy" : ""}`}
+      aria-busy={busy || !ready}
+    >
+      {real && (
+        <div className="backend-ribbon" role="status">
+          {!ready
+            ? "Conectando ao backend…"
+            : busy
+              ? "Salvando…"
+              : authenticated
+                ? "DEBUG · banco conectado"
+                : "DEBUG · faça login"}
+          {authenticated && <button onClick={leave}>Sair</button>}
+        </div>
+      )}
       <aside className="sidebar">
         <a className="brand" href="#login">
           <span className="brand-icon">
@@ -544,8 +848,14 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <span className="preview-badge">PRÉVIA INTERATIVA</span>
-          <p>Dados de exemplo para explorar a experiência.</p>
+          <span className="preview-badge">
+            {real ? "DEBUG · BACKEND REAL" : "PRÉVIA INTERATIVA"}
+          </span>
+          <p>
+            {real
+              ? "Dados persistidos no banco de desenvolvimento."
+              : "Dados de exemplo para explorar a experiência."}
+          </p>
           <span>Feito para conectar. 💜</span>
         </div>
       </aside>
@@ -583,23 +893,22 @@ function App() {
                   <div className="hero-line" />
                 </div>
                 {loginForm ? (
-                  <form
-                    className="login-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      navigate("perfil");
-                      notify(
-                        "Você entrou na demonstração. Explore seu perfil!",
-                      );
-                    }}
-                  >
+                  <form className="login-form" onSubmit={loginSubmit}>
                     <h3>Que bom ter você aqui.</h3>
-                    <p>Acesso de demonstração, sem autenticação real.</p>
+                    <p>
+                      {real
+                        ? registering
+                          ? "Crie uma conta no evento de desenvolvimento."
+                          : "Entre com a conta de demonstração do backend."
+                        : "Acesso de demonstração, sem autenticação real."}
+                    </p>
                     <label>
                       E-mail
                       <input
                         type="email"
                         autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         placeholder="voce@exemplo.com"
                         required
                       />
@@ -608,14 +917,23 @@ function App() {
                       Senha
                       <input
                         type="password"
-                        autoComplete="current-password"
+                        autoComplete={
+                          registering ? "new-password" : "current-password"
+                        }
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         placeholder="Sua senha"
                         minLength={6}
                         required
                       />
                     </label>
                     <button className="primary" type="submit">
-                      Entrar na demonstração <Icon name="arrow" size={18} />
+                      {real
+                        ? registering
+                          ? "Criar conta"
+                          : "Entrar no evento"
+                        : "Entrar na demonstração"}{" "}
+                      <Icon name="arrow" size={18} />
                     </button>
                     <button
                       className="text-button light"
@@ -629,13 +947,21 @@ function App() {
                   <div className="login-actions">
                     <button
                       className="primary"
-                      onClick={() => setLoginForm(true)}
+                      onClick={() => {
+                        setRegistering(false);
+                        setLoginForm(true);
+                      }}
                     >
                       Entrar <Icon name="arrow" size={18} />
                     </button>
                     <button
                       className="secondary glass"
-                      onClick={() => navigate("perfil")}
+                      onClick={() => {
+                        if (real) {
+                          setRegistering(true);
+                          setLoginForm(true);
+                        } else navigate("perfil");
+                      }}
                     >
                       Criar conta
                     </button>
@@ -654,9 +980,15 @@ function App() {
                     </button>
                     <button
                       className="demo-link"
-                      onClick={() => navigate("perfil")}
+                      onClick={() => {
+                        if (real) {
+                          setRegistering(true);
+                          setLoginForm(true);
+                        } else navigate("perfil");
+                      }}
                     >
-                      Explorar demonstração <Icon name="arrow" size={15} />
+                      {real ? "Criar uma nova conta" : "Explorar demonstração"}{" "}
+                      <Icon name="arrow" size={15} />
                     </button>
                   </div>
                 )}
@@ -664,7 +996,9 @@ function App() {
                   Sua próxima boa conversa está aqui.
                   <br />
                   <span>
-                    Prévia com dados fictícios. Nenhuma conta é criada.
+                    {real
+                      ? "Ambiente DEBUG com autenticação e dados reais no banco."
+                      : "Prévia com dados fictícios. Nenhuma conta é criada."}
                   </span>
                 </p>
               </div>
@@ -696,18 +1030,7 @@ function App() {
                     <form
                       className="profile-form"
                       id="profile-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        if (profile.bio.trim().length < 50) {
-                          notify("A bio precisa de pelo menos 50 caracteres.");
-                          return;
-                        }
-                        if (photos.length < 3) {
-                          notify("Adicione pelo menos 3 fotos para continuar.");
-                          return;
-                        }
-                        navigate("filtros");
-                      }}
+                      onSubmit={saveProfile}
                     >
                       <h2>
                         Vamos criar seu perfil{" "}
@@ -720,7 +1043,7 @@ function App() {
                       </p>
                       <div className="profile-avatar">
                         <img
-                          src={photos[0] || people[0].image}
+                          src={photos[0] || "/images/profile-placeholder.svg"}
                           alt="Foto principal do seu perfil"
                         />
                         <button
@@ -854,13 +1177,7 @@ function App() {
                               className="remove-photo"
                               type="button"
                               aria-label={`Remover foto ${index + 1}`}
-                              onClick={() => {
-                                if (url.startsWith("blob:"))
-                                  URL.revokeObjectURL(url);
-                                setPhotos((old) =>
-                                  old.filter((_, i) => i !== index),
-                                );
-                              }}
+                              onClick={() => removePhoto(url, index)}
                             >
                               <Icon name="close" size={12} />
                             </button>
@@ -886,25 +1203,8 @@ function App() {
                         hidden
                         onChange={(e) => {
                           const files = Array.from(e.target.files || []);
-                          const valid = files.filter(
-                            (f) =>
-                              [
-                                "image/jpeg",
-                                "image/png",
-                                "image/webp",
-                              ].includes(f.type) && f.size <= 10 * 1024 * 1024,
-                          );
-                          if (valid.length !== files.length)
-                            notify("Use fotos JPG, PNG ou WebP de até 10 MB.");
-                          if (valid.length + photos.length > 10)
-                            notify("Você pode adicionar até 10 fotos.");
-                          setPhotos((old) => [
-                            ...old,
-                            ...valid
-                              .slice(0, 10 - old.length)
-                              .map((f) => URL.createObjectURL(f)),
-                          ]);
                           e.target.value = "";
+                          void uploadPhotos(files);
                         }}
                       />
                     </form>
@@ -1123,7 +1423,7 @@ function App() {
                                 <button
                                   className="info-button"
                                   aria-label={`Ver perfil de ${candidate.name}`}
-                                  onClick={() => setDetails(candidate)}
+                                  onClick={() => showDetails(candidate)}
                                 >
                                   i
                                 </button>
@@ -1155,18 +1455,7 @@ function App() {
                               className={`action-circle favorite ${saved.includes(candidate.id) ? "is-saved" : ""}`}
                               aria-label={`Favoritar ${candidate.name}`}
                               aria-pressed={saved.includes(candidate.id)}
-                              onClick={() => {
-                                setSaved((old) =>
-                                  old.includes(candidate.id)
-                                    ? old.filter((id) => id !== candidate.id)
-                                    : [...old, candidate.id],
-                                );
-                                notify(
-                                  saved.includes(candidate.id)
-                                    ? "Perfil removido dos favoritos."
-                                    : "Perfil salvo nos favoritos desta sessão.",
-                                );
-                              }}
+                              onClick={() => toggleFavorite(candidate)}
                             >
                               <Icon name="star" size={29} />
                             </button>
@@ -1203,9 +1492,13 @@ function App() {
                           </button>
                           <button
                             className="text-button"
-                            onClick={() => setSeen([])}
+                            onClick={() => {
+                              if (!real) setSeen([]);
+                            }}
                           >
-                            Rever perfis da demonstração
+                            {real
+                              ? "Histórico preservado no banco"
+                              : "Rever perfis da demonstração"}
                           </button>
                         </div>
                       )}
@@ -1307,11 +1600,30 @@ function App() {
                                 : "Participante do evento"}
                             </span>
                           </div>
+                          {real && chatStates[String(activeChat)]?.active && (
+                            <button
+                              className="secondary end-match"
+                              disabled={busy}
+                              onClick={() =>
+                                void run(async () => {
+                                  applyData(await api.endMatch(activeChat!));
+                                  notify(
+                                    "Match encerrado. Histórico preservado.",
+                                  );
+                                })
+                              }
+                            >
+                              Encerrar match
+                            </button>
+                          )}
                         </div>
                         <div className="message-history">
                           <span className="day-divider">Hoje</span>
                           <p className="match-note">
-                            Vocês deram match. A conversa começa aqui. 💜
+                            {real &&
+                            chatStates[String(activeChat)]?.active === false
+                              ? "Match encerrado. Histórico em modo somente leitura."
+                              : "Vocês deram match. A conversa começa aqui. 💜"}
                           </p>
                           {chats[activeChat]?.map((entry, index) => (
                             <div
@@ -1330,7 +1642,18 @@ function App() {
                         <form className="message-composer" onSubmit={send}>
                           <input
                             aria-label="Mensagem"
-                            placeholder="Escreva sua mensagem…"
+                            disabled={
+                              real &&
+                              activeChat !== null &&
+                              chatStates[String(activeChat)]?.active === false
+                            }
+                            placeholder={
+                              real &&
+                              activeChat !== null &&
+                              chatStates[String(activeChat)]?.active === false
+                                ? "Conversa em modo somente leitura"
+                                : "Escreva sua mensagem…"
+                            }
                             value={message}
                             maxLength={2000}
                             onChange={(e) => setMessage(e.target.value)}
@@ -1338,7 +1661,14 @@ function App() {
                           <button
                             className="send-button"
                             aria-label="Enviar mensagem"
-                            disabled={!message.trim()}
+                            disabled={
+                              !message.trim() ||
+                              busy ||
+                              (real &&
+                                activeChat !== null &&
+                                chatStates[String(activeChat)]?.active ===
+                                  false)
+                            }
                           >
                             <Icon name="send" size={20} />
                           </button>
@@ -1397,7 +1727,7 @@ function App() {
                           <button
                             className="participant-tile"
                             key={p.id}
-                            onClick={() => setDetails(p)}
+                            onClick={() => showDetails(p)}
                           >
                             <Avatar person={p} large />
                             <strong>{p.name}</strong>
@@ -1433,17 +1763,7 @@ function App() {
                         Continuar <Icon name="arrow" size={19} />
                       </button>
                     ) : (
-                      <button
-                        className="primary"
-                        onClick={() => {
-                          setFilters({
-                            ...draft,
-                            interests: [...draft.interests],
-                          });
-                          navigate("descobrir");
-                          notify("Preferências aplicadas. Boas conexões!");
-                        }}
-                      >
+                      <button className="primary" onClick={applyFilters}>
                         Aplicar filtros <Icon name="arrow" size={19} />
                       </button>
                     )}
@@ -1547,19 +1867,16 @@ function App() {
               </p>
             </div>
             <span className="context-footnote">
-              Demonstração visual · dados fictícios
+              {real
+                ? "DEBUG · dados do banco de desenvolvimento"
+                : "Demonstração visual · dados fictícios"}
             </span>
           </aside>
         </div>
         <footer className="desktop-footer">
           <span>EventConnect © 2026</span>
           <span>Conexões que saem da tela.</span>
-          <button
-            onClick={() => {
-              setLoginForm(false);
-              navigate("login");
-            }}
-          >
+          <button onClick={leave}>
             Voltar ao início <Icon name="arrow" size={14} />
           </button>
         </footer>
@@ -1607,8 +1924,8 @@ function App() {
                 São Paulo, SP · {details.job}
               </p>
               <p>
-                Gosto de boas conversas, novas experiências e pessoas que têm
-                histórias para contar. Vamos nos conhecer?
+                {details.bio ||
+                  "Gosto de boas conversas, novas experiências e pessoas que têm histórias para contar. Vamos nos conhecer?"}
               </p>
               <div className="chips">
                 {details.interests.map((item) => (
@@ -1670,7 +1987,10 @@ function App() {
               Que tal dar o primeiro oi?
             </p>
             <div className="match-avatars">
-              <img src={photos[0] || people[0].image} alt="Seu perfil" />
+              <img
+                src={photos[0] || "/images/profile-placeholder.svg"}
+                alt="Seu perfil"
+              />
               <span>
                 <Icon name="heart" size={26} />
               </span>

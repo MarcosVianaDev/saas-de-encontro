@@ -11,12 +11,17 @@ class ParticipantProfile(BaseModel):
     birth_year = models.PositiveSmallIntegerField(null=True, blank=True)
     gender = models.CharField(max_length=100, blank=True)
     bio = models.TextField(blank=True)
+    job = models.CharField(max_length=200, blank=True)
+    city = models.CharField(max_length=200, default="São Paulo, SP")
+    interests = models.JSONField(default=list, blank=True)
+    is_online = models.BooleanField(default=False)
 
 
 class ParticipantPhoto(BaseModel):
     participant = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="photos")
     storage_key = models.CharField(max_length=1024)
     is_primary = models.BooleanField(default=False)
+    position = models.PositiveSmallIntegerField(default=0)
     visibility = models.CharField(max_length=20, choices=[("PRE_MATCH", "Antes do match"), ("POST_MATCH", "Após o match")], default="PRE_MATCH")
 
 

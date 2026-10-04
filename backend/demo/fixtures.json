@@ -1,0 +1,238 @@
+{
+  "people": [
+    {
+      "id": 1,
+      "name": "Camila",
+      "age": 28,
+      "gender": "Mulheres",
+      "job": "Designer de produto",
+      "image": "/images/photo-1544005313-94ddf0286df2.jpg",
+      "interests": [
+        "Música",
+        "Viagens",
+        "Gastronomia"
+      ],
+      "online": true,
+      "mutual": true
+    },
+    {
+      "id": 2,
+      "name": "Lucas",
+      "age": 32,
+      "gender": "Homens",
+      "job": "Arquiteto",
+      "image": "/images/photo-1500648767791-00dcc994a43e.jpg",
+      "interests": [
+        "Arte",
+        "Gastronomia",
+        "Networking"
+      ],
+      "online": true,
+      "mutual": true
+    },
+    {
+      "id": 3,
+      "name": "Mariana",
+      "age": 26,
+      "gender": "Mulheres",
+      "job": "Fotógrafa",
+      "image": "/images/photo-1524504388940-b1c1722653e1.jpg",
+      "interests": [
+        "Música",
+        "Viagens",
+        "Arte"
+      ],
+      "online": true,
+      "mutual": true
+    },
+    {
+      "id": 4,
+      "name": "Rafael",
+      "age": 30,
+      "gender": "Homens",
+      "job": "Empreendedor",
+      "image": "/images/photo-1519085360753-af0119f7cbe7.jpg",
+      "interests": [
+        "Tecnologia",
+        "Esportes"
+      ],
+      "online": true,
+      "mutual": false
+    },
+    {
+      "id": 5,
+      "name": "Aline",
+      "age": 27,
+      "gender": "Mulheres",
+      "job": "Publicitária",
+      "image": "/images/photo-1524250502761-1ac6f2e30d43.jpg",
+      "interests": [
+        "Arte",
+        "Música"
+      ],
+      "online": false,
+      "mutual": false
+    },
+    {
+      "id": 6,
+      "name": "Thiago",
+      "age": 29,
+      "gender": "Homens",
+      "job": "Desenvolvedor",
+      "image": "/images/photo-1506794778202-cad84cf45f1d.jpg",
+      "interests": [
+        "Tecnologia",
+        "Viagens"
+      ],
+      "online": false,
+      "mutual": false
+    },
+    {
+      "id": 7,
+      "name": "Beatriz",
+      "age": 24,
+      "gender": "Mulheres",
+      "job": "Produtora cultural",
+      "image": "/images/photo-1531123897727-8f129e1688ce.jpg",
+      "interests": [
+        "Música",
+        "Arte"
+      ],
+      "online": true,
+      "mutual": false
+    },
+    {
+      "id": 8,
+      "name": "Carlos",
+      "age": 31,
+      "gender": "Homens",
+      "job": "Chef de cozinha",
+      "image": "/images/photo-1535713875002-d1d0cf377fde.jpg",
+      "interests": [
+        "Gastronomia",
+        "Networking"
+      ],
+      "online": false,
+      "mutual": false
+    },
+    {
+      "id": 9,
+      "name": "Juliana",
+      "age": 28,
+      "gender": "Mulheres",
+      "job": "Jornalista",
+      "image": "/images/photo-1534528741775-53994a69daeb.jpg",
+      "interests": [
+        "Viagens",
+        "Gastronomia"
+      ],
+      "online": true,
+      "mutual": false
+    },
+    {
+      "id": 10,
+      "name": "Pedro",
+      "age": 33,
+      "gender": "Homens",
+      "job": "Engenheiro",
+      "image": "/images/photo-1507591064344-4c6ce005b128.jpg",
+      "interests": [
+        "Esportes",
+        "Tecnologia"
+      ],
+      "online": false,
+      "mutual": false
+    },
+    {
+      "id": 11,
+      "name": "Fernanda",
+      "age": 25,
+      "gender": "Mulheres",
+      "job": "Ilustradora",
+      "image": "/images/photo-1526510747491-58f928ec870f.jpg",
+      "interests": [
+        "Arte",
+        "Viagens"
+      ],
+      "online": false,
+      "mutual": false
+    },
+    {
+      "id": 12,
+      "name": "Bruno",
+      "age": 28,
+      "gender": "Homens",
+      "job": "Músico",
+      "image": "/images/photo-1463453091185-61582044d556.jpg",
+      "interests": [
+        "Música",
+        "Gastronomia"
+      ],
+      "online": true,
+      "mutual": false
+    }
+  ],
+  "chats": {
+    "2": [
+      {
+        "text": "Oi, Lucas! Está gostando do evento?",
+        "mine": true,
+        "time": "12:08"
+      },
+      {
+        "text": "Muito! Vamos no próximo painel?",
+        "mine": false,
+        "time": "12:10"
+      }
+    ],
+    "3": [
+      {
+        "text": "Oi! Adorei nosso papo no evento! 😊",
+        "mine": false,
+        "time": "14:30"
+      }
+    ],
+    "4": [
+      {
+        "text": "Conecta nos próximos workshops?",
+        "mine": false,
+        "time": "Ontem"
+      }
+    ],
+    "5": [
+      {
+        "text": "Também achei incrível!",
+        "mine": false,
+        "time": "Ontem"
+      }
+    ],
+    "6": [
+      {
+        "text": "Valeu pela indicação!",
+        "mine": false,
+        "time": "Seg"
+      }
+    ],
+    "7": [
+      {
+        "text": "Topo! Vamos sim! 🚀",
+        "mine": false,
+        "time": "Seg"
+      }
+    ],
+    "8": [
+      {
+        "text": "Até mais! 👋",
+        "mine": false,
+        "time": "Dom"
+      }
+    ],
+    "9": [
+      {
+        "text": "Foi muito bom te conhecer!",
+        "mine": false,
+        "time": "Dom"
+      }
+    ]
+  }
+}

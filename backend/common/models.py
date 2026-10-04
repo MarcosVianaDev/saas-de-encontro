@@ -26,7 +26,8 @@ class BaseModel(models.Model):
             if field.related_model._meta.label_lower == "events.event":
                 event_ids.add(related.pk)
             elif hasattr(related, "event_id"):
-                event_ids.add(related.event_id)
+                if related.event_id is not None:
+                    event_ids.add(related.event_id)
             if field.related_model._meta.label_lower == "participants.eventparticipant":
                 participants.append(related.pk)
         if len(event_ids) > 1:
