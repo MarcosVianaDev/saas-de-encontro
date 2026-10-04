@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.management import call_command
 
 call_command("migrate", interactive=False)
-if settings.DEBUG:
+if settings.DEBUG and os.getenv("DJANGO_SEED_DEMO", "1").lower() in {"1", "true", "yes"}:
     call_command("seed_demo")
 call_command("collectstatic", interactive=False)
 os.execvp("daphne", ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"])
