@@ -1,5 +1,7 @@
 # Administração e ingresso no evento
 
+> Este guia registra a implementação existente. As definições posteriores de permissões delegáveis, alertas por denúncias e ciclo completo do evento estão nos [requisitos consolidados](<Escopo Técnico.md>); consulte o [índice e análise](README.md) para as diferenças. A consolidação documental não altera os comportamentos descritos abaixo.
+
 Implementado em 04/10/2026, com base nos [fluxos e mockups administrativos](<Telas administrativas.md>).
 
 ## Executar e acessar

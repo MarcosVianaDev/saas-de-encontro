@@ -1,5 +1,7 @@
 # Fluxo - Administração - Participantes
 
+> Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
+
 > Referência funcional preservada do DOCX. Cobertura implementada e limites atualizados em 04/10/2026: [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
 Fonte: [DOCX](<Fluxo - Administração - Participantes.md.docx>). Referência visual: [screen2.png](screen2.png). Guia: [Telas administrativas](<Telas administrativas.md>).
@@ -494,3 +496,41 @@ Detalhes de denúncias e investigação pertencem ao documento específico de Mo
 - Preparar a estrutura para permissões diferentes entre Administrador, Moderador e Operador.
 
 Este documento deve permanecer como referência funcional para o desenvolvimento das telas administrativas de Participantes.
+
+## Matriz de permissões — definição atual
+
+Administrador Global é o usuário com Status de superusuário ativo no Django. O acesso ao Django Admin usa a flag Membro da equipe; essa flag não equivale a Administrador Global. Papéis do evento não concedem automaticamente essas flags globais.
+
+Administrador do Evento pode gerenciar Moderadores e Operadores do próprio evento, conceder ou revogar permissões operacionais, acessar métricas e relatórios e delegar temporariamente a administração somente a um Moderador, podendo retomá-la depois. Delegação e retomada são auditadas e notificadas ao Administrador Global.
+
+As permissões delegáveis se limitam a tratativas do evento: denúncias, bloqueios e desbloqueios; venda, concessão e revogação de passes; ativação/desativação de perfil; captura de foto de ativação; remoção de foto; e edição de bio quando necessária à tratativa. Não abrangem administração global ou funções técnicas.
+
+Moderador possui praticamente o mesmo domínio operacional de tratativas do Administrador do Evento, conforme permissões recebidas, mas não altera equipe/permissões e não acessa métricas ou relatórios. Pode receber a administração temporária.
+
+Operador é o principal responsável pela captura da foto de outfit e ativação operacional do perfil, pode disponibilizar o QR Code do evento e abrir ocorrência administrativa ligada ao participante, como passe que não vigorou ou ajuda/falha ao editar o próprio perfil. Abrir ocorrência não concede poderes de moderação.
+
+Intervenções em foto, bio ou conteúdo do perfil precisam de origem auditável. Quando decorrentes de denúncia, devem ser vinculadas à denúncia. O participante também poderá solicitar suporte dentro da tela de Mensagens; intervenções decorrentes desse atendimento devem ser vinculadas à solicitação/conversa de suporte.
+
+Mudanças de equipe, grupos, permissões, delegação/retomada, decisões de moderação e intervenções sobre perfil devem ser auditáveis.
+
+## Perfil, fotos e visibilidade
+
+A ativação exige 3 fotos públicas válidas. Após ativado, o participante não pode remover ou substituir essas fotos. A foto de outfit também é obrigatória para participação, mas é adicionada pela equipe autorizada, especialmente Operador/Moderador.
+
+Antes do Match, ficam visíveis as 3 fotos públicas. Após o Match, as demais fotos ficam disponíveis e a foto de outfit aparece destacada em primeiro lugar.
+
+Se a moderação remover uma foto pública, o perfil é desativado por deixar de cumprir o mínimo de 3 fotos. O participante deve adicionar outra foto e solicitar reativação junto à moderação. A tratativa também pode ocorrer pelo chat de Suporte, vinculando solicitação, análise e reativação ao atendimento e à auditoria. Nenhum perfil pode ser reativado com menos de 3 fotos públicas válidas.
+
+O evento pode definir campos adicionais do participante como obrigatórios ou opcionais para ativação. A configuração é escolha da organização e deve ser concluída antes da abertura do evento. Esses campos podem representar aceite de termos próprios do evento, consentimentos ou listas de itens/opções para marcação. Campos obrigatórios precisam estar satisfeitos para o participante ficar ativo; opcionais não impedem a ativação. Termos e consentimentos devem manter registro versionado e auditável do conteúdo/versão apresentado e da manifestação do participante.
+
+## Bloqueio, denúncia e segurança entre eventos
+
+O botão Denunciar permanece disponível no perfil da Descoberta, inclusive no perfil público expandido, e nas Mensagens mesmo quando o outro participante já estiver anonimizado. Toda denúncia exige relato textual e pode indicar uma ou mais fotos, mensagem ou outro contexto. Se a foto já tiver sido alterada, o denunciante pode informar isso e procurar a moderação para descrevê-la. Fotos removidas ou substituídas permanecem vinculadas historicamente ao perfil para auditoria, respeitando posteriormente as regras de retenção e eliminação.
+
+Motivos pré-definidos incluem ofensa/ameaça/assédio, importunação ou comportamento sexual indesejado, nudez ou conteúdo sexual explícito, racismo/discriminação, discurso de ódio, violência/ameaça, fraude/golpe, uso indevido de imagem ou identidade, conteúdo ou comportamento possivelmente ilegal e Outro. O sistema não faz classificação jurídica definitiva.
+
+Múltiplos bloqueios não geram alerta automático. Com 10 denúncias válidas não consideradas infundadas, a moderação do evento recebe alerta explícito com acesso direto à tela de Moderação filtrada pelo participante. A equipe pode desativar preventivamente o perfil para análise; o participante recebe tarja informando que o perfil está em análise e pode procurar o Suporte.
+
+Com 20 denúncias válidas, o perfil é desativado automaticamente para análise e a Administração Global é notificada. Denúncias já analisadas e consideradas infundadas não contam para esses limites.
+
+O histórico de denúncias fica vinculado ao perfil global. A Administração Global pode marcar manualmente o perfil como Denunciado recorrente. Quando esse participante ingressar em outro evento, a Administração Global é notificada e decide caso a caso se comunica ou não a administração do novo evento. Histórico e marcação de recorrência não produzem banimento automático em eventos futuros.

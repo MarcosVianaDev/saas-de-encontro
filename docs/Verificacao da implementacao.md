@@ -1,8 +1,10 @@
 # Verificação da implementação
 
+> Os DOCX foram consolidados em Markdown em 04/10/2026. As decisões finais de escopo ampliam os requisitos considerados por esta verificação. Favoritos pós-match, outfit obrigatório, imutabilidade das fotos públicas, permissões delegáveis, geolocalização, automações do ciclo completo, alertas de 10/20 denúncias, concessão manual de passes e exportação auditável precisam de nova verificação específica. A cobertura e os testes registrados abaixo não foram reexecutados nesta alteração documental. Consulte o [índice e análise](README.md).
+
 Atualizado em 04/10/2026, após a implementação do painel administrativo e do ingresso por QR Code.
 
-Fontes: [Escopo Técnico](<Escopo Técnico.docx>), [Escopo e Ideias](<Escopo e Ideias.docx>), [README](../README.md) e código atual. Os documentos de escopo definem os requisitos; este documento registra a cobertura implementada.
+Fontes: [Escopo Técnico](<Escopo Técnico.md>), [Escopo e Ideias](<Escopo e Ideias.md>), [README](../README.md) e código atual. Os documentos de escopo definem os requisitos; este documento registra a cobertura implementada.
 
 ## Estado atual
 

@@ -1,5 +1,7 @@
 # Telas administrativas do EventConnect
 
+> As sínteses e matrizes abaixo descrevem a especificação inicial e a implementação registrada. Os fluxos completos receberam decisões posteriores dos DOCX; consulte o [índice e análise](README.md) e as seções finais desses fluxos para permissões, denúncias, geolocalização, ciclo de vida e exportação. Requisitos novos não significam funcionalidades já implementadas.
+
 Atualizado em 04/10/2026. Estes fluxos definem requisitos para a área administrativa do evento. O painel React administrativo e seu backend foram implementados; a cobertura e as decisões adotadas estão em [Administração e ingresso](<Administracao e ingresso no evento.md>). O Django Admin permanece disponível em `/admin/`. As seis telas do participante continuam descritas em [Telas do frontend](<Telas do frontend.md>).
 
 ## Referências

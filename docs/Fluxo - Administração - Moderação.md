@@ -1,5 +1,7 @@
 # Fluxo - Administração - Moderação
 
+> Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
+
 > Referência funcional preservada do DOCX. Cobertura implementada e limites atualizados em 04/10/2026: [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
 Fonte: [DOCX](<Fluxo - Administração - Moderação.md.docx>). Referência visual: [screen3.png](screen3.png). Guia: [Telas administrativas](<Telas administrativas.md>).
@@ -632,3 +634,27 @@ Receber
 O sistema deve permitir segurança e resposta operacional sem confundir uma denúncia com uma condenação e sem conceder à administração de um evento autoridade global sobre a conta do participante.
 
 Este documento deve permanecer como referência funcional para o desenvolvimento das telas administrativas de Moderação.
+
+## Matriz de permissões
+
+Administrador Global: usuário com Status de superusuário ativo no Django. Acesso ao Django Admin: flag Membro da equipe, sem equivalência automática com Administrador Global.
+
+Administrador do Evento gerencia Moderadores e Operadores, permissões operacionais, métricas e relatórios. Pode delegar temporariamente a administração somente a Moderador e retomá-la depois; ambas as ações são auditadas e notificadas ao Administrador Global.
+
+Permissões operacionais delegáveis: tratativas de denúncias, bloqueios/desbloqueios, passes, ativação/desativação de perfil, foto de ativação, remoção de foto e edição de bio vinculada a uma tratativa.
+
+Moderador atua nas tratativas conforme permissões recebidas, sem gerenciar equipe/permissões e sem acesso a métricas/relatórios.
+
+Operador atua principalmente na foto de outfit e ativação do perfil, disponibilização do QR Code e abertura de ocorrências administrativas do participante.
+
+Intervenções em perfil devem ser vinculadas à denúncia que as originou ou à solicitação de suporte feita pelo participante dentro de Mensagens. Ações relevantes devem ser auditáveis.
+
+## Denúncias e segurança
+
+O participante pode denunciar pela Descoberta, perfil expandido ou Mensagens, com relato obrigatório e indicação do conteúdo relacionado. Conteúdos substituídos permanecem vinculados ao histórico para auditoria conforme retenção. Dez denúncias válidas alertam a moderação do evento; vinte desativam automaticamente o perfil para análise e notificam a Administração Global. Denúncias consideradas infundadas deixam de contar. O histórico permanece ligado ao perfil global, sem banimento automático em eventos futuros.
+
+## LGPD, retenção e eliminação
+
+As regras detalhadas de categorias de dados, temporalidade, anonimização, exclusão, direitos do titular e preservação judicial estão centralizadas no documento **LGPD - Retenção, Eliminação e Direitos do Titular**. Não existe prazo único para todos os dados: cada categoria deve seguir finalidade, base legal e matriz de retenção próprias. Os 15 dias para arquivamento do evento são regra operacional, não prazo jurídico. O projeto deve aplicar ConsentRecord, DataRetentionRecord, LegalHold, PrivacyRequest e AuditLog conforme essa política. Antes da produção, os prazos específicos ainda não fixados devem passar por validação jurídica.
+
+Documento: https://docs.google.com/document/d/1iVfUgkg_0EBERID5z9ZA-WnRu9e6bIDECgBTFW0pmM0/edit

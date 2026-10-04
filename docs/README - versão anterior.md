@@ -1,19 +1,17 @@
 # SaaS de Encontro
 
-## Documentação consolidada
+> Registro histórico. Para execução e estado atual, consulte o [README do projeto](../README.md); para requisitos consolidados, consulte o [índice de documentação](README.md).
 
-O [índice de documentação](docs/README.md) reúne escopo, manuais, fluxos, guias operacionais e a análise de divergências. Os arquivos Markdown são a referência de leitura; os DOCX permanecem como fontes originais. As definições finais de [Escopo Técnico](<docs/Escopo Técnico.md>) e [Escopo e Ideias](<docs/Escopo e Ideias.md>) atualizam as propostas iniciais deste README, especialmente permissões, outfit obrigatório, favoritos pós-match, geolocalização, ciclo de vida e exportação auditável. O escopo atual de passes prevê concessão manual auditável; integração financeira fica para evolução futura. A cobertura existente continua registrada em [Verificação da implementação](<docs/Verificacao da implementacao.md>).
+## Ambiente Docker mínimo instalado
 
-## Estado atual e execução local
-
-O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante, o painel administrativo do evento e o backend Django modular com migrações e Django Admin. As telas do participante seguem `docs/screen0.png` e podem usar mocks locais ou a API real com dados persistidos no PostgreSQL. O painel administrativo segue `docs/screen1.png`, `docs/screen2.png` e `docs/screen3.png` e usa a API autenticada.
+O ambiente contém a infraestrutura, uma página React/TypeScript de verificação e o backend Django modular com modelos iniciais, migrações e Django Admin. Os fluxos e as regras completas de negócio serão implementados posteriormente.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
 - Node 26.10.0 Current, React/TypeScript e Vite; dependências fixadas em `frontend/package-lock.json`.
 - PostgreSQL 18, Redis 8, Nginx stable e Traefik 3 em containers.
-- Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. A porta 8080 é publicada em `0.0.0.0`, permitindo acesso por qualquer interface IPv4 do host. PostgreSQL e Redis permanecem na rede interna do Compose.
-- PostgreSQL e Redis usam volumes persistentes. Fotos enviadas usam storage local em `backend/media/`, persistido pelo bind mount. MinIO/S3 e Celery Beat ficam para uma próxima etapa.
+- Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. Apenas a porta local 8080 é publicada.
+- PostgreSQL e Redis usam volumes persistentes. Storage local/MinIO e Celery Beat ficam para uma próxima etapa.
 
 Na primeira execução, copie `.env.example` para `.env` e substitua os segredos de exemplo. O arquivo `.env` local já foi gerado com valores aleatórios e não deve ser versionado.
 
@@ -23,25 +21,6 @@ docker compose ps
 ```
 
 Acesse http://localhost:8080 e http://localhost:8080/api/health/. O endpoint verifica as conexões reais com PostgreSQL e Redis.
-
-Na rede local, use `http://<IP-do-computador>:8080`. Neste ambiente, o endereço é **http://192.168.1.32:8080**. O `.env` define `HTTP_BIND_ADDRESS=0.0.0.0`, `HTTP_PORT=8080` e `DJANGO_ALLOWED_HOSTS=*`; o backend e o Vite também escutam em `0.0.0.0` dentro dos containers. Login e escritas continuam protegidos por CSRF: acessos pela mesma origem funcionam sem cadastrar cada IP em `DJANGO_CSRF_TRUSTED_ORIGINS`. Origens diferentes devem ser autorizadas explicitamente.
-
-O Firewall do Windows deste host possui a regra `EventConnect-HTTP-8080`, permitindo TCP 8080 da sub-rede local nos perfis Privado e Domínio. Em outro computador, a porta deve estar liberada no firewall correspondente. Para mudar o endereço de escuta ou a porta, ajuste o `.env` e recrie os containers com `docker compose up -d --force-recreate --wait`.
-
-As telas de login, perfil, filtros, descoberta, mensagens e participantes estão descritas em [Telas do frontend](<docs/Telas do frontend.md>), com endereços de acesso e limites da demonstração.
-
-O `.env` seleciona a fonte de dados do frontend:
-
-```dotenv
-FRONTEND_DATA_MODE=mock
-```
-
-- `mock`: usa dados fictícios no frontend para participantes e administração. **Explorar administração** ou `#admin-dashboard` abre participantes, ocorrências, equipe, relatório e QR Code demonstrativo. Papéis e estados do evento podem ser simulados; ações ficam em memória e são restauradas após reload.
-- `debug`: conecta as seis telas à API real: login, perfil/fotos, filtros, descobertas, matches, favoritos, participantes e mensagens persistidos. Não há fallback para mocks.
-
-Depois de alterar o valor, execute `docker compose up -d --no-deps --force-recreate frontend` e recarregue o navegador. A chave é independente de `DJANGO_DEBUG`. O Compose expõe ao Vite somente `VITE_FRONTEND_DATA_MODE`, sem transmitir os segredos do backend ao frontend. As variáveis Vite são incorporadas durante a compilação; um build estático deve ser recompilado após mudar o modo.
-
-O painel React administrativo implementa Dashboard, Evento/QR Code, Participantes, Moderação, Equipe consultiva e Relatório agregado, com base em `screen1.png`, `screen2.png` e `screen3.png`. O login reconhece vínculos e papéis por evento; o QR Code vincula login/cadastro ao evento por convite assinado. Consulte [Administração e ingresso](<docs/Administracao e ingresso no evento.md>) para acesso, permissões e limites atuais, e [Telas administrativas](<docs/Telas administrativas.md>) para os fluxos funcionais.
 
 ### Backend e Django Admin
 
@@ -53,19 +32,17 @@ docker compose exec backend python manage.py createsuperuser
 
 O código está em `backend/`, com `manage.py`, `config/settings`, URLs, ASGI/WSGI e Celery. Os 19 apps de `backend/apps/` seguem a proposta abaixo e possuem modelos registrados no Admin, com pesquisa e seleção de vínculos por autocomplete. O usuário customizado de `accounts` utiliza UUID e a autenticação nativa do Django; os dados operacionais se vinculam a `EventParticipant`.
 
-O container backend aplica as migrações automaticamente ao iniciar e executa `seed_demo` somente com `DJANGO_DEBUG=1`. Configure `DEMO_USER_EMAIL` e `DEMO_USER_PASSWORD` no `.env`. A carga preenche os 19 apps uma única vez, preservando alterações e mensagens nas reinicializações. No ambiente local, as credenciais estão em `.tools/demo-credentials.json`; a senha não é enviada ao frontend. Consulte [Demonstração e API](<docs/Demonstracao e API.md>).
-
-Para verificar alterações e executar os testes:
+O container backend aplica as migrações automaticamente ao iniciar. Para verificar alterações e executar os testes:
 
 ```powershell
 docker compose exec backend python manage.py check
 docker compose exec backend python manage.py makemigrations --check --dry-run
-docker compose exec backend python manage.py test tests api
+docker compose exec backend python manage.py test tests
 ```
 
 O Admin é restrito a usuários da equipe, conforme permissões nativas do Django. `AuditLog` permite apenas inclusão pelo código e consulta no Admin, com triggers PostgreSQL bloqueando alterações, exclusões e truncamento. Bloqueios existentes não podem ser editados ou excluídos pelo Admin.
 
-Perfil, filtros, descoberta, favoritos, match recíproco e mensagens têm endpoints autenticados. Encerrar um match preserva o histórico e impede novos envios. Políticas LGPD, revelações comerciais, expiração automática de passes e processamento de pagamentos seguem pendentes. `Notification` e `EventMetric` têm exemplos para inspeção no Admin, sem geração automática de métricas. Repasse/settlement segue pendente.
+Os modelos são uma base inicial de cadastro. Ativação de perfis, geração automática de matches, autorização de mensagens/revelações, políticas LGPD, expiração de passes e processamento de pagamentos ainda não estão implementados. `Notification` e `EventMetric` são cadastros iniciais, sem geração automática de métricas. Repasse/settlement segue pendente e não foi criado.
 
 Os arquivos estáticos do Admin são servidos pelo Django apenas com `DJANGO_DEBUG=1`; o serviço definitivo de arquivos estáticos em produção continua pendente. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`.
 
@@ -89,7 +66,7 @@ As imagens de infraestrutura acompanham as séries indicadas; os locks fixam as 
 
 Plataforma SaaS para experiências de encontro e relacionamento vinculadas a eventos e salas, com descoberta de participantes, likes, matches, chat, passes de revelação, moderação, auditoria e ciclo de vida de dados.
 
-> **Status em 04/10/2026:** ambiente Docker funcional, 19 apps no Admin, carga automática em DEBUG, seis telas do participante, painel administrativo por evento/papel e ingresso por QR Code assinado. As seções seguintes descrevem a arquitetura aprovada e requisitos do produto; não significam que todos estejam implementados. Consulte [Verificação da implementação](<docs/Verificacao da implementacao.md>) para a cobertura atual e as pendências.
+> **Status:** estruturação técnica inicial. Este documento consolida a arquitetura definida para orientar a criação do repositório e o início do desenvolvimento. Itens ainda não fechados no escopo estão explicitamente marcados como **A definir**.
 
 ---
 
@@ -498,7 +475,7 @@ Se o usuário confirmar o novo LIKE, o histórico antigo continua registrado, ma
 
 A API será implementada com **Django REST Framework**.
 
-A API atual usa `/api/`, sessão Django e CSRF nas escritas. Os endpoints estão em [Demonstração e API](<docs/Demonstracao e API.md>). Versionamento, autenticação de produção e formato definitivo de erros ainda devem ser formalmente definidos.
+A organização exata de URLs, versionamento (`/api/v1/`, por exemplo), autenticação de API e formato padronizado de erros ainda devem ser formalmente definidos.
 
 Os recursos da API deverão respeitar os limites de contexto:
 
@@ -801,23 +778,3 @@ Ele não substitui:
 - documentação operacional dos ambientes.
 
 Esses documentos deverão evoluir junto com o projeto.
-
-## LGPD, retenção e eliminação
-
-As regras detalhadas de categorias de dados, temporalidade, anonimização, exclusão, direitos do titular e preservação judicial estão centralizadas no documento **LGPD - Retenção, Eliminação e Direitos do Titular**. Não existe prazo único para todos os dados: cada categoria deve seguir finalidade, base legal e matriz de retenção próprias. Os 15 dias para arquivamento do evento são regra operacional, não prazo jurídico. O projeto deve aplicar ConsentRecord, DataRetentionRecord, LegalHold, PrivacyRequest e AuditLog conforme essa política. Antes da produção, os prazos específicos ainda não fixados devem passar por validação jurídica.
-
-Documento: https://docs.google.com/document/d/1iVfUgkg_0EBERID5z9ZA-WnRu9e6bIDECgBTFW0pmM0/edit
-
-## Produção e segurança - estágio MVP
-
-O projeto permanece em fase de estruturação e validação de MVP. Nesta etapa, o sistema poderá executar em VPS ou homelab, mantendo aplicação, banco de dados, Redis, arquivos e mídias armazenados localmente na infraestrutura utilizada. A arquitetura atual deve ser tratada como ambiente de desenvolvimento, demonstração e validação, e não como arquitetura definitiva aprovada para produção.
-
-Durante o MVP não é requisito definir armazenamento externo S3/MinIO ou equivalente, alta disponibilidade, escalabilidade horizontal, infraestrutura definitiva de produção ou arquitetura de recuperação de desastre. Essas decisões ficam deliberadamente adiadas para a preparação do lançamento.
-
-Dados reais de participantes não devem ser utilizados para validação do MVP em ambiente de desenvolvimento/homelab. Até a preparação da infraestrutura de produção, os ambientes de validação devem utilizar dados fictícios ou mockados.
-
-### Pendências obrigatórias antes do lançamento
-
-Antes de disponibilizar o sistema para uso real, deverão ser definidos, implementados e validados: armazenamento definitivo de mídias e evidências; backups, restauração e testes de recuperação; criptografia e proteção de dados; gestão de secrets e credenciais; TLS, domínios, rede e firewall; segregação de ambientes; controle e revisão de acessos privilegiados; hardening de containers e servidores; atualização e gestão de vulnerabilidades; observabilidade, logs e alertas; disponibilidade e recuperação de desastre; processamento assíncrono e rotinas agendadas; retenção e eliminação de dados também em backups; proteção dos dumps e pacotes de exportação auditável; resposta a incidentes; e revisão final de segurança e LGPD.
-
-Status deste tópico: requisitos mapeados, com implementação diferida para a preparação do lançamento. A definição de provedor, cloud, storage, backup, alta disponibilidade e demais componentes de produção não faz parte do fechamento estrutural do MVP.

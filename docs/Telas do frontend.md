@@ -1,5 +1,7 @@
 # Telas do EventConnect
 
+> Este guia registra o comportamento atual da demonstração. As decisões posteriores de favoritos somente pós-match, fotos públicas imutáveis e outfit obrigatório estão nos [requisitos consolidados](<Escopo Técnico.md>); as diferenças estão no [índice e análise](README.md).
+
 Referência visual: [screen0.png](screen0.png).
 
 Atualizado em 04/10/2026. Há dois modos de execução: prévia com mocks e fluxo conectado ao Django.
