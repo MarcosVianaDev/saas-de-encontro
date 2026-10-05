@@ -203,4 +203,7 @@ def record_decision(participant, target, decision):
                 audit(participant.user, "match.created", match)
                 from apps.notifications.services import notify
                 for p in [participant,target]:notify(p,'match','É um Match!','A conversa já está disponível.',key=f'match:{match.pk}:{p.pk}',action_path='#mensagens')
+    if decision == 'LIKE':
+        from apps.passes.services import reveal_available
+        reveal_available(target)
     return matched

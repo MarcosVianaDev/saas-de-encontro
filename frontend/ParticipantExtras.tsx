@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
 import type { Person } from "./types";
 import { FormattedText } from "./FormattedText";
@@ -157,6 +157,7 @@ type Likes = {
   }[];
 };
 export function LikesReceived({ onPerson }: { onPerson: (p: Person) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const [data, setData] = useState<Likes | null>(null),
     [offers, setOffers] = useState(false),
     [message, setMessage] = useState("");
@@ -166,79 +167,84 @@ export function LikesReceived({ onPerson }: { onPerson: (p: Person) => void }) {
       .catch((e) => setMessage(e.message));
   useEffect(() => {
     void load();
+    const timer = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
   return (
-    <section className="participant-tools">
-      <h2>Likes recebidos</h2>
-      <p>Você recebeu {data?.count || 0} likes.</p>
-      {!!data?.hidden && (
-        <>
-          <p>
-            🔒 {data.hidden} identidades ocultas. Adquira um passe para revelar
-            quem curtiu você.
-          </p>
-          <button onClick={() => setOffers(!offers)}>
-            Adquirir novo passe
-          </button>
-          <button
-            onClick={() =>
-              void request<{ remaining: number | null }>(
-                "likes-received/",
-                "POST",
-                {},
-              )
-                .then((d) => {
-                  setMessage(
-                    d.remaining === null
-                      ? "Pessoa revelada."
-                      : `Pessoa revelada. Restam ${d.remaining} revelações.`,
-                  );
-                  void load();
-                })
-                .catch((e) => setMessage(e.message))
-            }
-          >
-            Revelar o like oculto mais antigo
-          </button>
-        </>
-      )}
-      {data?.people.map((p) => (
+    <>
+      <button
+        onClick={() => {
+          void load();
+          dialog.current?.showModal();
+        }}
+      >
+        Likes recebidos ({data?.count ?? 0})
+      </button>
+      <dialog ref={dialog} aria-label="Likes recebidos">
         <button
-          className="conversation-row"
-          key={p.id}
-          onClick={() => onPerson(p)}
+          onClick={() => dialog.current?.close()}
+          aria-label="Fechar likes recebidos"
         >
-          <img width={48} src={p.image} alt="" />
-          {p.name}
+          Fechar
         </button>
-      ))}
-      {offers && (
-        <>
-          <h3>Passes disponíveis</h3>
-          {data?.offers.map((o) => (
-            <article key={o.id}>
-              <h4>{o.name}</h4>
+        <section className="participant-tools">
+          <h2>Likes recebidos</h2>
+          <p>Você recebeu {data?.count || 0} likes.</p>
+          {!!data?.hidden && (
+            <>
               <p>
-                {o.limit
-                  ? `${o.limit} revelações`
-                  : `${o.durationMinutes} minutos`}{" "}
-                · R$ {o.price}
+                🔒 {data.hidden} identidades ocultas. Adquira um passe para
+                revelar quem curtiu você.
               </p>
-              <button
-                onClick={() =>
-                  setMessage(
-                    data.instructions ||
-                      "Procure o atendimento do evento para ativar este passe.",
-                  )
-                }
-              >
-                Selecionar
+              <button onClick={() => setOffers(!offers)}>
+                Adquirir novo passe
               </button>
-            </article>
+            </>
+          )}
+          {data?.people.map((p) => (
+            <button
+              className="conversation-row"
+              key={p.id}
+              onClick={() => {
+                dialog.current?.close();
+                onPerson(p);
+              }}
+            >
+              <img width={48} src={p.image} alt="" />
+              {p.name}
+            </button>
           ))}
-        </>
-      )}
-      {message && <p role="status">{message}</p>}
-    </section>
+          {offers && (
+            <>
+              <h3>Passes disponíveis</h3>
+              {data?.offers.map((o) => (
+                <article key={o.id}>
+                  <h4>{o.name}</h4>
+                  <p>
+                    {o.limit
+                      ? `${o.limit} revelações`
+                      : `${o.durationMinutes} minutos`}{" "}
+                    · R$ {o.price}
+                  </p>
+                  <button
+                    onClick={() =>
+                      setMessage(
+                        data.instructions ||
+                          "Procure o atendimento do evento para ativar este passe.",
+                      )
+                    }
+                  >
+                    Selecionar
+                  </button>
+                </article>
+              ))}
+            </>
+          )}
+          {message && <p role="status">{message}</p>}
+        </section>
+      </dialog>
+    </>
   );
 }

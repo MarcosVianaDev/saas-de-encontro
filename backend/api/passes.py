@@ -1,27 +1,19 @@
 from decimal import Decimal
 from datetime import timedelta
 from django.db import transaction
-from django.db.models import Q,Sum
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied,ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.passes.models import PassType,EventPassOffer,ParticipantPass,PassActivation
-from apps.passes.services import revealed_ids,reveal
-from apps.interactions.models import Interaction
-from apps.matches.models import Match
+from apps.passes.services import revealed_ids,reveal,incoming,reveal_available
 from apps.audit.services import record
 from apps.events.permissions import require
 from apps.participants.models import EventParticipant
-from .services import current,person_payload,visible_participants,ensure_social,ensure_writable
+from .services import current,person_payload,ensure_social
 from .event_admin import access
-
-
-def incoming(p):
-    matched=Match.objects.filter(is_active=True).filter(Q(participant=p)|Q(partner=p))
-    peers=[m.partner_id if m.participant_id==p.pk else m.participant_id for m in matched]
-    return Interaction.objects.filter(target=p,decision='LIKE',participant__in=visible_participants(p)).exclude(participant_id__in=peers).select_related('participant__profile','participant__event').order_by('created_at','id')
 
 
 def offer_payload(offer):
@@ -32,6 +24,7 @@ def offer_payload(offer):
 class LikesReceivedView(APIView):
     def get(self,request):
         p=current(request,active=True);ensure_social(p)
+        reveal_available(p)
         known=revealed_ids(p);likes=list(incoming(p))
         return Response({'count':len(likes),'hidden':sum(str(i.participant_id) not in known for i in likes),
             'instructions':p.event.pass_payment_instructions or 'Procure o atendimento do evento para ativar este passe.',
@@ -90,6 +83,7 @@ class AdminPassView(APIView):
                 expires_at=timezone.now()+offer.pass_type.duration if offer.pass_type.duration else None)
             PassActivation.objects.create(participant_pass=obj,activated_by=request.user)
             record(request.user,'pass.granted',obj,member.event,amount=str(obj.sale_amount),origin=origin,participant=str(p.pk),offer=str(offer.pk))
+            reveal_available(p)
         elif action=='revoke':
             obj=get_object_or_404(ParticipantPass.objects.select_for_update(),pk=request.data.get('id'),participant__event=member.event)
             reason=str(request.data.get('reason','')).strip()

@@ -471,6 +471,21 @@ function App() {
     setPage(next);
     setDetails(null);
   };
+  const navigateBottom = (next: Page) => {
+    if (next === "mensagens") {
+      if (
+        page === "mensagens" &&
+        !(mailbox === "messages" && activeChat !== null)
+      ) {
+        const tabs = ["messages", "notifications", "support"];
+        setMailbox(tabs[(tabs.indexOf(mailbox) + 1) % tabs.length]);
+      } else {
+        setMailbox("messages");
+      }
+      setActiveChat(null);
+    }
+    navigate(next);
+  };
   useEffect(() => {
     const onHash = () => {
       if (real && (adminMode || globalMode || contexts)) return;
@@ -2148,12 +2163,9 @@ function App() {
                         <div className="screen-title">
                           <h2>Participantes</h2>
                           {real && (
-                            <details>
-                              <summary>Likes recebidos</summary>
-                              <LikesReceived
-                                onPerson={(p) => void showDetails(p)}
-                              />
-                            </details>
+                            <LikesReceived
+                              onPerson={(p) => void showDetails(p)}
+                            />
                           )}
                           <button
                             className="icon-button purple"
@@ -2280,7 +2292,7 @@ function App() {
                             ? "active"
                             : ""
                         }
-                        onClick={() => navigate(item.page)}
+                        onClick={() => navigateBottom(item.page)}
                         aria-current={
                           page === item.page ||
                           (page === "filtros" && item.page === "descobrir")

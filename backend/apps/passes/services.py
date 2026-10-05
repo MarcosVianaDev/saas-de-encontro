@@ -18,6 +18,41 @@ def revealed_ids(p):
     ).values_list('revealed_participant_id',flat=True))
 
 
+def incoming(p):
+    from apps.matches.models import Match
+    from apps.interactions.models import Interaction
+    from api.services import visible_participants
+    matched = Match.objects.filter(is_active=True).filter(Q(participant=p) | Q(partner=p))
+    peers = [m.partner_id if m.participant_id == p.pk else m.participant_id for m in matched]
+    return Interaction.objects.filter(target=p, decision='LIKE', participant__in=visible_participants(p)).exclude(
+        participant_id__in=peers,
+    ).select_related('participant__profile', 'participant__event').order_by('created_at', 'id')
+
+
+@transaction.atomic
+def reveal_available(p):
+    from apps.participants.models import EventParticipant
+    EventParticipant.objects.select_for_update().get(pk=p.pk)
+    known = revealed_ids(p)
+    hidden = [i for i in incoming(p) if str(i.participant_id) not in known]
+    count = 0
+    for participant_pass in active_passes(p).select_for_update():
+        available = len(hidden) if participant_pass.reveal_limit is None else max(
+            0, participant_pass.reveal_limit - participant_pass.usages.count(),
+        )
+        for like in hidden[:available]:
+            usage, created = PassUsage.objects.get_or_create(
+                participant_pass=participant_pass, revealed_participant=like.participant,
+            )
+            if created:
+                record(p.user, 'pass.revealed', usage, p.event)
+                count += 1
+        hidden = hidden[available:]
+        if not hidden:
+            break
+    return count
+
+
 @transaction.atomic
 def reveal(p,candidates):
     from apps.participants.models import EventParticipant
