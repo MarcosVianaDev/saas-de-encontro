@@ -2427,13 +2427,87 @@ dialog textarea {
 .onboarding-actions {
   justify-content: flex-end;
 }
-.participant-tools,
-.event-banner {
+.participant-tools {
   padding: 16px;
   border: 1px solid #e5d9fa;
   background: #f9f3ff;
   border-radius: 12px;
   margin: 12px 0;
+}
+.participant-alerts {
+  flex-shrink: 0;
+  max-height: 35dvh;
+  overflow-y: auto;
+  padding: 4px 6px 0;
+}
+.participant-alerts:empty {
+  display: none;
+}
+.event-banner.alert {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border: 1px solid #ffe69c;
+  border-radius: 6px;
+  background: #fff3cd;
+  color: #664d03;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.event-banner.alert-info {
+  border-color: #9eeaf9;
+  background: #cff4fc;
+  color: #055160;
+}
+.event-banner p {
+  margin: 4px 0;
+}
+.event-banner button {
+  margin: 4px 6px 0 0;
+  padding: 4px 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+.profile-disposition-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.event-banner .profile-disposition-actions button {
+  width: 100%;
+  margin: 0;
+  padding: 8px;
+  white-space: normal;
+}
+.profile-disposition-actions .soft-success {
+  background: #d1e7dd;
+  border-color: #a3cfbb;
+  color: #0f5132;
+}
+.profile-disposition-actions .soft-danger,
+.disposition-dialog .soft-danger {
+  background: #f8d7da;
+  border-color: #f1aeb5;
+  color: #842029;
+}
+.disposition-dialog .soft-secondary {
+  background: #e2e3e5;
+  border-color: #c4c8cb;
+  color: #41464b;
+}
+dialog.disposition-dialog {
+  width: min(440px, calc(100vw - 32px));
+  background: #fff;
+  color: #212529;
+}
+.disposition-dialog button {
+  padding: 8px 12px;
+  margin: 8px 8px 0 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
 }
 .participant-tools .unread {
   border-left: 3px solid #7028e8;

@@ -450,6 +450,7 @@ function App() {
   const [details, setDetails] = useState<Person | null>(null);
   const [thumbnailPhoto, setThumbnailPhoto] = useState<string | null>(null);
   const thumbnailDialog = useRef<HTMLDialogElement>(null);
+  const deletionDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (thumbnailPhoto) thumbnailDialog.current?.showModal();
     else thumbnailDialog.current?.close();
@@ -1327,62 +1328,73 @@ function App() {
                     <span>{page === "perfil" ? "1" : "2"} de 2</span>
                   </div>
                 )}
-                <div
-                  className={`screen-content ${page === "descobrir" ? "discovery-content" : ""} ${page === "mensagens" && activeChat !== null ? "chat-content" : ""}`}
-                >
-                  {real && authenticated && serverData && (
-                    <>
-                      {serverData.event.endingSoon &&
-                        !serverData.event.readOnly && (
-                          <p className="event-banner">
-                            O evento encerra às{" "}
-                            {serverData.event.ends
-                              ? new Date(
-                                  serverData.event.ends,
-                                ).toLocaleTimeString("pt-BR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : ""}
-                            .
-                          </p>
-                        )}
-                      {serverData.event.state === "PAUSED" && (
-                        <section className="event-banner">
-                          <strong>Evento pausado pela organização</strong>
-                          <p>
-                            Novas descobertas estão temporariamente
-                            indisponíveis. Suas conversas e matches continuam
-                            acessíveis.
-                          </p>
-                          <button onClick={() => navigate("mensagens")}>
-                            Ir para mensagens
-                          </button>
-                        </section>
+                {real && authenticated && serverData && (
+                  <div className="participant-alerts">
+                    {serverData.event.endingSoon &&
+                      !serverData.event.readOnly && (
+                        <p
+                          className="event-banner alert alert-warning"
+                          role="alert"
+                        >
+                          O evento encerra às{" "}
+                          {serverData.event.ends
+                            ? new Date(
+                                serverData.event.ends,
+                              ).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""}
+                          .
+                        </p>
                       )}
-                      {serverData.event.state === "OPEN" && (
-                        <section className="event-banner">
-                          <strong>O evento ainda não começou</strong>
-                          <p>
-                            A descoberta de participantes será liberada quando o
-                            evento começar.
-                          </p>
-                          <button onClick={() => navigate("perfil")}>
-                            Ver meu perfil
-                          </button>
-                        </section>
-                      )}
-                      {serverData.event.readOnly && (
-                        <section className="event-banner">
-                          <strong>Este evento foi encerrado</strong>
-                          <p>
-                            Perfil e conversas estão disponíveis somente para
-                            consulta.
-                          </p>
-                          {page === "perfil" && (
-                            <>
-                              <h3>O que deseja fazer com seu perfil?</h3>
+                    {serverData.event.state === "PAUSED" && (
+                      <section
+                        className="event-banner alert alert-warning"
+                        role="alert"
+                      >
+                        <strong>Evento pausado pela organização</strong>
+                        <p>
+                          Novas descobertas estão temporariamente indisponíveis.
+                          Suas conversas e matches continuam acessíveis.
+                        </p>
+                        <button onClick={() => navigate("mensagens")}>
+                          Ir para mensagens
+                        </button>
+                      </section>
+                    )}
+                    {serverData.event.state === "OPEN" && (
+                      <section
+                        className="event-banner alert alert-info"
+                        role="status"
+                      >
+                        <strong>O evento ainda não começou</strong>
+                        <p>
+                          A descoberta de participantes será liberada quando o
+                          evento começar.
+                        </p>
+                        <button onClick={() => navigate("perfil")}>
+                          Ver meu perfil
+                        </button>
+                      </section>
+                    )}
+                    {serverData.event.readOnly && (
+                      <section
+                        className="event-banner alert alert-warning"
+                        role="alert"
+                      >
+                        <strong>Este evento foi encerrado</strong>
+                        <p>
+                          Perfil e conversas estão disponíveis somente para
+                          consulta.
+                        </p>
+                        {page === "perfil" && (
+                          <>
+                            <h3>O que deseja fazer com seu perfil?</h3>
+                            <div className="profile-disposition-actions">
                               <button
+                                className="soft-success"
+                                disabled={busy}
                                 onClick={() =>
                                   void run(async () => {
                                     applyData(
@@ -1400,64 +1412,110 @@ function App() {
                               >
                                 Salvar perfil para futuros eventos
                               </button>
-                              <details>
-                                <summary>Excluir perfil deste evento</summary>
-                                <p>
-                                  Seu perfil deixará de aparecer socialmente.
-                                  Dados sujeitos a obrigações legais, segurança
-                                  ou preservação poderão permanecer pelo período
-                                  aplicável.
-                                </p>
-                                <button
-                                  onClick={(e) =>
-                                    e.currentTarget
-                                      .closest("details")
-                                      ?.removeAttribute("open")
-                                  }
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    void run(async () => {
-                                      applyData(
-                                        await request<Bootstrap>(
-                                          "profile/disposition/",
-                                          "POST",
-                                          { action: "delete", confirmed: true },
-                                        ),
-                                      );
-                                      notify("Exposição social removida.");
-                                    })
-                                  }
-                                >
-                                  Solicitar exclusão
-                                </button>
-                              </details>
-                            </>
-                          )}
-                        </section>
-                      )}
-                      {serverData.registrationStatus === "PENDING" && (
-                        <p className="event-banner">
-                          Aguardando ativação. Procure a equipe para capturar a
-                          foto do look e validar seu perfil.
+                              <button
+                                className="soft-danger"
+                                disabled={busy}
+                                onClick={() =>
+                                  deletionDialog.current?.showModal()
+                                }
+                              >
+                                Excluir perfil deste evento
+                              </button>
+                            </div>
+                            <dialog
+                              ref={deletionDialog}
+                              className="disposition-dialog"
+                              aria-label="Excluir perfil deste evento"
+                              onClick={(e) =>
+                                closeDialogOnBackdrop(e, () =>
+                                  deletionDialog.current?.close(),
+                                )
+                              }
+                            >
+                              <h2>Excluir perfil deste evento</h2>
+                              <p>
+                                Seu perfil deixará de aparecer socialmente.
+                                Dados sujeitos a obrigações legais, segurança ou
+                                preservação poderão permanecer pelo período
+                                aplicável.
+                              </p>
+                              <button
+                                className="soft-secondary"
+                                onClick={() => deletionDialog.current?.close()}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                className="soft-danger"
+                                disabled={busy}
+                                onClick={() =>
+                                  void run(async () => {
+                                    const updated = await request<Bootstrap>(
+                                      "profile/disposition/",
+                                      "POST",
+                                      { action: "delete", confirmed: true },
+                                    );
+                                    deletionDialog.current?.close();
+                                    applyData(updated);
+                                    notify("Exposição social removida.");
+                                  })
+                                }
+                              >
+                                Solicitar exclusão
+                              </button>
+                            </dialog>
+                          </>
+                        )}
+                      </section>
+                    )}
+                    {serverData.registrationStatus === "PENDING" && (
+                      <p
+                        className="event-banner alert alert-warning"
+                        role="alert"
+                      >
+                        Aguardando ativação. Procure a equipe para capturar a
+                        foto do look e validar seu perfil.
+                      </p>
+                    )}
+                    {serverData.registrationStatus === "INACTIVE" && (
+                      <p
+                        className="event-banner alert alert-warning"
+                        role="alert"
+                      >
+                        Seu perfil está temporariamente desativado ou em
+                        análise. Você pode falar com o Suporte em Mensagens.
+                        <button
+                          onClick={() => {
+                            navigate("mensagens");
+                            setMailbox("support");
+                          }}
+                        >
+                          Falar com o suporte
+                        </button>
+                      </p>
+                    )}
+                    {page === "descobrir" &&
+                      !serverData.socialAvailable &&
+                      ["OPEN", "RUNNING", "PAUSED"].includes(
+                        serverData.event.state || "",
+                      ) && (
+                        <p
+                          className="event-banner alert alert-warning"
+                          role="alert"
+                        >
+                          Você já pode definir suas preferências nos filtros. A
+                          descoberta de pessoas estará disponível após a
+                          ativação do perfil e quando o evento estiver em
+                          andamento.
                         </p>
                       )}
-                      {serverData.registrationStatus === "INACTIVE" && (
-                        <p className="event-banner">
-                          Seu perfil está temporariamente desativado ou em
-                          análise. Você pode falar com o Suporte em Mensagens.
-                          <button
-                            onClick={() => {
-                              navigate("mensagens");
-                              setMailbox("support");
-                            }}
-                          >
-                            Falar com o suporte
-                          </button>
-                        </p>
-                      )}
+                  </div>
+                )}
+                <div
+                  className={`screen-content ${page === "descobrir" ? "discovery-content" : ""} ${page === "mensagens" && activeChat !== null ? "chat-content" : ""}`}
+                >
+                  {real && authenticated && serverData && (
+                    <>
                       <LocationControl
                         data={serverData}
                         onSupport={() => {
@@ -1971,14 +2029,6 @@ function App() {
                           <Icon name="filter" />
                         </button>
                       </div>
-                      {real && !serverData?.socialAvailable && (
-                        <p className="event-banner">
-                          Você já pode definir suas preferências nos filtros. A
-                          descoberta de pessoas estará disponível após a
-                          ativação do perfil e quando o evento estiver em
-                          andamento.
-                        </p>
-                      )}
                     </>
                   )}
                   {page === "descobrir" &&
