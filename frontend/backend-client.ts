@@ -103,4 +103,6 @@ export const api = {
       "DELETE",
       { url },
     ),
+  setThumbnail: (url: string) =>
+    request<Bootstrap>("profile/photos/", "PUT", { url }),
 };

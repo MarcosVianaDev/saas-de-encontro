@@ -187,7 +187,7 @@ class ParticipantView(APIView):
         result["photos"] = [photo_url(p) for p in ordered_photos(peer) if p.visibility == "PRE_MATCH" or matched]
         outfit = getattr(peer, "outfit_photo", None)
         result["photoEvidence"] = [{'id':str(p.pk),'url':photo_url(p)} for p in ordered_photos(peer) if p.visibility=='PRE_MATCH' or matched]
-        result["outfit"] = f'/api/outfits/{peer.pk}/content/' if matched and outfit else None
+        result["outfit"] = f'/api/outfits/{peer.pk}/content/?v={outfit.updated_at.timestamp()}' if matched and outfit else None
         return Response(result)
 
 
@@ -261,6 +261,10 @@ class MessagesView(APIView):
                 raise PermissionDenied('Esta conversa está disponível somente para consulta.')
             message = Message.objects.create(conversation=match.conversation, sender=participant, body=serializer.validated_data["text"])
             audit(request.user, "message.sent", message)
+            from apps.notifications.services import notify
+            notify(peer, 'message', f'Nova mensagem de {participant.profile.first_name}',
+                   message.body, key=f'message:{message.pk}',
+                   action_path=f'#mensagens?participant={participant.pk}')
         return Response(bootstrap(participant), status=201)
 
 
@@ -296,6 +300,27 @@ def normalize_photos(participant):
 
 
 class PhotosView(APIView):
+    @transaction.atomic
+    def put(self, request):
+        serializer = PhotoDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        participant = current(request)
+        ensure_writable(participant)
+        EventParticipant.objects.select_for_update().get(pk=participant.pk)
+        photos = ordered_photos(participant)
+        selected = next((photo for photo in photos if photo_url(photo) == serializer.validated_data['url']), None)
+        if selected is None:
+            raise Http404
+        if selected.visibility != 'PRE_MATCH':
+            raise ValidationError('Selecione uma das três fotos públicas como miniatura.')
+        ordered = [selected] + [photo for photo in photos if photo.pk != selected.pk]
+        for position, photo in enumerate(ordered):
+            photo.position = position
+            photo.is_primary = photo.pk == selected.pk
+            photo.save(update_fields=['position', 'is_primary', 'updated_at'])
+        audit(request.user, 'photo.thumbnail_selected', selected)
+        return Response(bootstrap(participant))
+
     def post(self, request):
         upload = request.FILES.get("file")
         if upload is None or upload.size > 10 * 1024 * 1024:

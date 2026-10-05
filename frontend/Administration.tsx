@@ -1,5 +1,7 @@
+import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
+import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
 import "./administration.css";
@@ -366,7 +368,7 @@ export function Administration({
         setTab("Informações");
       }}
     >
-      <img src={p.image} alt="" />
+      <CachedImage src={p.image} alt="" />
       <span>
         <strong>
           {p.name}
@@ -634,7 +636,7 @@ export function Administration({
                 : "Voltar aos participantes"}
             </button>
             <section className="adm-profile">
-              <img src={person.image} alt="" />
+              <CachedImage src={person.image} alt="" />
               <h1>
                 {person.name}
                 {person.age ? `, ${person.age}` : ""}
@@ -1289,7 +1291,7 @@ export function Administration({
                             key={s.participant.id}
                             onClick={() => setSignalId(s.participant.id)}
                           >
-                            <img src={s.participant.image} alt="" />
+                            <CachedImage src={s.participant.image} alt="" />
                             <span>
                               <strong>{s.participant.name}</strong>
                               <small>
@@ -1376,7 +1378,7 @@ export function Administration({
                       {fullscreen ? "Sair da tela cheia" : "Tela cheia"}
                     </button>
                     {qr && (
-                      <img
+                      <CachedImage
                         src={qr}
                         alt={`QR Code de ingresso no evento ${data.event.name}`}
                       />
@@ -1574,6 +1576,7 @@ export function Administration({
         ref={dialog}
         className="adm-dialog"
         onCancel={() => setAction(null)}
+        onClick={(e) => closeDialogOnBackdrop(e, () => setAction(null))}
       >
         <form onSubmit={execute}>
           <button

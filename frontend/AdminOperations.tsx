@@ -1,3 +1,4 @@
+import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
 import { SupportPanel } from "./ParticipantExtras";
@@ -122,7 +123,7 @@ export function ProfileIntervention({
               </select>
             </label>
             {photo && (
-              <img
+              <CachedImage
                 width={140}
                 src={data?.photos.find((p) => p.id === photo)?.url}
                 alt="Foto selecionada"
@@ -564,7 +565,7 @@ export function ParticipantOperation({
           </button>
           {preview && (
             <>
-              <img
+              <CachedImage
                 src={preview}
                 alt="Prévia da foto do look"
                 style={{ maxWidth: 240 }}

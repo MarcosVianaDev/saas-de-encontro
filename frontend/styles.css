@@ -577,6 +577,20 @@ img {
   width: 100%;
   height: 100%;
 }
+.profile-thumbnail-choice {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+}
+.thumbnail-dialog {
+  width: min(360px, calc(100vw - 32px));
+}
+.thumbnail-dialog > img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
 .photo-tile > span {
   position: absolute;
   bottom: 0;
@@ -1101,8 +1115,79 @@ img {
   flex-shrink: 0;
 }
 .chat-heading .avatar {
-  width: 41px;
-  height: 41px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.chat-heading {
+  flex-wrap: wrap;
+}
+.chat-participant-menu {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.chat-heading .avatar img {
+  border-radius: 10px;
+  object-fit: cover;
+}
+.chat-participant-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.chat-participant-card::-webkit-details-marker {
+  display: none;
+}
+.chat-participant-card:focus-visible {
+  outline: 3px solid #c498ff;
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.chat-participant-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.chat-participant-info strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.chat-participant-info > span {
+  font-size: 10px;
+  color: #9584a8;
+}
+.chat-participant-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 190px;
+  max-width: calc(100vw - 90px);
+  z-index: 10;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e5d9fa;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #21083626;
+}
+.chat-participant-dropdown > button,
+.chat-participant-dropdown .safety-controls button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+.chat-participant-dropdown button:hover {
+  background: #f5efff;
+}
+.chat-participant-dropdown .safety-controls {
+  display: block;
+  margin: 0;
 }
 .chat-heading h2 {
   font-size: 16px;
@@ -1576,6 +1661,65 @@ img {
 .toast > svg {
   color: #c295fd;
 }
+.notification-toast-container {
+  position: fixed;
+  z-index: 1100;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(350px, calc(100vw - 24px));
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+.notification-toast-container .notification-toast {
+  touch-action: pan-y;
+  position: static;
+  transform: none;
+  display: block;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.175);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.97);
+  color: #212529;
+  box-shadow: 0 8px 24px #00000026;
+  pointer-events: auto;
+}
+.notification-toast .toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #0000000d;
+  color: #6c757d;
+}
+.notification-toast .toast-header strong {
+  flex: 1;
+}
+.notification-toast .btn-close {
+  color: #6c757d;
+  padding: 4px;
+  font-size: 22px;
+  line-height: 1;
+}
+.notification-toast button.toast-body {
+  display: block;
+  padding: 12px;
+  width: 100%;
+  color: #212529;
+  text-align: left;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.notification-toast .toast-body span {
+  display: block;
+  margin-top: 6px;
+  color: #7028e8;
+}
 .toast button {
   background: none;
   color: #c1a1da;
@@ -1618,6 +1762,36 @@ img {
   border-radius: 50%;
   color: #633882;
 }
+.person-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.person-modal-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.person-modal .safety-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.person-modal .safety-controls button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e5d9fa;
+  border-radius: 8px;
+  background: #fff;
+}
+.global-popup {
+  width: min(480px, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+}
 .modal-photo {
   width: 100%;
   height: 290px;
@@ -1626,6 +1800,76 @@ img {
 }
 .modal-body {
   padding: 23px;
+}
+.profile-photo-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.profile-photo-button .modal-photo {
+  object-fit: cover;
+}
+.profile-photo-gallery {
+  margin: 12px 16px 0;
+}
+.profile-photo-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  border-radius: 12px;
+}
+.profile-photo-carousel .profile-photo-button {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.profile-carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  font-size: 12px;
+}
+.profile-carousel-controls button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0e5ff;
+  font-size: 24px;
+}
+dialog.profile-photo-viewer {
+  width: calc(100vw - 24px);
+  height: calc(100dvh - 24px);
+  max-width: 1100px;
+  max-height: calc(100dvh - 24px);
+  padding: 50px 12px 12px;
+  background: #161019;
+  border: 0;
+  overflow: hidden;
+}
+.profile-photo-viewer img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+dialog.profile-photo-viewer[open] {
+  display: flex;
+  flex-direction: column;
+}
+.expanded-photo-stage {
+  flex: 1;
+  min-height: 0;
+  touch-action: pan-y;
+}
+.expanded-carousel-controls {
+  flex-shrink: 0;
+  color: #fff;
+}
+.expanded-carousel-controls button {
+  color: #231838;
 }
 .modal-body h2 {
   display: flex;
@@ -1930,10 +2174,15 @@ img {
   background: none;
   cursor: pointer;
 }
-.end-match {
+.chat-heading .end-match {
   margin-left: auto;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
   font-size: 11px;
-  padding: 7px;
+  padding: 6px 9px;
 }
 .is-busy .app-screen button {
   cursor: progress;
@@ -2140,13 +2389,40 @@ dialog textarea {
   border-radius: 10px;
 }
 .onboarding-actions,
-.mailbox-tabs,
 .conversation-menu,
 .safety-controls {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   margin: 12px 0;
+}
+.mailbox-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 12px 0 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+.mailbox-tabs .nav-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: -1px;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: #7028e8;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mailbox-tabs .nav-link:hover {
+  border-color: #e9ecef #e9ecef #dee2e6;
+}
+.mailbox-tabs .nav-link.active {
+  border-color: #dee2e6 #dee2e6 #fff;
+  background: #fff;
+  color: #495057;
 }
 .onboarding-actions {
   justify-content: flex-end;
@@ -2162,6 +2438,35 @@ dialog textarea {
 .participant-tools .unread {
   border-left: 3px solid #7028e8;
   padding-left: 10px;
+}
+.participant-tools .notification-card {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid #e5d9fa;
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.notification-card:hover {
+  box-shadow: 0 3px 12px #21083614;
+}
+.participant-tools .notification-card.unread {
+  border-left-color: #7028e8;
+}
+.notification-card:focus-visible {
+  outline: 3px solid #c498ff;
+  outline-offset: 3px;
+}
+.notification-card h3 {
+  margin: 0 0 8px;
+}
+.notification-read-status {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c757d;
 }
 dialog {
   max-width: min(600px, 94vw);

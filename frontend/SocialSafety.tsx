@@ -1,6 +1,8 @@
+import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
 import type { Bootstrap, Person } from "./types";
+import { closeDialogOnBackdrop } from "./modal-backdrop";
 
 export function SocialSafety({
   person,
@@ -93,7 +95,11 @@ export function SocialSafety({
         )}
         <button onClick={() => setMode("report")}>Denunciar</button>
       </div>
-      <dialog ref={dialog} onCancel={() => setMode("")}>
+      <dialog
+        ref={dialog}
+        onCancel={() => setMode("")}
+        onClick={(e) => closeDialogOnBackdrop(e, () => setMode(""))}
+      >
         <form onSubmit={submit}>
           <h2>
             {mode === "block"
@@ -163,7 +169,7 @@ export function SocialSafety({
                 </select>
               </label>
               {photo && (
-                <img
+                <CachedImage
                   src={photos.find((p) => p.id === photo)?.url}
                   alt="Foto selecionada como evidência"
                   style={{ maxWidth: 160 }}

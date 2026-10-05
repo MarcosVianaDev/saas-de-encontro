@@ -14,12 +14,16 @@ import { GlobalAdministration } from "./GlobalAdministration";
 import { Contexts } from "./Contexts";
 import type { Context } from "./types";
 import { ParticipantOnboarding } from "./ParticipantOnboarding";
+import { ProfileGallery } from "./ProfileGallery";
+import { CachedImage, clearImageCache } from "./CachedImage";
+import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
 import { SocialSafety } from "./SocialSafety";
 import {
   NotificationCenter,
   SupportPanel,
   LikesReceived,
+  type Notice,
 } from "./ParticipantExtras";
 import { LocationControl } from "./LocationControl";
 import { mockEventInfo } from "./administration-mock";
@@ -350,7 +354,7 @@ function Avatar({
 }) {
   return (
     <span className={`avatar ${large ? "large" : ""}`}>
-      <img src={person.image} alt={person.name} loading="lazy" />
+      <CachedImage src={person.image} alt={person.name} loading="lazy" />
       {person.online && <i className="online-dot" aria-label="Online" />}
     </span>
   );
@@ -444,6 +448,12 @@ function App() {
   const [tab, setTab] = useState("Todos");
   const [compact, setCompact] = useState(false);
   const [details, setDetails] = useState<Person | null>(null);
+  const [thumbnailPhoto, setThumbnailPhoto] = useState<string | null>(null);
+  const thumbnailDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (thumbnailPhoto) thumbnailDialog.current?.showModal();
+    else thumbnailDialog.current?.close();
+  }, [thumbnailPhoto]);
   const [match, setMatch] = useState<Person | null>(null);
   const [toast, setToast] = useState("");
   const [loginForm, setLoginForm] = useState(real);
@@ -451,6 +461,25 @@ function App() {
   const [saved, setSaved] = useState<PersonId[]>([]);
   const uploadRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const imageScope = JSON.stringify([
+    serverData?.event.id,
+    serverActive,
+    chatStates,
+  ]);
+  const previousImageScope = useRef<string | null>(null);
+  useEffect(() => {
+    if (!serverData) {
+      previousImageScope.current = null;
+      return;
+    }
+    if (
+      previousImageScope.current !== null &&
+      previousImageScope.current !== imageScope
+    ) {
+      clearImageCache();
+    }
+    previousImageScope.current = imageScope;
+  }, [imageScope, Boolean(serverData)]);
   const notify = (text: string) => setToast(text);
   const navigate = (next: Page) => {
     if (real && next !== "login" && !authenticated) {
@@ -842,6 +871,7 @@ function App() {
   const leave = async () => {
     if (real) {
       await api.logout();
+      clearImageCache();
       setPeople([]);
       setPhotos([]);
       setChats({});
@@ -901,9 +931,52 @@ function App() {
     }
   };
   const openChat = (id: PersonId) => {
+    setMailbox("messages");
     setActiveChat(id);
     setUnread((old) => old.filter((item) => item !== id));
     navigate("mensagens");
+  };
+  const openNotification = (notice: Notice) => {
+    void run(async () => {
+      setActiveChat(null);
+      if (notice.kind === "like") {
+        navigate("participantes");
+        // Fetch again: a pass may have revealed this like since the toast arrived.
+        const notifications = await request<{ items: Notice[] }>(
+          "notifications/",
+        );
+        const peer = notifications.items.find(
+          (item) => item.id === notice.id,
+        )?.participant;
+        if (peer) setDetails(await api.person(peer));
+        return;
+      }
+      if (notice.kind === "match") {
+        const notifications = await request<{ items: Notice[] }>(
+          "notifications/",
+        );
+        const peer = notifications.items.find(
+          (item) => item.id === notice.id,
+        )?.participant;
+        if (peer) {
+          applyData(await api.bootstrap());
+          setMatch(await api.person(peer));
+          return;
+        }
+      }
+      if (notice.kind === "message") {
+        const peer = new URLSearchParams(notice.action.split("?")[1] || "").get(
+          "participant",
+        );
+        applyData(await api.bootstrap());
+        if (peer) {
+          openChat(peer);
+          return;
+        }
+      }
+      navigate("mensagens");
+      setMailbox(notice.kind === "support" ? "support" : "notifications");
+    });
   };
   const send = async (event: FormEvent) => {
     event.preventDefault();
@@ -1399,24 +1472,46 @@ function App() {
                         }}
                       />
                       {page === "mensagens" && (
-                        <div className="mailbox-tabs">
-                          <button onClick={() => setMailbox("messages")}>
+                        <nav
+                          className="mailbox-tabs nav nav-tabs"
+                          aria-label="Seções de mensagens"
+                        >
+                          <button
+                            className={`nav-link ${mailbox === "messages" ? "active" : ""}`}
+                            aria-current={
+                              mailbox === "messages" ? "page" : undefined
+                            }
+                            onClick={() => setMailbox("messages")}
+                          >
                             Mensagens
                           </button>
-                          <button onClick={() => setMailbox("notifications")}>
+                          <button
+                            className={`nav-link ${mailbox === "notifications" ? "active" : ""}`}
+                            aria-current={
+                              mailbox === "notifications" ? "page" : undefined
+                            }
+                            onClick={() => setMailbox("notifications")}
+                          >
                             Notificações{" "}
                             {noticeUnread > 0 ? `(${noticeUnread})` : ""}
                           </button>
-                          <button onClick={() => setMailbox("support")}>
+                          <button
+                            className={`nav-link ${mailbox === "support" ? "active" : ""}`}
+                            aria-current={
+                              mailbox === "support" ? "page" : undefined
+                            }
+                            onClick={() => setMailbox("support")}
+                          >
                             Suporte
                           </button>
-                        </div>
+                        </nav>
                       )}
                       <NotificationCenter
                         visible={
                           page === "mensagens" && mailbox === "notifications"
                         }
                         onUnread={setNoticeUnread}
+                        onOpen={openNotification}
                       />
                       {page === "mensagens" && mailbox === "support" && (
                         <SupportPanel />
@@ -1445,18 +1540,10 @@ function App() {
                           conectar com pessoas incríveis.
                         </p>
                         <div className="profile-avatar">
-                          <img
+                          <CachedImage
                             src={photos[0] || "/images/profile-placeholder.svg"}
                             alt="Foto principal do seu perfil"
                           />
-                          <button
-                            type="button"
-                            className="camera-button"
-                            aria-label="Adicionar fotos ao perfil"
-                            onClick={() => uploadRef.current?.click()}
-                          >
-                            <Icon name="camera" size={19} />
-                          </button>
                         </div>
                         <div className="form-row">
                           <label className="field">
@@ -1564,15 +1651,34 @@ function App() {
                         </div>
                         <p className="microcopy">
                           As 3 primeiras são públicas. As demais, só após o
-                          match.
+                          match. Clique em uma foto pública para escolher a
+                          miniatura do perfil.
                         </p>
                         <div className="photo-grid">
                           {photos.map((url, index) => (
                             <div className="photo-tile" key={url + index}>
-                              <img
-                                src={url}
-                                alt={`Foto ${index + 1} do perfil`}
-                              />
+                              {(
+                                !real
+                                  ? index < 3
+                                  : serverData?.publicPhotos?.includes(url)
+                              ) ? (
+                                <button
+                                  type="button"
+                                  className="profile-thumbnail-choice"
+                                  aria-label={`Escolher foto pública ${index + 1} como miniatura`}
+                                  onClick={() => setThumbnailPhoto(url)}
+                                >
+                                  <CachedImage
+                                    src={url}
+                                    alt={`Foto ${index + 1} do perfil`}
+                                  />
+                                </button>
+                              ) : (
+                                <CachedImage
+                                  src={url}
+                                  alt={`Foto ${index + 1} do perfil`}
+                                />
+                              )}
                               <button
                                 className="remove-photo"
                                 disabled={Boolean(
@@ -1619,6 +1725,57 @@ function App() {
                             void uploadPhotos(files);
                           }}
                         />
+                        <dialog
+                          ref={thumbnailDialog}
+                          className="thumbnail-dialog"
+                          aria-label="Escolher miniatura do perfil"
+                          onCancel={() => setThumbnailPhoto(null)}
+                          onClick={(e) =>
+                            closeDialogOnBackdrop(e, () =>
+                              setThumbnailPhoto(null),
+                            )
+                          }
+                        >
+                          <h2>Miniatura do perfil</h2>
+                          <CachedImage
+                            src={thumbnailPhoto || undefined}
+                            alt="Foto pública selecionada"
+                          />
+                          <div className="onboarding-actions">
+                            <button
+                              type="button"
+                              onClick={() => setThumbnailPhoto(null)}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              className="primary"
+                              disabled={busy}
+                              onClick={() =>
+                                void run(async () => {
+                                  if (!thumbnailPhoto) return;
+                                  if (real) {
+                                    const updated =
+                                      await api.setThumbnail(thumbnailPhoto);
+                                    setPhotos(updated.photos);
+                                    setServerData(updated);
+                                  } else
+                                    setPhotos([
+                                      thumbnailPhoto,
+                                      ...photos.filter(
+                                        (url) => url !== thumbnailPhoto,
+                                      ),
+                                    ]);
+                                  setThumbnailPhoto(null);
+                                  notify("Miniatura do perfil atualizada.");
+                                })
+                              }
+                            >
+                              Definir como miniatura do perfil
+                            </button>
+                          </div>
+                        </dialog>
                       </fieldset>
                       <section
                         className="profile-account"
@@ -1848,7 +2005,7 @@ function App() {
                                   onChanged={(d) => applyData(d)}
                                 />
                               )}
-                              <img
+                              <CachedImage
                                 src={candidate.image}
                                 alt={`Retrato de ${candidate.name}`}
                                 className="discovery-photo"
@@ -2030,19 +2187,69 @@ function App() {
                           >
                             <Icon name="back" />
                           </button>
-                          <Avatar
-                            person={people.find((p) => p.id === activeChat)!}
-                          />
-                          <div>
-                            <h2>
-                              {people.find((p) => p.id === activeChat)!.name}
-                            </h2>
-                            <span>
-                              {people.find((p) => p.id === activeChat)!.online
-                                ? "Online agora"
-                                : "Participante do evento"}
-                            </span>
-                          </div>
+                          <details
+                            className="chat-participant-menu"
+                            key={String(activeChat)}
+                          >
+                            <summary
+                              className="chat-participant-card"
+                              aria-label="Opções do participante"
+                            >
+                              <Avatar
+                                person={people.find(
+                                  (p) => p.id === activeChat,
+                                )!}
+                              />
+                              <span className="chat-participant-info">
+                                <strong>
+                                  {
+                                    people.find((p) => p.id === activeChat)!
+                                      .name
+                                  }
+                                  {people.find((p) => p.id === activeChat)!
+                                    .age != null &&
+                                    `, ${people.find((p) => p.id === activeChat)!.age}`}
+                                </strong>
+                                <span>
+                                  {people.find((p) => p.id === activeChat)!
+                                    .online
+                                    ? "Online agora"
+                                    : "Participante do evento"}
+                                </span>
+                              </span>
+                            </summary>
+                            <div className="chat-participant-dropdown">
+                              <button
+                                onClick={() =>
+                                  void showDetails(
+                                    people.find((p) => p.id === activeChat)!,
+                                  )
+                                }
+                              >
+                                Ver perfil
+                              </button>
+                              {chatStates[String(activeChat)]?.active && (
+                                <button
+                                  onClick={() =>
+                                    void toggleFavorite(
+                                      people.find((p) => p.id === activeChat)!,
+                                    )
+                                  }
+                                >
+                                  {saved.includes(activeChat)
+                                    ? "Desfavoritar"
+                                    : "Favoritar"}
+                                </button>
+                              )}
+                              <SocialSafety
+                                person={people.find(
+                                  (p) => p.id === activeChat,
+                                )!}
+                                allowBlock
+                                onChanged={(d) => applyData(d)}
+                              />
+                            </div>
+                          </details>
                           {real && chatStates[String(activeChat)]?.active && (
                             <button
                               className="secondary end-match"
@@ -2060,38 +2267,6 @@ function App() {
                             </button>
                           )}
                         </div>
-                        {real && (
-                          <details className="conversation-menu">
-                            <summary aria-label="Opções da conversa">⋮</summary>
-                            <button
-                              onClick={() =>
-                                void showDetails(
-                                  people.find((p) => p.id === activeChat)!,
-                                )
-                              }
-                            >
-                              Ver perfil
-                            </button>
-                            {chatStates[String(activeChat)]?.active && (
-                              <button
-                                onClick={() =>
-                                  void toggleFavorite(
-                                    people.find((p) => p.id === activeChat)!,
-                                  )
-                                }
-                              >
-                                {saved.includes(activeChat)
-                                  ? "Desfavoritar"
-                                  : "Favoritar"}
-                              </button>
-                            )}
-                            <SocialSafety
-                              person={people.find((p) => p.id === activeChat)!}
-                              allowBlock
-                              onChanged={(d) => applyData(d)}
-                            />
-                          </details>
-                        )}
                         <div className="message-history">
                           <span className="day-divider">Hoje</span>
                           <p className="match-note">
@@ -2357,7 +2532,7 @@ function App() {
               <div className="community">
                 <div className="avatar-stack">
                   {people.slice(0, 4).map((p) => (
-                    <img key={p.id} src={p.image} alt="" />
+                    <CachedImage key={p.id} src={p.image} alt="" />
                   ))}
                 </div>
                 <span>
@@ -2417,93 +2592,87 @@ function App() {
             >
               <Icon name="close" />
             </button>
-            <img
-              className="modal-photo"
-              src={details.outfit || details.image}
-              alt={details.name}
-            />
-            <div className="modal-body">
-              {real && (
-                <SocialSafety
-                  person={details}
-                  allowBlock
-                  onChanged={(d) => applyData(d)}
-                />
-              )}
-
-              {details.photos?.map((url, i) => (
-                <img
-                  className="modal-photo"
-                  key={url}
-                  src={url}
-                  alt={`Foto pública ou pós-match ${i + 1}`}
-                />
-              ))}
-              <h2>
-                {details.name}, {details.age}{" "}
-                <span className="verified">
-                  <Icon name="check" size={13} />
-                </span>
-              </h2>
-              <p className="modal-location">
-                {details.city && (
-                  <>
-                    <Icon name="pin" size={15} />
-                    {details.city} ·{" "}
-                  </>
-                )}
-                {!real && !details.city && (
-                  <>
-                    <Icon name="pin" size={15} />
-                    São Paulo, SP ·{" "}
-                  </>
-                )}
-                {details.job}
-              </p>
-              {(details.bio || !real) && (
-                <p>
-                  {details.bio ||
-                    "Gosto de boas conversas, novas experiências e pessoas que têm histórias para contar. Vamos nos conhecer?"}
-                </p>
-              )}
-              <div className="chips">
-                {details.interests.map((item) => (
-                  <span className="chip" key={item}>
-                    {item}
+            <div className="person-modal-content">
+              <ProfileGallery key={String(details.id)} person={details} />
+              <div className="modal-body">
+                <h2>
+                  {details.name}, {details.age}{" "}
+                  <span className="verified">
+                    <Icon name="check" size={13} />
                   </span>
-                ))}
+                </h2>
+                <p className="modal-location">
+                  {details.city && (
+                    <>
+                      <Icon name="pin" size={15} />
+                      {details.city} ·{" "}
+                    </>
+                  )}
+                  {!real && !details.city && (
+                    <>
+                      <Icon name="pin" size={15} />
+                      São Paulo, SP ·{" "}
+                    </>
+                  )}
+                  {details.job}
+                </p>
+                {(details.bio || !real) && (
+                  <p>
+                    {details.bio ||
+                      "Gosto de boas conversas, novas experiências e pessoas que têm histórias para contar. Vamos nos conhecer?"}
+                  </p>
+                )}
+                <div className="chips">
+                  {details.interests.map((item) => (
+                    <span className="chip" key={item}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <p className="microcopy">
+                  {details.id in chats
+                    ? "Vocês já deram match. Que tal começar uma conversa?"
+                    : "As fotos adicionais e o chat são liberados após um match."}
+                </p>
+                {details.id in chats ? (
+                  <button
+                    className="primary"
+                    onClick={() => openChat(details.id)}
+                  >
+                    Enviar mensagem <Icon name="chat" size={18} />
+                  </button>
+                ) : (
+                  <button
+                    className="primary"
+                    disabled={liked.includes(details.id)}
+                    onClick={() => {
+                      select(details, true);
+                      setDetails(null);
+                    }}
+                  >
+                    {liked.includes(details.id) ? "Like enviado" : "Gostei"}{" "}
+                    <Icon name="heart" size={18} />
+                  </button>
+                )}
+                {real && (
+                  <SocialSafety
+                    person={details}
+                    allowBlock
+                    onChanged={(d) => applyData(d)}
+                  />
+                )}
               </div>
-              <p className="microcopy">
-                {details.id in chats
-                  ? "Vocês já deram match. Que tal começar uma conversa?"
-                  : "As fotos adicionais e o chat são liberados após um match."}
-              </p>
-              {details.id in chats ? (
-                <button
-                  className="primary"
-                  onClick={() => openChat(details.id)}
-                >
-                  Enviar mensagem <Icon name="chat" size={18} />
-                </button>
-              ) : (
-                <button
-                  className="primary"
-                  disabled={liked.includes(details.id)}
-                  onClick={() => {
-                    select(details, true);
-                    setDetails(null);
-                  }}
-                >
-                  {liked.includes(details.id) ? "Like enviado" : "Gostei"}{" "}
-                  <Icon name="heart" size={18} />
-                </button>
-              )}
             </div>
           </section>
         </div>
       )}
       {match && (
-        <div className="modal-backdrop">
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMatch(null);
+          }}
+        >
           <section
             role="dialog"
             aria-modal="true"
@@ -2526,14 +2695,14 @@ function App() {
               Que tal dar o primeiro oi?
             </p>
             <div className="match-avatars">
-              <img
+              <CachedImage
                 src={photos[0] || "/images/profile-placeholder.svg"}
                 alt="Seu perfil"
               />
               <span>
                 <Icon name="heart" size={26} />
               </span>
-              <img src={match.image} alt={match.name} />
+              <CachedImage src={match.image} alt={match.name} />
             </div>
             <strong>Você e {match.name}</strong>
             <button

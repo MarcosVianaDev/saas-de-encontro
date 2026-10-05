@@ -83,3 +83,51 @@ class AutomaticLikesTests(TestCase):
             participant=self.target, offer=self.offer, reveal_limit=2, revoked_at=timezone.now(),
         )
         self.assertEqual(reveal_available(self.target), 0)
+
+    def test_thumbnail_can_only_be_selected_from_own_public_photos(self):
+        from apps.profiles.models import ParticipantPhoto
+        public = [ParticipantPhoto.objects.create(
+            participant=self.target, storage_key=f'/images/public-{i}.jpg', position=i,
+            visibility='PRE_MATCH', is_primary=i == 0,
+        ) for i in range(3)]
+        private = ParticipantPhoto.objects.create(participant=self.target, storage_key='/images/private.jpg', position=3, visibility='POST_MATCH')
+        foreign = ParticipantPhoto.objects.create(participant=self.people[1], storage_key='/images/foreign.jpg', visibility='PRE_MATCH')
+        client = APIClient()
+        client.force_login(self.target.user)
+        session = client.session
+        session['event_id'] = str(self.event.pk)
+        session.save()
+        response = client.put('/api/profile/photos/', {'url': public[2].storage_key}, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()['photos'][0], public[2].storage_key)
+        self.assertEqual(self.target.photos.filter(is_primary=True).get(), public[2])
+        self.assertEqual(self.target.photos.filter(visibility='PRE_MATCH').count(), 3)
+        self.assertEqual(client.put('/api/profile/photos/', {'url': private.storage_key}, format='json').status_code, 400)
+        self.assertEqual(client.put('/api/profile/photos/', {'url': foreign.storage_key}, format='json').status_code, 404)
+        self.assertEqual(self.target.photos.filter(is_primary=True).get(), public[2])
+
+    def test_like_notification_only_identifies_revealed_sender_and_match_identifies_both(self):
+        from api.services import record_decision
+        Interaction.objects.filter(target=self.target).delete()
+        peer = self.people[1]
+        record_decision(peer, self.target, 'LIKE')
+        client = APIClient()
+        client.force_login(self.target.user)
+        session = client.session
+        session['event_id'] = str(self.event.pk)
+        session.save()
+        data = client.get('/api/notifications/').json()['items']
+        self.assertIsNone(next(n for n in data if n['kind'] == 'like')['participant'])
+        ParticipantPass.objects.create(participant=self.target, offer=self.offer, reveal_limit=2)
+        reveal_available(self.target)
+        data = client.get('/api/notifications/').json()['items']
+        self.assertEqual(next(n for n in data if n['kind'] == 'like')['participant'], str(peer.pk))
+        record_decision(self.target, peer, 'LIKE')
+        data = client.get('/api/notifications/').json()['items']
+        self.assertEqual(next(n for n in data if n['kind'] == 'match')['participant'], str(peer.pk))
+        client.force_login(peer.user)
+        session = client.session
+        session['event_id'] = str(self.event.pk)
+        session.save()
+        data = client.get('/api/notifications/').json()['items']
+        self.assertEqual(next(n for n in data if n['kind'] == 'match')['participant'], str(self.target.pk))

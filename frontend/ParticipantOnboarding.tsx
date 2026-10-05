@@ -1,3 +1,4 @@
+import { CachedImage } from "./CachedImage";
 import { useState, type FormEvent } from "react";
 import { api, request } from "./backend-client";
 import type { Bootstrap, Profile } from "./types";
@@ -136,7 +137,10 @@ export function ParticipantOnboarding({
                   <strong>Foto pública {i + 1}</strong>
                   {photos[i] && (
                     <>
-                      <img src={photos[i]} alt={`Foto pública ${i + 1}`} />
+                      <CachedImage
+                        src={photos[i]}
+                        alt={`Foto pública ${i + 1}`}
+                      />
                       <button
                         type="button"
                         onClick={() =>

@@ -678,74 +678,93 @@ export function GlobalAdministration({
             </>
           )}
           {exit && (
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-label="Alterações não salvas"
+            <div
+              className="modal-backdrop"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setExit(false);
+                  setPendingPage(null);
+                }
+              }}
             >
-              <p>Existem alterações não salvas. Deseja sair mesmo assim?</p>
-              <button
-                onClick={() => {
-                  setExit(false);
-                  setPendingPage(null);
-                }}
+              <section
+                className="global-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Alterações não salvas"
               >
-                Continuar editando
-              </button>
-              <button
-                onClick={() => {
-                  setWizard(false);
-                  setDirty(false);
-                  setExit(false);
-                  if (pendingPage) {
-                    setPage(pendingPage);
-                    setSelectedClientId(null);
-                    setSearch("");
-                  }
-                  setPendingPage(null);
-                }}
-              >
-                Sair sem salvar
-              </button>
-            </section>
+                <p>Existem alterações não salvas. Deseja sair mesmo assim?</p>
+                <button
+                  onClick={() => {
+                    setExit(false);
+                    setPendingPage(null);
+                  }}
+                >
+                  Continuar editando
+                </button>
+                <button
+                  onClick={() => {
+                    setWizard(false);
+                    setDirty(false);
+                    setExit(false);
+                    if (pendingPage) {
+                      setPage(pendingPage);
+                      setSelectedClientId(null);
+                      setSearch("");
+                    }
+                    setPendingPage(null);
+                  }}
+                >
+                  Sair sem salvar
+                </button>
+              </section>
+            </div>
           )}
           {decision && (
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-label="Confirmar acompanhamento"
+            <div
+              className="modal-backdrop"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setDecision(null);
+              }}
             >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void request("global/", "POST", {
-                    ...decision,
-                    reason,
-                    confirmed: true,
-                  })
-                    .then(() => {
-                      setDecision(null);
-                      void load();
-                    })
-                    .catch((e) => setError(e.message));
-                }}
+              <section
+                className="global-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Confirmar acompanhamento"
               >
-                <h2>Confirmar decisão de acompanhamento?</h2>
-                <label>
-                  Motivo
-                  <textarea
-                    required
-                    maxLength={4000}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  />
-                </label>
-                <button type="button" onClick={() => setDecision(null)}>
-                  Cancelar
-                </button>
-                <button>Confirmar decisão</button>
-              </form>
-            </section>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void request("global/", "POST", {
+                      ...decision,
+                      reason,
+                      confirmed: true,
+                    })
+                      .then(() => {
+                        setDecision(null);
+                        void load();
+                      })
+                      .catch((e) => setError(e.message));
+                  }}
+                >
+                  <h2>Confirmar decisão de acompanhamento?</h2>
+                  <label>
+                    Motivo
+                    <textarea
+                      required
+                      maxLength={4000}
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                  </label>
+                  <button type="button" onClick={() => setDecision(null)}>
+                    Cancelar
+                  </button>
+                  <button>Confirmar decisão</button>
+                </form>
+              </section>
+            </div>
           )}
         </main>
       </div>

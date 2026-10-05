@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.dateparse import parse_datetime
 from django.core.validators import URLValidator
 from rest_framework.exceptions import PermissionDenied,ValidationError
@@ -15,15 +16,49 @@ from apps.audit.services import record
 from .event_admin import access
 
 
+def notification_participant(notification):
+    p = notification.participant
+    if p is None or not notification.dedupe_key:
+        return None
+    from apps.matches.models import Match
+    from apps.interactions.models import Interaction
+    from apps.passes.services import revealed_ids
+    from .services import visible_participants
+    parts = notification.dedupe_key.split(':')
+    if len(parts) < 2:
+        return None
+    try:
+        if notification.kind == 'like' and parts[0] == 'like':
+            like = Interaction.objects.filter(pk=parts[1], target=p, decision='LIKE').first()
+            if not like:
+                return None
+            peer = like.participant_id
+            matched = Match.objects.filter(is_active=True).filter(
+                Q(participant=p, partner_id=peer) | Q(partner=p, participant_id=peer),
+            ).exists()
+            if str(peer) not in revealed_ids(p) and not matched:
+                return None
+        elif notification.kind == 'match' and parts[0] == 'match':
+            match = Match.objects.filter(pk=parts[1], is_active=True).filter(Q(participant=p) | Q(partner=p)).first()
+            if not match:
+                return None
+            peer = match.partner_id if match.participant_id == p.pk else match.participant_id
+        else:
+            return None
+    except (ValueError, DjangoValidationError):
+        return None
+    return str(peer) if visible_participants(p).filter(pk=peer).exists() else None
+
+
 class NotificationView(APIView):
     def query(self,request):
         q=Notification.objects.filter(Q(recipient=request.user)|Q(participant__user=request.user))
         if request.session.get('event_id'):q=q.filter(Q(event_id=request.session['event_id'])|Q(event__isnull=True,participant__event_id=request.session['event_id']))
-        return q.order_by('-created_at')
+        return q.select_related('participant__event').order_by('-created_at')
 
     def get(self,request):
         q=self.query(request)
-        return Response({'unread':q.filter(read_at__isnull=True).count(),'items':[{'id':str(n.pk),'title':n.title,'body':n.body,'kind':n.kind,'read':bool(n.read_at),'created':n.created_at,'action':n.action_path} for n in q[:100]]})
+        return Response({'unread':q.filter(read_at__isnull=True).count(),'items':[{'id':str(n.pk),'title':n.title,'body':n.body,'kind':n.kind,'read':bool(n.read_at),'created':n.created_at,'action':n.action_path,'participant':notification_participant(n)} for n in q[:100]]})
 
     def post(self,request):
         obj=get_object_or_404(self.query(request),pk=request.data.get('id'))
