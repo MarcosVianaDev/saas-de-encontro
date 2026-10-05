@@ -128,6 +128,42 @@ class MvpFlowTests(TestCase):
         self.assertEqual(self.client.delete('/api/profile/photos/',{'url':data['photos'][0]},format='json').status_code,403)
         self.assertEqual(self.actor.photos.filter(removed_at__isnull=True).count(),3)
 
+    def test_initial_registration_completes_with_profile_and_photos_only(self):
+        EventParticipant.objects.filter(pk=self.actor.pk).update(
+            is_active=False, activated_at=None, onboarding_completed_at=None, location_consent=False,
+        )
+        data = self.client.get('/api/bootstrap/').json()
+        response = self.client.put('/api/profile/', data['profile'], format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['onboardingComplete'])
+        self.assertFalse(response.json()['active'])
+        self.assertFalse(response.json()['locationConsent'])
+
+    def test_preferences_can_be_saved_before_activation_and_event_start(self):
+        preferences = {
+            'min': 25, 'max': 40, 'gender': 'Todos',
+            'interests': [], 'purpose': 'Networking',
+        }
+        for state, active in [('OPEN', False), ('OPEN', True), ('RUNNING', False)]:
+            self.state(state)
+            EventParticipant.objects.filter(pk=self.actor.pk).update(is_active=active)
+            response = self.client.put('/api/filters/', preferences, format='json')
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertEqual(response.json()['filters']['min'], 25)
+            self.assertFalse(response.json()['socialAvailable'])
+
+    def test_photo_upload_accepts_image_larger_than_proxy_default(self):
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.core.files.storage import default_storage
+        content = io.BytesIO()
+        Image.new('RGB', (100, 100)).save(content, format='PNG')
+        upload = SimpleUploadedFile('large.png', content.getvalue() + b'\0' * (2 * 1024 * 1024), content_type='image/png')
+        response = self.client.post('/api/profile/photos/', {'file': upload}, format='multipart')
+        self.assertEqual(response.status_code, 201, response.content)
+        photo = self.actor.photos.order_by('-created_at').first()
+        self.addCleanup(default_storage.delete, photo.storage_key)
+
     def test_activation_requires_outfit_three_public_photos_and_event_fields(self):
         self.as_user(self.operator)
         endpoint=f'/api/event-admin/participants/{self.peer.pk}/activate/'

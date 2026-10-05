@@ -87,6 +87,8 @@ export const api = {
     request<Bootstrap>(`conversations/${id}/messages/`, "POST", { text }),
   endMatch: (id: PersonId) => request<Bootstrap>(`matches/${id}/end/`, "POST"),
   async upload(file: File) {
+    if (file.size > 10 * 1024 * 1024)
+      throw new Error("Envie uma imagem de até 10 MB.");
     const form = new FormData();
     form.append("file", file);
     return request<{ photos: string[]; active: boolean }>(

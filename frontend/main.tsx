@@ -14,6 +14,7 @@ import { GlobalAdministration } from "./GlobalAdministration";
 import { Contexts } from "./Contexts";
 import type { Context } from "./types";
 import { ParticipantOnboarding } from "./ParticipantOnboarding";
+import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
 import { SocialSafety } from "./SocialSafety";
 import {
   NotificationCenter,
@@ -400,7 +401,7 @@ function App() {
           first: "",
           last: "",
           month: "1",
-          year: "",
+          year: String(latestBirthYear),
           gender: "Prefiro não informar",
           bio: "",
         }
@@ -460,7 +461,7 @@ function App() {
       real &&
       authenticated &&
       !serverActive &&
-      !["login", "perfil", "filtros", "mensagens"].includes(next)
+      !["login", "perfil", "filtros", "mensagens", "descobrir"].includes(next)
     )
       next = "perfil";
     if (real && authenticated && next === "login")
@@ -545,7 +546,10 @@ function App() {
     }
     setAdminMode(false);
     setServerData(data);
-    setProfile(data.profile);
+    setProfile({
+      ...data.profile,
+      year: data.profile.year || String(latestBirthYear),
+    });
     setPhotos(data.photos);
     setFilters(data.filters);
     setDraft(data.filters);
@@ -1379,28 +1383,28 @@ function App() {
                           setRemoteDiscovery(d.discovery);
                         }}
                       />
+                      {page === "mensagens" && (
+                        <div className="mailbox-tabs">
+                          <button onClick={() => setMailbox("messages")}>
+                            Mensagens
+                          </button>
+                          <button onClick={() => setMailbox("notifications")}>
+                            Notificações{" "}
+                            {noticeUnread > 0 ? `(${noticeUnread})` : ""}
+                          </button>
+                          <button onClick={() => setMailbox("support")}>
+                            Suporte
+                          </button>
+                        </div>
+                      )}
                       <NotificationCenter
                         visible={
                           page === "mensagens" && mailbox === "notifications"
                         }
                         onUnread={setNoticeUnread}
                       />
-                      {page === "mensagens" && (
-                        <>
-                          <div className="mailbox-tabs">
-                            <button onClick={() => setMailbox("messages")}>
-                              Mensagens
-                            </button>
-                            <button onClick={() => setMailbox("notifications")}>
-                              Notificações{" "}
-                              {noticeUnread > 0 ? `(${noticeUnread})` : ""}
-                            </button>
-                            <button onClick={() => setMailbox("support")}>
-                              Suporte
-                            </button>
-                          </div>
-                          {mailbox === "support" && <SupportPanel />}
-                        </>
+                      {page === "mensagens" && mailbox === "support" && (
+                        <SupportPanel />
                       )}
                     </>
                   )}
@@ -1480,20 +1484,7 @@ function App() {
                                   })
                                 }
                               >
-                                {[
-                                  "Janeiro",
-                                  "Fevereiro",
-                                  "Março",
-                                  "Abril",
-                                  "Maio",
-                                  "Junho",
-                                  "Julho",
-                                  "Agosto",
-                                  "Setembro",
-                                  "Outubro",
-                                  "Novembro",
-                                  "Dezembro",
-                                ].map((month, i) => (
+                                {birthMonths.map((month, i) => (
                                   <option key={month} value={i + 1}>
                                     {month}
                                   </option>
@@ -1502,11 +1493,8 @@ function App() {
                             </label>
                             <label>
                               Ano
-                              <input
-                                type="number"
-                                min="1900"
-                                max={new Date().getFullYear()}
-                                value={profile.year}
+                              <select
+                                value={profile.year || String(latestBirthYear)}
                                 required
                                 onChange={(e) =>
                                   setProfile({
@@ -1514,7 +1502,13 @@ function App() {
                                     year: e.target.value,
                                   })
                                 }
-                              />
+                              >
+                                {birthYears.map((year) => (
+                                  <option key={year} value={year}>
+                                    {year}
+                                  </option>
+                                ))}
+                              </select>
                             </label>
                           </div>
                         </fieldset>
@@ -1526,8 +1520,8 @@ function App() {
                               setProfile({ ...profile, gender: e.target.value })
                             }
                           >
-                            <option>Mulheres</option>
-                            <option>Homens</option>
+                            <option value="Homens">Masculino</option>
+                            <option value="Mulheres">Feminino</option>
                             <option>Não binário</option>
                             <option>Prefiro não informar</option>
                           </select>
@@ -1790,22 +1784,34 @@ function App() {
                       </div>
                     </div>
                   )}
+                  {page === "descobrir" && (
+                    <>
+                      <div className="screen-title">
+                        <h2>Descobrir pessoas</h2>
+                        <button
+                          className="icon-button purple"
+                          aria-label="Alterar filtros"
+                          onClick={() => {
+                            setDraft(filters);
+                            navigate("filtros");
+                          }}
+                        >
+                          <Icon name="filter" />
+                        </button>
+                      </div>
+                      {real && !serverData?.socialAvailable && (
+                        <p className="event-banner">
+                          Você já pode definir suas preferências nos filtros. A
+                          descoberta de pessoas estará disponível após a
+                          ativação do perfil e quando o evento estiver em
+                          andamento.
+                        </p>
+                      )}
+                    </>
+                  )}
                   {page === "descobrir" &&
                     (!real || serverData?.socialAvailable) && (
                       <>
-                        <div className="screen-title">
-                          <h2>Descobrir pessoas</h2>
-                          <button
-                            className="icon-button purple"
-                            aria-label="Alterar filtros"
-                            onClick={() => {
-                              setDraft(filters);
-                              navigate("filtros");
-                            }}
-                          >
-                            <Icon name="filter" />
-                          </button>
-                        </div>
                         <div className="discovery-meta">
                           <span>
                             <i className="live-dot" /> {eventName}

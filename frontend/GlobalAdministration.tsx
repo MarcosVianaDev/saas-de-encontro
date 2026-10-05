@@ -19,8 +19,17 @@ type GlobalData = {
     name: string;
     contact: string;
     email: string;
+    phone: string;
+    description: string;
     active: boolean;
     draft: Record<string, string>;
+    accessUser?: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      passwordConfigured: boolean;
+    } | null;
   }[];
   events: {
     id: string;
@@ -28,18 +37,11 @@ type GlobalData = {
     state: string;
     status: string;
     organization: string;
+    organizationId: string;
   }[];
   activity: { id: string; action: string; created: string }[];
   alerts: { id: string; title: string; body: string }[];
 };
-const steps = [
-  "Contato",
-  "Organização",
-  "Evento",
-  "Responsáveis",
-  "Revisão",
-  "Ativação",
-];
 export function GlobalAdministration({
   onSelect,
   onLogout,
@@ -53,21 +55,42 @@ export function GlobalAdministration({
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("Todos");
   const [eventFilter, setEventFilter] = useState("Todos");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [formKind, setFormKind] = useState<
+    "client-create" | "client-edit" | "event-create"
+  >("client-create");
+  const [pendingPage, setPendingPage] = useState<string | null>(null);
+  const selectedClient = data?.clients.find(
+    (client) => client.id === selectedClientId,
+  );
   const navigate = (next: string) => {
     if (wizard && dirty) {
       setExit(true);
+      setPendingPage(next);
       return;
     }
     setPage(next);
     setSearch("");
     setWizard(false);
+    setSelectedClientId(null);
+    setError("");
   };
   const [wizard, setWizard] = useState(false),
-    [step, setStep] = useState(0),
     [draft, setDraft] = useState<Record<string, string>>({}),
     [dirty, setDirty] = useState(false),
     [busy, setBusy] = useState(false),
     [exit, setExit] = useState(false);
+  const begin = (
+    kind: typeof formKind,
+    values: Record<string, string> = {},
+  ) => {
+    setFormKind(kind);
+    setDraft(values);
+    setDirty(false);
+    setError("");
+    setWizard(true);
+    setPendingPage(null);
+  };
   const [decision, setDecision] = useState<{
       profile: string;
       action: string;
@@ -92,12 +115,12 @@ export function GlobalAdministration({
     window.addEventListener("beforeunload", before);
     return () => window.removeEventListener("beforeunload", before);
   }, [dirty]);
-  function field(key: string, label: string, type = "text") {
+  function field(key: string, label: string, type = "text", required = true) {
     return (
       <label>
         {label}
         <input
-          required
+          required={required}
           type={type}
           value={
             type === "datetime-local" && draft[key] && draft[key].length > 16
@@ -124,17 +147,29 @@ export function GlobalAdministration({
     try {
       const body = {
         ...draft,
-        starts: draft.starts ? new Date(draft.starts).toISOString() : undefined,
-        ends: draft.ends ? new Date(draft.ends).toISOString() : undefined,
-        activate: step === 5,
+        action:
+          formKind === "event-create"
+            ? "create_event"
+            : formKind === "client-edit"
+              ? "update_client"
+              : "create_client",
+        ...(formKind === "event-create"
+          ? {
+              starts: new Date(draft.starts).toISOString(),
+              ends: new Date(draft.ends).toISOString(),
+            }
+          : {}),
       };
       const result = await request<{ id: string }>("global/", "POST", body);
       setDraft({ ...draft, id: result.id });
       setDirty(false);
-      if (step === 5) {
-        setWizard(false);
-        void load();
-      } else setStep(step + 1);
+      setWizard(false);
+      setPage(formKind === "event-create" ? "Eventos" : "Clientes");
+      setSearch("");
+      setClientFilter("Todos");
+      setEventFilter("Todos");
+      setSelectedClientId(formKind === "event-create" ? null : result.id);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível salvar.");
     } finally {
@@ -152,71 +187,127 @@ export function GlobalAdministration({
         </header>
         <main className="global-content">
           {error && <p role="alert">{error}</p>}
-          {!wizard && !["Mais", "Início"].includes(page) && (
-            <button
-              className="adm-primary"
-              onClick={() => {
-                setWizard(true);
-                setStep(0);
-                setDraft({});
-              }}
-            >
-              + Novo cliente
-            </button>
-          )}
+          {!wizard &&
+            !selectedClientId &&
+            ["Clientes", "Eventos"].includes(page) && (
+              <button
+                className="adm-primary"
+                onClick={() =>
+                  begin(page === "Eventos" ? "event-create" : "client-create")
+                }
+              >
+                {page === "Eventos" ? "+ Novo evento" : "+ Novo cliente"}
+              </button>
+            )}
           {wizard ? (
             <form onSubmit={save}>
               <h2>
-                {steps[step]} — {step + 1} de 6
+                {formKind === "event-create"
+                  ? "Novo evento"
+                  : formKind === "client-edit"
+                    ? "Completar cadastro do cliente"
+                    : "Novo cliente"}
               </h2>
-              {step === 0 && (
-                <>
-                  {field("contact", "Nome do contato")}
-                  {field("email", "E-mail", "email")}
-                  {field("phone", "Telefone", "tel")}
-                </>
-              )}
-              {step === 1 && field("organization", "Nome da organização")}
-              {step === 2 && (
-                <>
-                  {field("event", "Nome do evento")}
-                  {field("starts", "Início", "datetime-local")}
-                  {field("ends", "Término", "datetime-local")}
-                </>
-              )}
-              {step === 3 &&
-                field("responsible", "E-mail da conta responsável", "email")}
-              {step >= 4 && (
-                <dl>
-                  {Object.entries(draft)
-                    .filter(([k]) => k !== "id")
-                    .map(([key, value]) => (
-                      <div key={key}>
-                        <dt>{key}</dt>
-                        <dd>{value}</dd>
-                      </div>
-                    ))}
-                </dl>
-              )}
-              {step === 5 && (
-                <p>
-                  A ativação cria o evento agendado e vincula a conta
-                  responsável existente.
-                </p>
-              )}
-              <div className="adm-actions">
-                <button
-                  type="button"
-                  onClick={() => (step ? setStep(step - 1) : setExit(true))}
-                >
-                  Voltar
-                </button>
-                <button className="adm-primary" disabled={busy}>
-                  {step === 5
-                    ? "Ativar cliente e evento"
-                    : "Salvar e continuar"}
-                </button>
-              </div>
+              <fieldset disabled={busy} className="global-form-fields">
+                {formKind !== "event-create" && (
+                  <>
+                    {field("contact", "Nome")}
+                    {field("email", "E-mail", "email")}
+                    {field("phone", "Telefone", "tel")}
+                  </>
+                )}
+                {formKind === "client-edit" && (
+                  <>
+                    {field("contact_role", "Cargo / função", "text", false)}
+                    <label>
+                      Observações
+                      <textarea
+                        maxLength={4000}
+                        value={draft.notes || ""}
+                        onChange={(e) => {
+                          setDraft({ ...draft, notes: e.target.value });
+                          setDirty(true);
+                        }}
+                      />
+                    </label>
+                    <h3>Dados da organização</h3>
+                    {field(
+                      "organization",
+                      "Nome da organização",
+                      "text",
+                      false,
+                    )}
+                    <label>
+                      Descrição da organização
+                      <textarea
+                        maxLength={4000}
+                        value={draft.description || ""}
+                        onChange={(e) => {
+                          setDraft({ ...draft, description: e.target.value });
+                          setDirty(true);
+                        }}
+                      />
+                    </label>
+                  </>
+                )}
+                {formKind === "event-create" && (
+                  <>
+                    <label>
+                      Cliente
+                      <select
+                        aria-label="Cliente"
+                        required
+                        value={draft.client || ""}
+                        onChange={(e) => {
+                          setDraft({ ...draft, client: e.target.value });
+                          setDirty(true);
+                        }}
+                      >
+                        <option value="">Selecione um cliente</option>
+                        {data?.clients
+                          .filter((client) => client.active)
+                          .map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.contact || client.name}
+                              {client.contact && client.name !== client.contact
+                                ? ` — ${client.name}`
+                                : ""}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    {field("event", "Nome do evento")}
+                    {field("starts", "Início", "datetime-local")}
+                    {field("ends", "Término", "datetime-local")}
+                    {field(
+                      "responsible",
+                      "E-mail da conta responsável",
+                      "email",
+                    )}
+                    <p>
+                      Informe o e-mail da conta de acesso do responsável. O
+                      evento será criado como agendado.
+                    </p>
+                  </>
+                )}
+                <div className="adm-actions">
+                  <button
+                    type="button"
+                    onClick={() => (dirty ? setExit(true) : setWizard(false))}
+                  >
+                    Cancelar
+                  </button>
+                  <button className="adm-primary" disabled={busy}>
+                    {busy
+                      ? "Salvando…"
+                      : formKind === "event-create"
+                        ? "Criar evento"
+                        : formKind === "client-edit"
+                          ? "Salvar alterações"
+                          : "Cadastrar cliente"}
+                  </button>
+                </div>
+              </fieldset>
             </form>
           ) : (
             <>
@@ -242,11 +333,7 @@ export function GlobalAdministration({
                     <h2>Ações rápidas</h2>
                     <button
                       className="adm-primary"
-                      onClick={() => {
-                        setWizard(true);
-                        setStep(0);
-                        setDraft({});
-                      }}
+                      onClick={() => begin("client-create")}
                     >
                       + Novo cliente
                     </button>
@@ -266,7 +353,122 @@ export function GlobalAdministration({
                   ))}
                 </>
               )}
-              {page === "Clientes" && (
+              {page === "Clientes" && selectedClient && (
+                <>
+                  <button
+                    className="adm-back"
+                    onClick={() => setSelectedClientId(null)}
+                  >
+                    ← Voltar aos clientes
+                  </button>
+                  <h2>{selectedClient.contact || selectedClient.name}</h2>
+                  <section className="adm-card">
+                    <h3>Dados do cliente</h3>
+                    <dl className="client-details">
+                      <dt>Nome</dt>
+                      <dd>{selectedClient.contact || selectedClient.name}</dd>
+                      <dt>E-mail</dt>
+                      <dd>{selectedClient.email || "Não informado"}</dd>
+                      <dt>Telefone</dt>
+                      <dd>
+                        {selectedClient.phone ||
+                          selectedClient.draft.phone ||
+                          "Não informado"}
+                      </dd>
+                      <dt>Cargo / função</dt>
+                      <dd>
+                        {selectedClient.draft.contact_role || "Não informado"}
+                      </dd>
+                      <dt>Observações</dt>
+                      <dd>{selectedClient.draft.notes || "Não informado"}</dd>
+                    </dl>
+                    <h3>Organização</h3>
+                    <p>
+                      {selectedClient.draft.organization ||
+                        (selectedClient.name !== selectedClient.contact
+                          ? selectedClient.name
+                          : "Dados da organização ainda não preenchidos.")}
+                    </p>
+                    {selectedClient.description && (
+                      <p>{selectedClient.description}</p>
+                    )}
+                    <button
+                      className="adm-primary"
+                      onClick={() =>
+                        begin("client-edit", {
+                          id: selectedClient.id,
+                          contact: selectedClient.contact,
+                          email: selectedClient.email,
+                          phone:
+                            selectedClient.phone ||
+                            selectedClient.draft.phone ||
+                            "",
+                          contact_role: selectedClient.draft.contact_role || "",
+                          notes: selectedClient.draft.notes || "",
+                          organization:
+                            selectedClient.draft.organization ||
+                            (selectedClient.name !== selectedClient.contact
+                              ? selectedClient.name
+                              : ""),
+                          description: selectedClient.description || "",
+                        })
+                      }
+                    >
+                      Completar / editar cadastro
+                    </button>
+                  </section>
+                  {selectedClient.accessUser && (
+                    <section className="adm-card">
+                      <h3>Acesso ao sistema</h3>
+                      <p>{selectedClient.accessUser.email}</p>
+                      <p>
+                        {selectedClient.accessUser.firstName}{" "}
+                        {selectedClient.accessUser.lastName}
+                      </p>
+                      {!selectedClient.accessUser.passwordConfigured && (
+                        <p>
+                          Defina a senha no Django Admin para habilitar o login.
+                        </p>
+                      )}
+                      <a
+                        href={`/admin/accounts/user/${selectedClient.accessUser.id}/password/`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {selectedClient.accessUser.passwordConfigured
+                          ? "Alterar senha no Django Admin"
+                          : "Definir senha no Django Admin"}
+                      </a>
+                    </section>
+                  )}
+                  <section className="adm-card">
+                    <h3>Eventos do cliente</h3>
+                    {data?.events
+                      .filter(
+                        (event) => event.organizationId === selectedClient.id,
+                      )
+                      .map((event) => (
+                        <p key={event.id}>
+                          {event.name} · {event.status}
+                        </p>
+                      ))}
+                    {!data?.events.some(
+                      (event) => event.organizationId === selectedClient.id,
+                    ) && <p>Nenhum evento cadastrado.</p>}
+                    <button
+                      onClick={() =>
+                        begin("event-create", {
+                          client: selectedClient.id,
+                          responsible: selectedClient.accessUser?.email || "",
+                        })
+                      }
+                    >
+                      + Novo evento
+                    </button>
+                  </section>
+                </>
+              )}
+              {page === "Clientes" && !selectedClientId && (
                 <>
                   <h2>Clientes</h2>
                   <div className="global-list-tools">
@@ -313,17 +515,14 @@ export function GlobalAdministration({
                         <p>
                           {c.contact} · {c.email}
                         </p>
-                        {!c.active && (
-                          <button
-                            onClick={() => {
-                              setDraft({ ...c.draft, id: c.id });
-                              setWizard(true);
-                              setStep(0);
-                            }}
-                          >
-                            Continuar cadastro
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setSelectedClientId(c.id);
+                            setError("");
+                          }}
+                        >
+                          Ver cliente
+                        </button>
                       </section>
                     ))}
                 </>
@@ -485,12 +684,25 @@ export function GlobalAdministration({
               aria-label="Alterações não salvas"
             >
               <p>Existem alterações não salvas. Deseja sair mesmo assim?</p>
-              <button onClick={() => setExit(false)}>Continuar editando</button>
+              <button
+                onClick={() => {
+                  setExit(false);
+                  setPendingPage(null);
+                }}
+              >
+                Continuar editando
+              </button>
               <button
                 onClick={() => {
                   setWizard(false);
                   setDirty(false);
                   setExit(false);
+                  if (pendingPage) {
+                    setPage(pendingPage);
+                    setSelectedClientId(null);
+                    setSearch("");
+                  }
+                  setPendingPage(null);
                 }}
               >
                 Sair sem salvar
