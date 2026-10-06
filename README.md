@@ -58,6 +58,15 @@ Para reiniciar os testes manuais desde o primeiro cadastro, execute na raiz do p
 docker compose exec backend python manage.py createsuperuser
 ```
 
+Na VPS com Linux, use o equivalente em Bash (requer `python3` e Docker Compose):
+
+```bash
+bash zerar-banco.sh
+docker compose exec backend python manage.py createsuperuser
+```
+
+O script Linux também pede `ZERAR` e preserva as fotos. Para dispensar a confirmação, use `bash zerar-banco.sh --force`. Ele usa o `.env` e o Compose da pasta do script, mesmo quando chamado de outro diretório. A limpeza é limitada ao PostgreSQL com `POSTGRES_HOST=db` do projeto; depois, acesse `/admin/` no endereço da VPS.
+
 O script pede `ZERAR` antes de apagar todos os dados do PostgreSQL (inclusive superusuários e auditoria) e esvaziar o Redis do projeto. Recria o schema e aplica as migrações, sem cadastrar usuários. Pode ser executado várias vezes; `-Force` dispensa a confirmação. Requer Docker Compose disponível. As fotos em `backend/media/` são preservadas. O `.env` passa a usar `DJANGO_SEED_DEMO=0` e `FRONTEND_DATA_MODE=django`, evitando repopulação automática e usando a API real. Os serviços são reiniciados ao final; se houver falha, corrija o erro informado e execute novamente. Para voltar à carga automática de demonstração, use `DJANGO_SEED_DEMO=1` e recrie o backend.
 
 Acesse **http://localhost:8080/admin/**. O administrador local usa o login `admin`; a senha aleatória está em `.tools/admin-credentials.json`, ignorado pelo Git. Para outro ambiente, crie seu próprio acesso:
