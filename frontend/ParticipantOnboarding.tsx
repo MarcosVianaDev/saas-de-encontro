@@ -129,7 +129,8 @@ export function ParticipantOnboarding({
           <>
             <p>
               Adicione 3 fotos públicas para ativar seu perfil. Após a
-              aprovação, essas fotos não podem ser alteradas diretamente.
+              ativação, essas fotos não podem ser alteradas diretamente.
+              {data.event.autoActivateParticipants && " Seu perfil será ativado ao concluir os requisitos."}
             </p>
             <div className="onboarding-photos">
               {[0, 1, 2].map((i) => (
@@ -245,7 +246,7 @@ export function ParticipantOnboarding({
             {step ? "Voltar" : "Sair da conta"}
           </button>
           <button className="primary" disabled={busy}>
-            {step === steps.length - 1 ? "Enviar para ativação" : "Continuar"}
+            {step === steps.length - 1 ? (data.event.autoActivateParticipants ? "Concluir e ativar perfil" : "Enviar para ativação") : "Continuar"}
           </button>
         </div>
       </form>

@@ -15,7 +15,7 @@ class EventParticipant(BaseModel):
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
     social_deleted_at = models.DateTimeField(null=True, blank=True)
     deactivation_reason = models.CharField(max_length=100, blank=True)
-    presence = models.CharField(max_length=12, default='UNKNOWN', choices=[('UNKNOWN', 'Não confirmada'), ('PRESENT', 'Presente'), ('OUTSIDE', 'Temporariamente fora'), ('DISTANT', 'Fora do limite')])
+    presence = models.CharField(max_length=12, default='UNKNOWN', choices=[('UNKNOWN', 'Não confirmada'), ('PRESENT', 'Presente'), ('ABSENT', 'Ausente'), ('OUTSIDE', 'Temporariamente fora'), ('DISTANT', 'Fora do limite')])
     location_consent = models.BooleanField(default=False)
     location_failure_started_at = models.DateTimeField(null=True,blank=True)
     location_retry_count = models.PositiveSmallIntegerField(default=0)
@@ -27,6 +27,18 @@ class EventParticipant(BaseModel):
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="event_participations")
     is_active = models.BooleanField(default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    def activity_is_recent(self, now=None):
+        from datetime import timedelta
+        from django.utils import timezone
+        minutes = self.event.location_interval_minutes if self.event.mode == 'ONLINE' else 5
+        return bool(self.last_seen_at and self.last_seen_at >= (now or timezone.now()) - timedelta(minutes=minutes))
+
+    @property
+    def current_presence(self):
+        if self.event.mode == 'ONLINE':
+            return 'PRESENT' if self.activity_is_recent() else 'ABSENT'
+        return self.presence
 
     @property
     def operational_status(self):

@@ -34,8 +34,17 @@ class Event(BaseModel):
     settings = models.JSONField(default=dict, blank=True)
     pass_payment_instructions=models.TextField(blank=True)
 
+    @property
+    def auto_activate_participants(self):
+        return self.mode == "ONLINE" and self.settings.get("auto_activate_participants") is True
+
     def clean(self):
         super().clean()
+        option = self.settings.get("auto_activate_participants", False) if isinstance(self.settings, dict) else None
+        if not isinstance(option, bool):
+            raise ValidationError("A opção de ativação automática deve ser booleana.")
+        if option and self.mode != "ONLINE":
+            raise ValidationError("A ativação automática está disponível somente para eventos online.")
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             raise ValidationError('O término deve ser posterior ao início.')
         if self.mode != 'ONLINE' and (self.latitude is None or self.longitude is None):

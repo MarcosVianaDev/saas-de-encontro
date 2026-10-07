@@ -118,7 +118,7 @@ export function EventConfiguration({
           value={String(draft.mode || "ONLINE")}
           onChange={(e) => {
             setDirty(true);
-            setDraft({ ...draft, mode: e.target.value });
+            setDraft({ ...draft, mode: e.target.value, settings: { ...(draft.settings as Record<string, unknown> || {}), auto_activate_participants: false } });
           }}
         >
           <option value="ONLINE">Online</option>
@@ -132,7 +132,7 @@ export function EventConfiguration({
         ["ends_at", "Término", "datetime-local"],
       ])}
       <h3>Localização</h3>
-      {fields(
+      {draft.mode !== "ONLINE" && fields(
         [
           ["latitude", "Latitude", "number"],
           ["longitude", "Longitude", "number"],
@@ -148,8 +148,18 @@ export function EventConfiguration({
           "number",
         ],
       ])}
+      {draft.mode === "ONLINE" && <p>O participante será considerado ausente após esse intervalo sem interação com o servidor. GPS não é solicitado.</p>}
       <h3>Participantes e ativação</h3>
       <p>Os campos obrigatórios são configurados antes da abertura.</p>
+      {draft.mode === "ONLINE" && (
+        <label>
+          <input type="checkbox" disabled={Boolean(frozen)}
+            checked={(draft.settings as Record<string, unknown>)?.auto_activate_participants === true}
+            onChange={(e) => { setDirty(true); setDraft({ ...draft, settings: { ...(draft.settings as Record<string, unknown> || {}), auto_activate_participants: e.target.checked } }); }} />
+          Ativar automaticamente ao completar o perfil
+          <p>Exige três fotos públicas, uma principal, bio e todos os campos obrigatórios e termos. Dispensa foto de outfit e aprovação da organização.</p>
+        </label>
+      )}
       <h3>Passes</h3>
       <label>
         Instruções de pagamento e ativação

@@ -16,6 +16,7 @@ export function LocationControl({
   const callback = useRef(onChanged);
   callback.current = onChanged;
   const reading = (phase = "manual") => {
+    if (data.event.mode === "ONLINE") return;
     if (!navigator.geolocation) {
       setError("Este navegador não oferece localização. Procure a equipe.");
       return;
@@ -76,6 +77,7 @@ export function LocationControl({
   ]);
   useEffect(() => {
     if (
+      data.event.mode === "ONLINE" ||
       !data.location?.failed ||
       data.location.exhausted ||
       data.event.readOnly
@@ -84,6 +86,7 @@ export function LocationControl({
     const t = setTimeout(() => reading("retry"), 60000);
     return () => clearTimeout(t);
   }, [
+    data.event.mode,
     data.location?.failed,
     data.location?.retries,
     data.location?.exhausted,

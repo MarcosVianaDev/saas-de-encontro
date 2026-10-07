@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
+from django.core.exceptions import ValidationError as ModelValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
@@ -39,6 +40,11 @@ class ClientDetailsSerializer(ClientContactSerializer):
 
 
 class NewEventSerializer(serializers.Serializer):
+    location_interval_minutes = serializers.IntegerField(min_value=1, default=15)
+    mode = serializers.ChoiceField(choices=["ONLINE", "PHYSICAL", "HYBRID"], default="PHYSICAL")
+    auto_activate_participants = serializers.BooleanField(default=False)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
     client = serializers.UUIDField()
     event = serializers.CharField(max_length=200)
     starts = serializers.DateTimeField()
@@ -128,8 +134,11 @@ def create_event(request):
     if owners.count() != 1:
         raise ValidationError({'responsible': 'Informe o e-mail de uma conta de acesso ativa e única.'})
     owner = owners.get()
-    event = Event(organization=org, name=values['event'], starts_at=values['starts'], ends_at=values['ends'], responsible=owner)
-    event.full_clean()
+    event = Event(organization=org, name=values['event'], starts_at=values['starts'], ends_at=values['ends'], responsible=owner, mode=values['mode'], latitude=values.get('latitude'), longitude=values.get('longitude'), location_interval_minutes=values['location_interval_minutes'], settings={'auto_activate_participants': values['auto_activate_participants']})
+    try:
+        event.full_clean()
+    except ModelValidationError as error:
+        raise ValidationError(error.message_dict)
     event.save()
     EventAdministrator.objects.create(event=event, user=owner, role='ADMIN')
     transition(event, 'SCHEDULED', actor=request.user)

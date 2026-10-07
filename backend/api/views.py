@@ -143,6 +143,16 @@ class ProfileView(APIView):
                 setattr(profile, target, data[source])
             profile.full_clean()
             profile.save()
+            from .profile_operations import validate_activation
+            if participant.event.auto_activate_participants:
+                validate_activation(participant)
+                if not participant.is_active and not participant.deactivation_reason and participant.event.state in ['OPEN', 'RUNNING']:
+                    participant.is_active = True
+                    participant.activated_at = participant.activated_at or timezone.now()
+                    from apps.audit.services import record
+                    from apps.notifications.models import Notification
+                    record(request.user, 'profile.activated', participant, participant.event, automatic=True)
+                    Notification.objects.create(participant=participant, event=participant.event, title='Seu perfil foi ativado', body='Consulte o estado do evento para começar a descobrir participantes.')
             participant.registration_status = 'ACTIVE' if participant.is_active else 'INACTIVE' if participant.deactivation_reason else 'PENDING'
             participant.onboarding_completed_at = participant.onboarding_completed_at or timezone.now()
             participant.save()

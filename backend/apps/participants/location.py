@@ -19,6 +19,8 @@ def distance(lat1,lon1,lat2,lon2):
 @transaction.atomic
 def reading(p,data,now=None):
     now=now or timezone.now();p=EventParticipant.objects.select_for_update().select_related('event').get(pk=p.pk)
+    if p.event.mode == 'ONLINE':
+        return p
     try:
         lat=float(data['latitude']);lon=float(data['longitude']);accuracy=float(data.get('accuracy',0))
         if not all(map(math.isfinite,[lat,lon,accuracy])) or not -90<=lat<=90 or not -180<=lon<=180 or accuracy<0:raise ValueError()
@@ -52,6 +54,8 @@ def reading(p,data,now=None):
 @transaction.atomic
 def failed(p,phase='periodic',now=None):
     now=now or timezone.now();p=EventParticipant.objects.select_for_update().select_related('event').get(pk=p.pk)
+    if p.event.mode == 'ONLINE':
+        return p
     if phase not in ['periodic','retry','manual']:raise ValidationError('Tentativa inválida.')
     if p.location_exception_until and now<p.location_exception_until:return p
     if not p.location_failure_started_at:
@@ -74,7 +78,9 @@ def failed(p,phase='periodic',now=None):
 def exception(p,actor,minutes,reason,now=None):
     now=now or timezone.now()
     if not isinstance(minutes,int) or minutes<=0 or not reason.strip():raise ValidationError('Informe duração positiva em minutos e motivo.')
-    p=EventParticipant.objects.select_for_update().get(pk=p.pk)
+    p=EventParticipant.objects.select_for_update().select_related('event').get(pk=p.pk)
+    if p.event.mode == 'ONLINE':
+        raise ValidationError('Eventos online não utilizam exceções de GPS.')
     if p.deactivation_reason!='GPS_TECHNICAL':raise ValidationError('A exceção se aplica somente à falha técnica de GPS.')
     try:p.location_exception_until=now+timedelta(minutes=minutes)
     except OverflowError:raise ValidationError('Duração inválida.')
@@ -87,7 +93,7 @@ def exception(p,actor,minutes,reason,now=None):
 
 def expire_exceptions(now=None):
     now=now or timezone.now();count=0
-    ids=EventParticipant.objects.filter(location_exception_until__lte=now,event__state__in=['OPEN','RUNNING','PAUSED']).values_list('pk',flat=True)
+    ids=EventParticipant.objects.filter(location_exception_until__lte=now,event__state__in=['OPEN','RUNNING','PAUSED']).exclude(event__mode='ONLINE').values_list('pk',flat=True)
     for pk in list(ids):
         with transaction.atomic():
             p=EventParticipant.objects.select_for_update().get(pk=pk)
@@ -97,4 +103,17 @@ def expire_exceptions(now=None):
                 p.is_active=False;p.registration_status='INACTIVE'
                 notify(p,'gps_exception_expired','A exceção de localização terminou','Tente validar sua localização novamente ou procure a equipe do evento.')
             p.save();record(None,'location.exception_expired',p,p.event);count+=1
+    return count
+
+
+def synchronize_online_presence(now=None):
+    from django.db.models import Q
+    from apps.events.models import Event
+    now = now or timezone.now()
+    count = 0
+    for event in Event.objects.filter(mode='ONLINE', state__in=['OPEN', 'RUNNING', 'PAUSED']):
+        cutoff = now - timedelta(minutes=event.location_interval_minutes)
+        participants = EventParticipant.objects.filter(event=event)
+        count += participants.filter(Q(last_seen_at__isnull=True) | Q(last_seen_at__lt=cutoff)).exclude(presence='ABSENT').update(presence='ABSENT')
+        count += participants.filter(last_seen_at__gte=cutoff).exclude(presence='PRESENT').update(presence='PRESENT')
     return count

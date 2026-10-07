@@ -492,6 +492,7 @@ export function ParticipantOperation({
   permissions,
   historyAllowed = false,
   canInvestigate = false,
+  gpsEnabled = true,
 }: {
   id: string;
   onChanged: () => void;
@@ -499,6 +500,7 @@ export function ParticipantOperation({
   permissions: string[];
   historyAllowed?: boolean;
   canInvestigate?: boolean;
+  gpsEnabled?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null),
     [exceptionModal, setExceptionModal] = useState(false),
@@ -596,7 +598,7 @@ export function ParticipantOperation({
           Ativar perfil
         </button>
       )}
-      {(permissions.includes("location_exception") || manager) && (
+      {gpsEnabled && (permissions.includes("location_exception") || manager) && (
         <label>
           Motivo da intervenção ou consulta
           <textarea
@@ -606,12 +608,12 @@ export function ParticipantOperation({
           />
         </label>
       )}
-      {permissions.includes("location_exception") && (
+      {gpsEnabled && permissions.includes("location_exception") && (
         <button onClick={() => setExceptionModal(true)}>
           Ignorar verificação temporariamente
         </button>
       )}
-      {exceptionModal && (
+      {gpsEnabled && exceptionModal && (
         <section
           role="dialog"
           aria-modal="true"
@@ -645,7 +647,7 @@ export function ParticipantOperation({
           <button onClick={() => setExceptionModal(false)}>Cancelar</button>
         </section>
       )}
-      {manager && (
+      {gpsEnabled && manager && (
         <button
           disabled={!historyAllowed}
           onClick={() =>

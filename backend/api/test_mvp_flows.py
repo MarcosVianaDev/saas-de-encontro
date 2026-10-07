@@ -139,6 +139,79 @@ class MvpFlowTests(TestCase):
         self.assertFalse(response.json()['active'])
         self.assertFalse(response.json()['locationConsent'])
 
+    def prepare_auto_activation(self, mode='ONLINE', enabled=True, state='RUNNING'):
+        Event.objects.filter(pk=self.event.pk).update(mode=mode, state=state, settings={'auto_activate_participants': enabled})
+        EventParticipant.objects.filter(pk=self.actor.pk).update(is_active=False, activated_at=None, onboarding_completed_at=None, deactivation_reason='')
+        EventOutfitPhoto.objects.filter(participant=self.actor).delete()
+        return self.client.get('/api/bootstrap/').json()['profile']
+
+    def test_online_auto_activation_without_outfit_is_idempotent(self):
+        profile = self.prepare_auto_activation(state='OPEN')
+        for _ in range(2):
+            response = self.client.put('/api/profile/', profile, format='json')
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertTrue(response.json()['active'])
+            self.assertTrue(response.json()['activated'])
+        self.assertEqual(Notification.objects.filter(participant=self.actor, title='Seu perfil foi ativado').count(), 1)
+        self.assertEqual(AuditLog.objects.filter(action='profile.activated').count(), 1)
+
+    def test_auto_activation_requires_photos_bio_and_consent(self):
+        profile = self.prepare_auto_activation()
+        response = self.client.put('/api/profile/', {**profile, 'bio': 'short'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        field = ProfileField.objects.create(event=self.event, name='Terms', kind='consent', is_required=True)
+        ParticipantFieldValue.objects.create(participant=self.actor, field=field, value={'accepted': False})
+        self.assertEqual(self.client.put('/api/profile/', profile, format='json').status_code, 400)
+        ParticipantFieldValue.objects.filter(participant=self.actor, field=field).update(value={'accepted': True})
+        self.actor.photos.filter(visibility='PRE_MATCH').first().delete()
+        self.assertEqual(self.client.put('/api/profile/', profile, format='json').status_code, 400)
+        self.actor.refresh_from_db()
+        self.assertFalse(self.actor.is_active)
+        self.assertIsNone(self.actor.onboarding_completed_at)
+
+    def test_auto_activation_preserves_manual_mode_and_deactivation(self):
+        for mode, enabled, reason in [('ONLINE', False, ''), ('PHYSICAL', True, ''), ('HYBRID', True, ''), ('ONLINE', True, 'REPORT_REVIEW')]:
+            profile = self.prepare_auto_activation(mode=mode, enabled=enabled)
+            EventParticipant.objects.filter(pk=self.actor.pk).update(deactivation_reason=reason)
+            response = self.client.put('/api/profile/', profile, format='json')
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertFalse(response.json()['active'])
+
+    def test_online_auto_activation_rejects_blank_required_answers(self):
+        profile = self.prepare_auto_activation()
+        field = ProfileField.objects.create(event=self.event, name='Required answer', is_required=True)
+        ParticipantFieldValue.objects.create(participant=self.actor, field=field, value={'answer': '   ', 'version': 1})
+        self.assertEqual(self.client.put('/api/profile/', profile, format='json').status_code, 400)
+        ParticipantFieldValue.objects.filter(participant=self.actor, field=field).update(value={'answer': 'Complete'})
+        response = self.client.put('/api/profile/', profile, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['active'])
+
+    def test_create_online_event_with_auto_activation_and_reject_physical(self):
+        self.as_user(self.global_user)
+        payload = {'action': 'create_event', 'client': str(self.event.organization_id), 'event': 'Online event',
+            'starts': (timezone.now() + timedelta(days=1)).isoformat(),
+            'ends': (timezone.now() + timedelta(days=2)).isoformat(), 'responsible': self.manager.email,
+            'mode': 'ONLINE', 'auto_activate_participants': True}
+        response = self.client.post('/api/global/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        event = Event.objects.get(pk=response.json()['id'])
+        self.assertTrue(event.auto_activate_participants)
+        self.assertEqual(event.state, 'SCHEDULED')
+        response = self.client.post('/api/global/', {**payload, 'mode': 'PHYSICAL', 'latitude': -23, 'longitude': -46}, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_configure_auto_activation_before_opening_only(self):
+        self.as_user(self.global_user)
+        self.state('SCHEDULED')
+        endpoint = '/api/event-admin/configuration/'
+        payload = {'mode': 'ONLINE', 'settings': {'auto_activate_participants': True}, 'confirmed': True}
+        response = self.client.put(endpoint, payload, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['configuration']['settings']['auto_activate_participants'])
+        self.state('OPEN')
+        self.assertEqual(self.client.put(endpoint, {'settings': {'auto_activate_participants': False}}, format='json').status_code, 403)
+
     def test_preferences_can_be_saved_before_activation_and_event_start(self):
         preferences = {
             'min': 25, 'max': 40, 'gender': 'Todos',

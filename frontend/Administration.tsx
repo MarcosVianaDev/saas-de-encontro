@@ -31,6 +31,7 @@ export type Participant = {
   updated: string;
   lastSeen: string | null;
   online: boolean;
+  presence?: string;
   reports: number | null;
   blocks: number | null;
 };
@@ -66,6 +67,7 @@ export type AdminData = {
   events: { id: string; name: string; role: string }[];
   event: {
     state?: string;
+    mode?: string;
     id: string;
     name: string;
     description: string;
@@ -378,6 +380,8 @@ export function Administration({
         <small>
           {p.online
             ? "Online agora"
+            : p.presence === "ABSENT"
+              ? "Ausente"
             : p.lastSeen
               ? `Última atividade: ${date(p.lastSeen)}`
               : "Sem atividade recente"}
@@ -730,6 +734,7 @@ export function Administration({
             {!mock && (
               <ParticipantOperation
                 id={person.id}
+                gpsEnabled={data.event.mode !== "ONLINE"}
                 manager={data.role === "ADMIN"}
                 historyAllowed={["PAUSED", "CLOSED", "ARCHIVED"].includes(
                   data.event.state || "",

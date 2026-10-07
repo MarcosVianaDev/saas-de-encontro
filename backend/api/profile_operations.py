@@ -22,14 +22,18 @@ from .services import current, bootstrap, ordered_photos, ensure_writable, match
 def validate_activation(p):
     profile = p.profile
     public = p.photos.filter(removed_at__isnull=True,visibility='PRE_MATCH')
-    if public.count()!=3 or public.filter(is_primary=True).count()!=1 or not getattr(p,'outfit_photo',None):
+    if public.count()!=3 or public.filter(is_primary=True).count()!=1:
         raise ValidationError('São necessárias três fotos públicas válidas, uma principal e a foto de outfit capturada pela equipe.')
+    if not p.event.auto_activate_participants and not getattr(p, 'outfit_photo', None):
+        raise ValidationError('É necessária a foto de outfit capturada pela equipe.')
     if not profile.first_name or not profile.last_name or not profile.birth_month or not profile.birth_year or not profile.gender or len(profile.bio.strip())<50:
         raise ValidationError('Complete os campos obrigatórios do perfil.')
     for field in p.event.profile_fields.filter(is_required=True):
         value=p.field_values.filter(field=field).first()
         if not value or not value.value or (field.kind=='consent' and value.value.get('accepted') is not True):
             raise ValidationError('Preencha os campos obrigatórios e aceite os termos apresentados.')
+        if p.event.auto_activate_participants and field.kind != 'consent' and not str(value.value.get('answer') or '').strip():
+            raise ValidationError(f'Preencha o campo obrigatório: {field.name}.')
     if p.event.mode!='ONLINE' and not p.location_consent:
         raise ValidationError('Valide a localização antes da ativação presencial.')
 

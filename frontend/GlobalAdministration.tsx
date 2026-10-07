@@ -122,6 +122,7 @@ export function GlobalAdministration({
         <input
           required={required}
           type={type}
+          step={type === "number" ? "any" : undefined}
           value={
             type === "datetime-local" && draft[key] && draft[key].length > 16
               ? new Date(
@@ -157,6 +158,7 @@ export function GlobalAdministration({
           ? {
               starts: new Date(draft.starts).toISOString(),
               ends: new Date(draft.ends).toISOString(),
+              location_interval_minutes: draft.location_interval_minutes || "15",
             }
           : {}),
       };
@@ -277,6 +279,19 @@ export function GlobalAdministration({
                       </select>
                     </label>
                     {field("event", "Nome do evento")}
+                    <label>Modalidade
+                      <select value={draft.mode || "PHYSICAL"} onChange={(e) => { setDirty(true); setDraft({ ...draft, mode: e.target.value, auto_activate_participants: "false" }); }}>
+                        <option value="ONLINE">Online</option><option value="PHYSICAL">Presencial</option><option value="HYBRID">Híbrido</option>
+                      </select>
+                    </label>
+                    {draft.mode === "ONLINE" ? (
+                      <label><input type="checkbox" checked={draft.auto_activate_participants === "true"} onChange={(e) => { setDirty(true); setDraft({ ...draft, auto_activate_participants: String(e.target.checked) }); }} />
+                        Ativar automaticamente ao completar o perfil
+                        <p>Exige três fotos públicas, uma principal, bio e campos obrigatórios e termos. Dispensa foto de outfit e aprovação da organização.</p>
+                      </label>
+                    ) : <>{field("latitude", "Latitude", "number")}{field("longitude", "Longitude", "number")}</>}
+                    {field("location_interval_minutes", "Intervalo de localização (minutos)", "number", false)}
+                    {draft.mode === "ONLINE" && <p>Após esse intervalo sem interação com o servidor, o participante será considerado ausente. O padrão é 15 minutos.</p>}
                     {field("starts", "Início", "datetime-local")}
                     {field("ends", "Término", "datetime-local")}
                     {field(

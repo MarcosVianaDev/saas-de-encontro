@@ -115,7 +115,7 @@ def participant_payload(p, moderate):
     return {'id': str(p.pk), 'name': (f'{profile.first_name} {profile.last_name}'.strip() if profile else '') or p.user.email,
         'age': age(profile) if profile else None, 'job': profile.job if profile else '',
         'email': p.user.email, 'created': p.created_at, 'updated': p.updated_at,
-        'lastSeen': p.last_seen_at, 'online': bool(p.last_seen_at and p.last_seen_at >= timezone.now() - timedelta(minutes=5)),
+        'lastSeen': p.last_seen_at, 'online': p.activity_is_recent(), 'presence': p.current_presence,
         'image': (photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/event-admin/photos/{photo.pk}/content/') if photo else '/images/profile-placeholder.svg',
         'status': p.operational_status,
         'reason': (ban.reason if ban else suspension.reason if suspension else '') if moderate else '',
@@ -168,10 +168,11 @@ class AdminBootstrapView(APIView):
         event = member.event
         moderate = permits(member,'reports')
         now = timezone.now()
-        participants = event.participants.select_related('user', 'profile').order_by('created_at')
+        participants = event.participants.select_related('user', 'profile', 'event').order_by('created_at')
         suspended_ids = EventSuspension.objects.filter(suspension_q(), participant__event=event).values_list('participant_id', flat=True)
         global_suspended=UserSuspension.objects.filter(Q(ends_at__isnull=True)|Q(ends_at__gt=now)).values_list('user_id',flat=True)
-        active_count = participants.filter(is_active=True, user__is_active=True,last_seen_at__gte=now-timedelta(minutes=5)).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk__in=suspended_ids).exclude(user_id__in=global_suspended).count()
+        activity_minutes = event.location_interval_minutes if event.mode == 'ONLINE' else 5
+        active_count = participants.filter(is_active=True, user__is_active=True,last_seen_at__gte=now-timedelta(minutes=activity_minutes)).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk__in=suspended_ids).exclude(user_id__in=global_suspended).count()
         cases = ModerationCase.objects.filter(Q(report__reporter__event=event) | Q(report__is_administrative=True, report__reporter__isnull=True), report__reported__event=event).select_related('report__reported__profile', 'report__reported__user', 'report__reporter__profile', 'report__reporter__user', 'report__created_by', 'assigned_to') if moderate else ModerationCase.objects.none()
         token = signing.dumps(str(event.pk), salt='event-join')
         return Response({'navigation': 'administration', 'role': member.role,
@@ -181,7 +182,7 @@ class AdminBootstrapView(APIView):
             'event': {'id': str(event.pk), 'name': event.name, 'description': event.description,
                 'starts': event.starts_at, 'ends': event.ends_at,
                 'responsible': [m.user.get_full_name() or m.user.email for m in event.administrators.filter(role='ADMIN').select_related('user')],
-                'state': event.state, 'status': event.get_state_display(),
+                'state': event.state, 'status': event.get_state_display(), 'mode': event.mode,
                   'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?event=' + str(event.pk) + '&invite=' + token},
             'participants': [participant_payload(p, moderate) for p in participants],
             'cases': [case_payload(c) for c in cases.order_by('-created_at')],

@@ -36,8 +36,12 @@ def current(request, active=False):
     if active and not participant.is_active:
         raise PermissionDenied("Complete e ative seu perfil antes de continuar.")
     now = timezone.now()
-    if participant.last_seen_at is None or participant.last_seen_at < now - timedelta(minutes=1):
-        EventParticipant.objects.filter(pk=participant.pk).update(last_seen_at=now)
+    if participant.event.mode == 'ONLINE' or participant.last_seen_at is None or participant.last_seen_at < now - timedelta(minutes=1):
+        values = {'last_seen_at': now}
+        if participant.event.mode == 'ONLINE':
+            values['presence'] = 'PRESENT'
+            participant.presence = 'PRESENT'
+        EventParticipant.objects.filter(pk=participant.pk).update(**values)
         participant.last_seen_at = now
     return participant
 
@@ -51,7 +55,7 @@ def visible_participants(participant):
     blocked_ids += list(Block.objects.filter(target=participant).values_list("participant_id", flat=True))
     suspended = UserSuspension.objects.filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).values_list("user_id", flat=True)
     event_suspended = EventSuspension.objects.filter(revoked_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).values_list('participant_id', flat=True)
-    return EventParticipant.objects.filter(event=participant.event, is_active=True, social_deleted_at__isnull=True, user__is_active=True).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk=participant.pk).exclude(pk__in=blocked_ids).exclude(pk__in=event_suspended).exclude(user_id__in=suspended).select_related("profile").prefetch_related("photos").order_by("created_at", "id")
+    return EventParticipant.objects.filter(event=participant.event, is_active=True, social_deleted_at__isnull=True, user__is_active=True).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk=participant.pk).exclude(pk__in=blocked_ids).exclude(pk__in=event_suspended).exclude(user_id__in=suspended).select_related("profile", "event").prefetch_related("photos").order_by("created_at", "id")
 
 
 def target_for(participant, target_id):
@@ -82,7 +86,7 @@ def person_payload(person):
         "age": age(profile) if profile else None, "gender": profile.gender if profile else "",
         "job": profile.job if profile else "", "city": profile.city if profile else "",
         "image": photo_url(primary) if primary else "/images/profile-placeholder.svg",
-        "interests": profile.interests if profile else [], "online": bool(person.last_seen_at and person.last_seen_at >= timezone.now()-timedelta(minutes=5)),
+        "interests": profile.interests if profile else [], "online": person.activity_is_recent(),
         "mutual": False, "bio": profile.bio if profile else ""}
 
 
@@ -146,10 +150,11 @@ def bootstrap(participant):
           'publicPhotos':[photo_url(photo) for photo in ordered_photos(participant) if photo.visibility=='PRE_MATCH'],
         "active": participant.is_active, 'registrationStatus':participant.registration_status,
         'onboardingComplete':bool(participant.onboarding_completed_at), 'activated':bool(participant.activated_at),
-        'socialAvailable':social_available, 'locationConsent':participant.location_consent, 'presence':participant.presence,
+        'socialAvailable':social_available, 'locationConsent':participant.location_consent, 'presence':participant.current_presence,
         'location':{'retries':participant.location_retry_count,'failed':bool(participant.location_failure_started_at),
             'exhausted':bool(participant.location_retry_exhausted_at),'technicalInactive':participant.deactivation_reason=='GPS_TECHNICAL' and not participant.is_active,
-            'nextDue':participant.location_next_due_at,'exceptionUntil':participant.location_exception_until},
+            'nextDue':participant.location_next_due_at,'exceptionUntil':participant.location_exception_until} if participant.event.mode != 'ONLINE' else
+            {'retries':0,'failed':False,'exhausted':False,'technicalInactive':False,'nextDue':None,'exceptionUntil':None},
         'profileFields':[{'id':str(f.pk),'name':f.name,'required':f.is_required,'kind':f.kind,'version':f.version,
             'options':[o.name for o in f.options.all()]} for f in participant.event.profile_fields.all()],
         "filters": filters, "people": participants,
@@ -159,6 +164,7 @@ def bootstrap(participant):
         "saved": preference.filters.get("favorites", []),
         "event": {"id": str(participant.event_id), "name": participant.event.name, 'state':participant.event.state,
             'status':participant.event.get_state_display(), 'ends':participant.event.ends_at, 'mode':participant.event.mode,
+            'autoActivateParticipants':participant.event.auto_activate_participants,
             'locationInterval':participant.event.location_interval_minutes,
             'endingSoon':bool(participant.event.ends_at and timezone.now() >= participant.event.ends_at-timedelta(minutes=15)),
             'readOnly':participant.event.state in ['CLOSED','ARCHIVED']}}

@@ -79,6 +79,7 @@ export type Bootstrap = {
     state?: string;
     status?: string;
     mode?: string;
+    autoActivateParticipants?: boolean;
     ends?: string | null;
     locationInterval?: number;
     endingSoon?: boolean;
