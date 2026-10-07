@@ -38,6 +38,12 @@ export type Message = {
   time: string;
 };
 export type Bootstrap = {
+  discoveryReport?: {
+    likesSent: number;
+    likesReceived: number;
+    matches: number;
+    conversations: number;
+  } | null;
   registrationStatus?: string;
   onboardingComplete?: boolean;
   activated?: boolean;

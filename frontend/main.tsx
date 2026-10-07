@@ -2017,8 +2017,8 @@ function App() {
                   {page === "descobrir" && (
                     <>
                       <div className="screen-title">
-                        <h2>Descobrir pessoas</h2>
-                        <button
+                        <h2>{serverData?.event.readOnly ? "A descoberta terminou" : "Descobrir pessoas"}</h2>
+                        {!serverData?.event.readOnly && <button
                           className="icon-button purple"
                           aria-label="Alterar filtros"
                           onClick={() => {
@@ -2027,8 +2027,18 @@ function App() {
                           }}
                         >
                           <Icon name="filter" />
-                        </button>
+                        </button>}
                       </div>
+                      {serverData?.event.readOnly && serverData.discoveryReport && (
+                        <section className="discovery-report" aria-label="Seu relatório do evento">
+                          <ul>
+                            <li>Você gostou de {serverData.discoveryReport.likesSent} pessoas.</li>
+                            <li>{serverData.discoveryReport.likesReceived} pessoas gostaram de você.</li>
+                            <li>Você deu {serverData.discoveryReport.matches} matches.</li>
+                            <li>Conversou com {serverData.discoveryReport.conversations} pessoas.</li>
+                          </ul>
+                        </section>
+                      )}
                     </>
                   )}
                   {page === "descobrir" &&

@@ -744,6 +744,16 @@ img {
 .discovery-content .screen-title {
   padding: 0 5px;
 }
+.discovery-report {
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--surface, #fff);
+}
+.discovery-report ul {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 2;
+}
 .discovery-meta {
   display: flex;
   justify-content: space-between;

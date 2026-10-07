@@ -158,6 +158,7 @@ def bootstrap(participant):
         'profileFields':[{'id':str(f.pk),'name':f.name,'required':f.is_required,'kind':f.kind,'version':f.version,
             'options':[o.name for o in f.options.all()]} for f in participant.event.profile_fields.all()],
         "filters": filters, "people": participants,
+        'discoveryReport': discovery_report(participant) if participant.event.state in ['CLOSED', 'ARCHIVED'] else None,
         "discovery": discovery(participant, filters), "chats": chats, "chatStates": states,
         "seen": [str(pk) for pk in Interaction.objects.filter(participant=participant).values_list("target_id", flat=True)],
         "liked": [str(pk) for pk in Interaction.objects.filter(participant=participant, decision="LIKE").values_list("target_id", flat=True)],
@@ -168,6 +169,16 @@ def bootstrap(participant):
             'locationInterval':participant.event.location_interval_minutes,
             'endingSoon':bool(participant.event.ends_at and timezone.now() >= participant.event.ends_at-timedelta(minutes=15)),
             'readOnly':participant.event.state in ['CLOSED','ARCHIVED']}}
+
+
+def discovery_report(participant):
+    matches = Match.objects.filter(Q(participant=participant) | Q(partner=participant))
+    return {
+        'likesSent': Interaction.objects.filter(participant=participant, decision='LIKE').count(),
+        'likesReceived': Interaction.objects.filter(target=participant, decision='LIKE').count(),
+        'matches': matches.count(),
+        'conversations': matches.filter(conversation__messages__sender=participant).distinct().count(),
+    }
 
 
 def ensure_social(participant):
