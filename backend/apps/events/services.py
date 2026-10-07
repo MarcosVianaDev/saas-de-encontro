@@ -48,7 +48,10 @@ def configure(event,actor,data,confirmed=False):
     if event.state not in ['DRAFT','SCHEDULED'] and set(data)-{'latitude','longitude','radius_m','tolerance_m','pass_payment_instructions'}:
         raise PermissionDenied('Esta configuração não pode mais ser alterada após a abertura do evento.')
     if event.state in ['RUNNING','PAUSED']:raise PermissionDenied('Esta configuração não pode mais ser alterada porque o evento já está em andamento.')
-    if {'starts_at','ends_at','organization','responsible','pass_payment_instructions'}&set(data) and not actor.is_superuser:
+    global_fields = {'organization','responsible','pass_payment_instructions'}
+    if not (event.state == 'DRAFT' and event.requested_by_id):
+        global_fields |= {'starts_at', 'ends_at'}
+    if global_fields&set(data) and not actor.is_superuser:
         raise PermissionDenied('Somente a Administração Global define datas, organização e responsável.')
     previous={}
     try:
@@ -80,6 +83,8 @@ def transition(event, new_state, actor=None, automatic=False, reason='', now=Non
         raise ValidationError('Esta transição não está disponível no estado atual.')
     previous = event.state
     if new_state == 'SCHEDULED':
+        if event.requested_by_id and (automatic or not actor or not actor.is_superuser):
+            raise PermissionDenied('O evento solicitado depende de aprovação da Administração Global.')
         if not event.starts_at or not event.ends_at:
             raise ValidationError('Defina início e término antes de agendar.')
         event.full_clean()
@@ -105,6 +110,10 @@ def transition(event, new_state, actor=None, automatic=False, reason='', now=Non
     event.save()
     record(actor, 'event.transition', event, event, previous=previous, state=new_state,
         automatic=automatic, reason=reason, timestamp=now.isoformat())
+    if previous == 'DRAFT' and new_state == 'SCHEDULED' and event.requested_by_id:
+        record(actor, 'event.approved', event, event)
+        Notification.objects.create(recipient=event.requested_by, event=event,
+            title='Solicitação de evento aprovada', body=f'{event.name} foi aprovado e agendado.')
     title = f'O evento “{event.name}” foi {event.get_state_display().lower()}.'
     notify_managers(event, title, 'A transição foi registrada na auditoria.')
     Notification.objects.bulk_create([Notification(participant=p, event=event, title='O evento começou' if new_state=='RUNNING' else title,

@@ -29,6 +29,11 @@ from .services import ensure_social, ensure_writable
 
 
 def login_payload(request):
+    if request.session.get('navigation') == 'selection':
+        from .contexts import administration_context, select
+        context = administration_context(request.user)
+        if context:
+            select(request, context['key'])
     nav = navigation(request)
     if request.session.get('navigation') == 'participant':
         nav = {'navigation': 'participant'}
@@ -70,6 +75,8 @@ class LoginView(APIView):
         contexts = available(user)
         if token:
             request.session['navigation'] = 'participant'; request.session['event_id'] = str(participant.event_id)
+        elif any(context['navigation'] in ['global', 'administration'] for context in contexts):
+            select(request, next(context['key'] for context in contexts if context['navigation'] in ['global', 'administration']))
         elif len(contexts) > 1:
             request.session['navigation'] = 'selection'; request.session.pop('event_id',None)
         else:

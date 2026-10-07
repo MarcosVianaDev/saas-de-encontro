@@ -108,6 +108,48 @@
 .adm-topbar select {
   max-width: 220px;
 }
+.adm-workspace .event-admin-topbar {
+  display: block;
+}
+.adm-workspace .event-admin-topbar > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.event-admin-heading {
+  margin-bottom: 12px;
+}
+.event-admin-heading .adm-primary {
+  margin-left: auto;
+}
+.event-admin-details {
+  flex-wrap: wrap;
+}
+.event-selector {
+  min-width: 0;
+  max-width: 100%;
+}
+.adm-workspace .event-selector .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  background: var(--adm-purple);
+  color: #fff;
+}
+.event-selector-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.event-selector .dropdown-menu {
+  max-width: calc(100vw - 40px);
+}
+.event-selector .dropdown-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .adm-workspace h1 {
   font-size: 28px;
   letter-spacing: -1px;
@@ -816,6 +858,40 @@
   background: #f4f8ff;
   color: #092746;
 }
+.adm-workspace .global-event-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.event-request-form {
+  margin-top: 20px;
+}
+.event-request-form label {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.event-request-form input,
+.event-request-form select,
+.event-request-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dce6f3;
+  border-radius: 10px;
+}
+.event-request-form input[type="checkbox"] {
+  width: auto;
+  justify-self: start;
+}
+.event-request-form .adm-actions {
+  margin-top: 24px;
+}
 .global-administration .adm-topbar {
   border-color: #dce6f3;
   background: linear-gradient(130deg, #092746, #123a61);
@@ -919,6 +995,13 @@
 .global-list-tools input {
   width: 100%;
   background: #f3f6fb;
+}
+.global-administration .event-status-filter .dropdown-toggle {
+  background: var(--bs-primary);
+  color: #fff;
+}
+.event-status-filter .dropdown-menu {
+  max-width: calc(100vw - 40px);
 }
 .global-list-tools .adm-tabs {
   display: flex;

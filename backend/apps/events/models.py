@@ -25,6 +25,7 @@ class Event(BaseModel):
     closed_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     responsible = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='managed_events')
+    requested_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='requested_events')
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-90), MaxValueValidator(90)])
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-180), MaxValueValidator(180)])
     radius_m = models.PositiveIntegerField(default=100, validators=[MinValueValidator(1)])

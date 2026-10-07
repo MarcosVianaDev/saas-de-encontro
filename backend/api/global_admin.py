@@ -19,6 +19,7 @@ from apps.accounts.models import UserProfile
 from apps.participants.models import EventParticipant
 from apps.reports.models import Report
 from django.db.models import Q
+from .event_requests import EventDetailsSerializer, event_details
 
 
 def authorize(request):
@@ -39,22 +40,9 @@ class ClientDetailsSerializer(ClientContactSerializer):
     notes = serializers.CharField(max_length=4000, required=False, allow_blank=True)
 
 
-class NewEventSerializer(serializers.Serializer):
-    location_interval_minutes = serializers.IntegerField(min_value=1, default=15)
-    mode = serializers.ChoiceField(choices=["ONLINE", "PHYSICAL", "HYBRID"], default="PHYSICAL")
-    auto_activate_participants = serializers.BooleanField(default=False)
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-90, max_value=90)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True, min_value=-180, max_value=180)
+class NewEventSerializer(EventDetailsSerializer):
     client = serializers.UUIDField()
-    event = serializers.CharField(max_length=200)
-    starts = serializers.DateTimeField()
-    ends = serializers.DateTimeField()
     responsible = serializers.EmailField()
-
-    def validate(self, data):
-        if data['ends'] <= data['starts']:
-            raise serializers.ValidationError('O término deve ser posterior ao início.')
-        return data
 
 
 def access_user_payload(user):
@@ -134,7 +122,7 @@ def create_event(request):
     if owners.count() != 1:
         raise ValidationError({'responsible': 'Informe o e-mail de uma conta de acesso ativa e única.'})
     owner = owners.get()
-    event = Event(organization=org, name=values['event'], starts_at=values['starts'], ends_at=values['ends'], responsible=owner, mode=values['mode'], latitude=values.get('latitude'), longitude=values.get('longitude'), location_interval_minutes=values['location_interval_minutes'], settings={'auto_activate_participants': values['auto_activate_participants']})
+    event = Event(organization=org, responsible=owner, **event_details(values))
     try:
         event.full_clean()
     except ModelValidationError as error:
@@ -150,7 +138,7 @@ class GlobalView(APIView):
     def get(self,request):
         authorize(request)
         return Response({'navigation':'global', 'staff':request.user.is_staff,
-            'metrics':{**{s:Event.objects.filter(state=s).count() for s in ['RUNNING','SCHEDULED','PAUSED']},
+            'metrics':{**{s:Event.objects.filter(state=s).count() for s in ['RUNNING','SCHEDULED','PAUSED','DRAFT']},
                 'clients':Organization.objects.filter(is_active=True).count(),
                 'critical':ModerationCase.objects.filter(priority=2,closed_at__isnull=True).count(),
                 'pending':ModerationCase.objects.filter(closed_at__isnull=True).count()},

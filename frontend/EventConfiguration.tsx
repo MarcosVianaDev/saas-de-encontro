@@ -1,7 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
 
-type Config = { state: string; configuration: Record<string, unknown> };
+type Config = {
+  state: string;
+  canEditRequestedDraft?: boolean;
+  configuration: Record<string, unknown>;
+};
 export function EventConfiguration({
   eventId,
   canEditDates = false,
@@ -33,7 +37,9 @@ export function EventConfiguration({
         <input
           disabled={Boolean(
             (location ? started : frozen) ||
-            (type === "datetime-local" && !canEditDates),
+            (type === "datetime-local" &&
+              !canEditDates &&
+              !data?.canEditRequestedDraft),
           )}
           type={type}
           step={type === "number" ? "any" : undefined}
@@ -118,7 +124,14 @@ export function EventConfiguration({
           value={String(draft.mode || "ONLINE")}
           onChange={(e) => {
             setDirty(true);
-            setDraft({ ...draft, mode: e.target.value, settings: { ...(draft.settings as Record<string, unknown> || {}), auto_activate_participants: false } });
+            setDraft({
+              ...draft,
+              mode: e.target.value,
+              settings: {
+                ...((draft.settings as Record<string, unknown>) || {}),
+                auto_activate_participants: false,
+              },
+            });
           }}
         >
           <option value="ONLINE">Online</option>
@@ -132,15 +145,16 @@ export function EventConfiguration({
         ["ends_at", "Término", "datetime-local"],
       ])}
       <h3>Localização</h3>
-      {draft.mode !== "ONLINE" && fields(
-        [
-          ["latitude", "Latitude", "number"],
-          ["longitude", "Longitude", "number"],
-          ["radius_m", "Raio (metros)", "number"],
-          ["tolerance_m", "Limite adicional (metros)", "number"],
-        ],
-        true,
-      )}
+      {draft.mode !== "ONLINE" &&
+        fields(
+          [
+            ["latitude", "Latitude", "number"],
+            ["longitude", "Longitude", "number"],
+            ["radius_m", "Raio (metros)", "number"],
+            ["tolerance_m", "Limite adicional (metros)", "number"],
+          ],
+          true,
+        )}
       {fields([
         [
           "location_interval_minutes",
@@ -148,16 +162,40 @@ export function EventConfiguration({
           "number",
         ],
       ])}
-      {draft.mode === "ONLINE" && <p>O participante será considerado ausente após esse intervalo sem interação com o servidor. GPS não é solicitado.</p>}
+      {draft.mode === "ONLINE" && (
+        <p>
+          O participante será considerado ausente após esse intervalo sem
+          interação com o servidor. GPS não é solicitado.
+        </p>
+      )}
       <h3>Participantes e ativação</h3>
       <p>Os campos obrigatórios são configurados antes da abertura.</p>
       {draft.mode === "ONLINE" && (
         <label>
-          <input type="checkbox" disabled={Boolean(frozen)}
-            checked={(draft.settings as Record<string, unknown>)?.auto_activate_participants === true}
-            onChange={(e) => { setDirty(true); setDraft({ ...draft, settings: { ...(draft.settings as Record<string, unknown> || {}), auto_activate_participants: e.target.checked } }); }} />
+          <input
+            type="checkbox"
+            disabled={Boolean(frozen)}
+            checked={
+              (draft.settings as Record<string, unknown>)
+                ?.auto_activate_participants === true
+            }
+            onChange={(e) => {
+              setDirty(true);
+              setDraft({
+                ...draft,
+                settings: {
+                  ...((draft.settings as Record<string, unknown>) || {}),
+                  auto_activate_participants: e.target.checked,
+                },
+              });
+            }}
+          />
           Ativar automaticamente ao completar o perfil
-          <p>Exige três fotos públicas, uma principal, bio e todos os campos obrigatórios e termos. Dispensa foto de outfit e aprovação da organização.</p>
+          <p>
+            Exige três fotos públicas, uma principal, bio e todos os campos
+            obrigatórios e termos. Dispensa foto de outfit e aprovação da
+            organização.
+          </p>
         </label>
       )}
       <h3>Passes</h3>

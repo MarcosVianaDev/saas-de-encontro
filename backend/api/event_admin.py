@@ -98,7 +98,9 @@ def navigation(request):
         from .contexts import available
         return {'navigation':'selection','contexts':available(request.user)}
     if request.user.is_superuser and request.session.get('navigation') == 'administration':
-        return {'navigation':'administration','role':'ADMIN','globalContext':True}
+        draft = Event.objects.filter(pk=request.session.get('event_id'), state='DRAFT').exists()
+        return {'navigation':'administration','role':'ADMIN','globalContext':True,
+            'initialPage': 'event' if draft else 'dashboard'}
     membership = EventAdministrator.objects.filter(user=request.user, event_id=request.session.get('event_id')).first()
     return {'navigation': 'administration', 'role': effective_role(membership)} if membership and membership.is_active else {'navigation': 'participant'}
 

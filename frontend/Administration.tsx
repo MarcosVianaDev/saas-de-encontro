@@ -1,6 +1,7 @@
 import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
+import Dropdown from "react-bootstrap/Dropdown";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
@@ -8,6 +9,7 @@ import "./administration.css";
 import { AdminNavigation, type AdminNavItem } from "./AdminNavigation";
 import { EventOperations } from "./EventOperations";
 import { EventConfiguration } from "./EventConfiguration";
+import { EventRequestForm } from "./EventRequestForm";
 import { TeamManagement } from "./TeamManagement";
 import {
   ParticipantOperation,
@@ -177,6 +179,7 @@ export function Administration({
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [requestingEvent, setRequestingEvent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [qr, setQr] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
@@ -195,6 +198,7 @@ export function Administration({
   const fetchData = async () => {
     const result = await adminRequest<AdminData>("event-admin/");
     setData(result);
+    return result;
   };
   useEffect(() => {
     let disposed = false;
@@ -302,7 +306,15 @@ export function Administration({
       <main className="adm-loading">
         <h1>Administração do evento</h1>
         <p role="status">{error || "Carregando…"}</p>
-        <button onClick={() => void run(fetchData)}>Tentar novamente</button>
+        <button
+          onClick={() =>
+            void run(async () => {
+              await fetchData();
+            })
+          }
+        >
+          Tentar novamente
+        </button>
         <button onClick={() => void onLogout()}>Sair</button>
       </main>
     );
@@ -382,9 +394,9 @@ export function Administration({
             ? "Online agora"
             : p.presence === "ABSENT"
               ? "Ausente"
-            : p.lastSeen
-              ? `Última atividade: ${date(p.lastSeen)}`
-              : "Sem atividade recente"}
+              : p.lastSeen
+                ? `Última atividade: ${date(p.lastSeen)}`
+                : "Sem atividade recente"}
         </small>
         <Badge>{p.status}</Badge>
       </span>
@@ -475,16 +487,6 @@ export function Administration({
         <button onClick={() => void run(onLogout)}>Sair da conta</button>
       </aside>
       <main className="adm-main">
-        {!mock && onContext && (
-          <button
-            className="adm-back"
-            onClick={() => onContext(Boolean(data.globalContext))}
-          >
-            {data.globalContext
-              ? "← Voltar à Administração Global"
-              : "Trocar contexto"}
-          </button>
-        )}
         {!mock && data.role === "DELEGATED" && (
           <button
             onClick={() =>
@@ -499,34 +501,77 @@ export function Administration({
             Reassumir administração
           </button>
         )}
-        <header className="adm-topbar">
-          <div>
+        <header className="adm-topbar event-admin-topbar">
+          <div className="event-admin-heading">
             <small>PAINEL DO EVENTO</small>
-            <strong>{data.event.name}</strong>
+            {!mock &&
+              !data.globalContext &&
+              ["ADMIN", "DELEGATED"].includes(data.role) && (
+                <button
+                  className="adm-primary"
+                  onClick={() => setRequestingEvent(true)}
+                >
+                  Solicitar novo evento
+                </button>
+              )}
           </div>
-          {data.events.length > 1 && (
-            <select
-              aria-label="Selecionar evento"
-              value={data.event.id}
-              onChange={(e) =>
-                void run(async () => {
-                  await adminRequest("event-admin/", "POST", {
-                    event: e.target.value,
+          <div className="event-admin-details">
+            {data.events.length > 1 && (
+              <Dropdown
+                className="event-selector"
+                onSelect={(eventId) => {
+                  if (!eventId || eventId === data.event.id) return;
+                  void run(async () => {
+                    await adminRequest("event-admin/", "POST", {
+                      event: eventId,
+                    });
+                    const selected = await fetchData();
+                    navigate(
+                      selected.globalContext && selected.event.state === "DRAFT"
+                        ? "event"
+                        : "dashboard",
+                    );
                   });
-                  await fetchData();
-                  navigate("dashboard");
-                })
-              }
-            >
-              {data.events.map((e) => (
-                <option value={e.id} key={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <Badge>{roleLabels[data.role]}</Badge>
+                }}
+              >
+                <Dropdown.Toggle
+                  id="event-selector"
+                  aria-label="Selecionar evento"
+                  disabled={busy}
+                  variant="primary"
+                >
+                  <span className="event-selector-name">{data.event.name}</span>
+                </Dropdown.Toggle>
+                <Dropdown.Menu role="menu" aria-label="Eventos disponíveis">
+                  {data.events.map((event) => (
+                    <Dropdown.Item
+                      key={event.id}
+                      eventKey={event.id}
+                      active={event.id === data.event.id}
+                      role="menuitemradio"
+                      aria-checked={event.id === data.event.id}
+                    >
+                      {event.name}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
+            )}
+            <Badge>{roleLabels[data.role]}</Badge>
+          </div>
         </header>
+        {requestingEvent && (
+          <EventRequestForm
+            onClose={() => setRequestingEvent(false)}
+            onSaved={() => {
+              setRequestingEvent(false);
+              setNotice(
+                "Evento salvo como rascunho. A solicitação aguarda aprovação da Administração Global.",
+              );
+              void fetchData();
+            }}
+          />
+        )}
         {mock && (
           <section
             className="adm-card adm-actions"

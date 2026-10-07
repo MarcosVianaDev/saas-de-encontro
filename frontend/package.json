@@ -8,8 +8,10 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "bootstrap": "^5.3.8",
     "qrcode": "^1.5.4",
     "react": "latest",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "latest"
   },
   "devDependencies": {

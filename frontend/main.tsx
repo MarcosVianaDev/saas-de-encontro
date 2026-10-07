@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 import { frontendConfig } from "./config";
 import { api, ApiError, request } from "./backend-client";
@@ -371,9 +372,7 @@ function App() {
       location.hash.startsWith("#admin-"),
   );
   const invite = new URLSearchParams(location.search).get("invite");
-  const invitePath = invite
-    ? `join/${encodeURIComponent(invite)}/`
-    : "";
+  const invitePath = invite ? `join/${encodeURIComponent(invite)}/` : "";
   const [real] = useState(!frontendConfig.useMocks);
   const mockEvent = frontendConfig.useMocks
     ? mockEventInfo(new URLSearchParams(location.search).get("demoEvent"))
@@ -585,7 +584,7 @@ function App() {
     }
     if (data.navigation === "administration") {
       setAdminMode(true);
-      location.hash = "admin-dashboard";
+      location.hash = `admin-${data.initialPage || "dashboard"}`;
       return;
     }
     setAdminMode(false);
@@ -710,7 +709,9 @@ function App() {
       setPassword("");
       if (invite) history.replaceState(null, "", location.pathname);
       location.hash =
-        data.navigation === "administration" ? "admin-dashboard" : "perfil";
+        data.navigation === "administration"
+          ? `admin-${data.initialPage || "dashboard"}`
+          : "perfil";
       setPage("perfil");
       notify("Você entrou na sua conta.");
     });
@@ -970,6 +971,11 @@ function App() {
           return;
         }
       }
+      if (notice.action.split("?")[0] === "#descobrir") {
+        applyData(await api.bootstrap());
+        navigate("descobrir");
+        return;
+      }
       navigate("mensagens");
       setMailbox(notice.kind === "support" ? "support" : "notifications");
     });
@@ -1042,12 +1048,10 @@ function App() {
         mock={!real}
         onContext={
           real
-            ? (global) => {
-                void request<SessionData>(
-                  "contexts/",
-                  global ? "POST" : "GET",
-                  global ? { key: "global" } : undefined,
-                ).then(applyData);
+            ? () => {
+                void request<SessionData>("contexts/", "POST", {
+                  key: "global",
+                }).then(applyData);
               }
             : undefined
         }
@@ -1414,20 +1418,20 @@ function App() {
                                   deletionDialog.current?.showModal()
                                 }
                               >
-                                Excluir perfil deste evento
+                                Descartar perfil deste evento
                               </button>
                             </div>
                             <dialog
                               ref={deletionDialog}
                               className="disposition-dialog"
-                              aria-label="Excluir perfil deste evento"
+                              aria-label="Descartar perfil deste evento"
                               onClick={(e) =>
                                 closeDialogOnBackdrop(e, () =>
                                   deletionDialog.current?.close(),
                                 )
                               }
                             >
-                              <h2>Excluir perfil deste evento</h2>
+                              <h2>Descartar perfil deste evento</h2>
                               <p>
                                 Seu perfil deixará de aparecer socialmente.
                                 Dados sujeitos a obrigações legais, segurança ou
@@ -1456,7 +1460,7 @@ function App() {
                                   })
                                 }
                               >
-                                Solicitar exclusão
+                                Descartar
                               </button>
                             </dialog>
                           </>
@@ -2012,28 +2016,51 @@ function App() {
                   {page === "descobrir" && (
                     <>
                       <div className="screen-title">
-                        <h2>{serverData?.event.readOnly ? "A descoberta terminou" : "Descobrir pessoas"}</h2>
-                        {!serverData?.event.readOnly && <button
-                          className="icon-button purple"
-                          aria-label="Alterar filtros"
-                          onClick={() => {
-                            setDraft(filters);
-                            navigate("filtros");
-                          }}
-                        >
-                          <Icon name="filter" />
-                        </button>}
+                        <h2>
+                          {serverData?.event.readOnly
+                            ? "A descoberta terminou"
+                            : "Descobrir pessoas"}
+                        </h2>
+                        {!serverData?.event.readOnly && (
+                          <button
+                            className="icon-button purple"
+                            aria-label="Alterar filtros"
+                            onClick={() => {
+                              setDraft(filters);
+                              navigate("filtros");
+                            }}
+                          >
+                            <Icon name="filter" />
+                          </button>
+                        )}
                       </div>
-                      {serverData?.event.readOnly && serverData.discoveryReport && (
-                        <section className="discovery-report" aria-label="Seu relatório do evento">
-                          <ul>
-                            <li>Você gostou de {serverData.discoveryReport.likesSent} pessoas.</li>
-                            <li>{serverData.discoveryReport.likesReceived} pessoas gostaram de você.</li>
-                            <li>Você deu {serverData.discoveryReport.matches} matches.</li>
-                            <li>Conversou com {serverData.discoveryReport.conversations} pessoas.</li>
-                          </ul>
-                        </section>
-                      )}
+                      {serverData?.event.readOnly &&
+                        serverData.discoveryReport && (
+                          <section
+                            className="discovery-report"
+                            aria-label="Seu relatório do evento"
+                          >
+                            <ul>
+                              <li>
+                                Você gostou de{" "}
+                                {serverData.discoveryReport.likesSent} pessoas.
+                              </li>
+                              <li>
+                                {serverData.discoveryReport.likesReceived}{" "}
+                                pessoas gostaram de você.
+                              </li>
+                              <li>
+                                Você deu {serverData.discoveryReport.matches}{" "}
+                                matches.
+                              </li>
+                              <li>
+                                Conversou com{" "}
+                                {serverData.discoveryReport.conversations}{" "}
+                                pessoas.
+                              </li>
+                            </ul>
+                          </section>
+                        )}
                     </>
                   )}
                   {page === "descobrir" &&

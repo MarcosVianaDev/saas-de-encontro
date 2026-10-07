@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import Dropdown from "react-bootstrap/Dropdown";
 import { request } from "./backend-client";
 import type { SessionData } from "./types";
 import "./administration.css";
@@ -42,6 +43,16 @@ type GlobalData = {
   activity: { id: string; action: string; created: string }[];
   alerts: { id: string; title: string; body: string }[];
 };
+const eventStatuses = [
+  ["Todos", "Todos"],
+  ["DRAFT", "Rascunhos / solicitados"],
+  ["RUNNING", "Em andamento"],
+  ["SCHEDULED", "Agendados"],
+  ["OPEN", "Abertos"],
+  ["PAUSED", "Pausados"],
+  ["CLOSED", "Encerrados"],
+  ["ARCHIVED", "Arquivados"],
+] as const;
 export function GlobalAdministration({
   onSelect,
   onLogout,
@@ -158,7 +169,10 @@ export function GlobalAdministration({
           ? {
               starts: new Date(draft.starts).toISOString(),
               ends: new Date(draft.ends).toISOString(),
-              location_interval_minutes: draft.location_interval_minutes || "15",
+              location_interval_minutes:
+                draft.location_interval_minutes || "15",
+              radius_m: draft.radius_m || "100",
+              tolerance_m: draft.tolerance_m || "1000",
             }
           : {}),
       };
@@ -279,19 +293,83 @@ export function GlobalAdministration({
                       </select>
                     </label>
                     {field("event", "Nome do evento")}
-                    <label>Modalidade
-                      <select value={draft.mode || "PHYSICAL"} onChange={(e) => { setDirty(true); setDraft({ ...draft, mode: e.target.value, auto_activate_participants: "false" }); }}>
-                        <option value="ONLINE">Online</option><option value="PHYSICAL">Presencial</option><option value="HYBRID">Híbrido</option>
+                    <label>
+                      Descrição
+                      <textarea
+                        maxLength={4000}
+                        value={draft.description || ""}
+                        onChange={(e) => {
+                          setDraft({ ...draft, description: e.target.value });
+                          setDirty(true);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Modalidade
+                      <select
+                        value={draft.mode || "PHYSICAL"}
+                        onChange={(e) => {
+                          setDirty(true);
+                          setDraft({
+                            ...draft,
+                            mode: e.target.value,
+                            auto_activate_participants: "false",
+                          });
+                        }}
+                      >
+                        <option value="ONLINE">Online</option>
+                        <option value="PHYSICAL">Presencial</option>
+                        <option value="HYBRID">Híbrido</option>
                       </select>
                     </label>
                     {draft.mode === "ONLINE" ? (
-                      <label><input type="checkbox" checked={draft.auto_activate_participants === "true"} onChange={(e) => { setDirty(true); setDraft({ ...draft, auto_activate_participants: String(e.target.checked) }); }} />
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={draft.auto_activate_participants === "true"}
+                          onChange={(e) => {
+                            setDirty(true);
+                            setDraft({
+                              ...draft,
+                              auto_activate_participants: String(
+                                e.target.checked,
+                              ),
+                            });
+                          }}
+                        />
                         Ativar automaticamente ao completar o perfil
-                        <p>Exige três fotos públicas, uma principal, bio e campos obrigatórios e termos. Dispensa foto de outfit e aprovação da organização.</p>
+                        <p>
+                          Exige três fotos públicas, uma principal, bio e campos
+                          obrigatórios e termos. Dispensa foto de outfit e
+                          aprovação da organização.
+                        </p>
                       </label>
-                    ) : <>{field("latitude", "Latitude", "number")}{field("longitude", "Longitude", "number")}</>}
-                    {field("location_interval_minutes", "Intervalo de localização (minutos)", "number", false)}
-                    {draft.mode === "ONLINE" && <p>Após esse intervalo sem interação com o servidor, o participante será considerado ausente. O padrão é 15 minutos.</p>}
+                    ) : (
+                      <>
+                        {field("latitude", "Latitude", "number")}
+                        {field("longitude", "Longitude", "number")}
+                        {field("radius_m", "Raio (metros)", "number", false)}
+                        {field(
+                          "tolerance_m",
+                          "Limite adicional (metros)",
+                          "number",
+                          false,
+                        )}
+                      </>
+                    )}
+                    {field(
+                      "location_interval_minutes",
+                      "Intervalo de localização (minutos)",
+                      "number",
+                      false,
+                    )}
+                    {draft.mode === "ONLINE" && (
+                      <p>
+                        Após esse intervalo sem interação com o servidor, o
+                        participante será considerado ausente. O padrão é 15
+                        minutos.
+                      </p>
+                    )}
                     {field("starts", "Início", "datetime-local")}
                     {field("ends", "Término", "datetime-local")}
                     {field(
@@ -334,13 +412,30 @@ export function GlobalAdministration({
                       ["RUNNING", "Eventos em andamento"],
                       ["SCHEDULED", "Eventos agendados"],
                       ["PAUSED", "Eventos pausados"],
+                      ["DRAFT", "Eventos solicitados"],
                       ["critical", "Denúncias críticas"],
-                      ["clients", "Clientes ativos"],
                       ["pending", "Ocorrências que exigem atenção"],
                     ].map(([k, label]) => (
                       <section className="adm-card" key={k}>
-                        <strong>{data?.metrics[k] || 0}</strong>
-                        <p>{label}</p>
+                        {["RUNNING", "SCHEDULED", "PAUSED", "DRAFT"].includes(
+                          k,
+                        ) ? (
+                          <button
+                            className="global-event-stat"
+                            onClick={() => {
+                              navigate("Eventos");
+                              setEventFilter(k);
+                            }}
+                          >
+                            <strong>{data?.metrics[k] || 0}</strong>
+                            <span>{label}</span>
+                          </button>
+                        ) : (
+                          <>
+                            <strong>{data?.metrics[k] || 0}</strong>
+                            <p>{label}</p>
+                          </>
+                        )}
                       </section>
                     ))}
                   </div>
@@ -554,26 +649,38 @@ export function GlobalAdministration({
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                       />
-                      <div
-                        className="adm-tabs"
-                        aria-label="Situação dos eventos"
+                      <Dropdown
+                        className="event-status-filter"
+                        onSelect={(key) => {
+                          if (key) setEventFilter(key);
+                        }}
                       >
-                        {[
-                          ["Todos", "Todos"],
-                          ["RUNNING", "Em andamento"],
-                          ["SCHEDULED", "Agendados"],
-                          ["CLOSED", "Encerrados"],
-                        ].map(([key, label]) => (
-                          <button
-                            key={key}
-                            className={eventFilter === key ? "selected" : ""}
-                            aria-pressed={eventFilter === key}
-                            onClick={() => setEventFilter(key)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                        <Dropdown.Toggle
+                          id="event-status-filter"
+                          variant="primary"
+                          aria-label="Situação dos eventos"
+                        >
+                          {eventStatuses.find(
+                            ([key]) => key === eventFilter,
+                          )?.[1] || "Todos"}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu
+                          role="menu"
+                          aria-label="Status disponíveis"
+                        >
+                          {eventStatuses.map(([key, label]) => (
+                            <Dropdown.Item
+                              key={key}
+                              eventKey={key}
+                              active={eventFilter === key}
+                              role="menuitemradio"
+                              aria-checked={eventFilter === key}
+                            >
+                              {label}
+                            </Dropdown.Item>
+                          ))}
+                        </Dropdown.Menu>
+                      </Dropdown>
                     </div>
                   )}
                   {data?.events

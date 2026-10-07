@@ -82,6 +82,38 @@ class EventAdministrationTests(TestCase):
         self.assertEqual(self.client.get('/api/event-admin/').status_code, 404)
         self.assertEqual(self.action('suspend').status_code, 404)
 
+    def test_admin_with_multiple_contexts_logs_in_directly(self):
+        EventAdministrator.objects.create(user=self.owner, event=self.other_event)
+        participant = EventParticipant.objects.create(user=self.owner, event=self.event)
+        ParticipantProfile.objects.create(participant=participant, first_name='Owner', last_name='Test')
+        self.client.logout()
+        response = self.client.post('/api/auth/login/', {'email': self.owner.email, 'password': 'Demo-password-2026!'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data']['navigation'], 'administration')
+        self.assertNotIn('contexts', response.json()['data'])
+        self.assertEqual(self.client.get('/api/bootstrap/').json()['navigation'], 'administration')
+        self.assertEqual(self.client.get('/api/contexts/').json()['navigation'], 'administration')
+        self.assertEqual(self.client.get('/api/event-admin/').status_code, 200)
+
+    def test_existing_admin_selection_session_restores_directly_to_panel(self):
+        session = self.client.session
+        session['navigation'] = 'selection'
+        session.pop('event_id', None)
+        session.save()
+        response = self.client.get('/api/bootstrap/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['navigation'], 'administration')
+        self.assertEqual(self.client.session['navigation'], 'administration')
+        self.assertEqual(self.client.get('/api/event-admin/').status_code, 200)
+
+    def test_admin_login_through_invite_still_opens_participant_access(self):
+        self.client.logout()
+        response = self.client.post('/api/auth/login/', {'email': self.owner.email,
+            'password': 'Demo-password-2026!', 'invite': self.token(self.other_event)}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data']['navigation'], 'participant')
+        self.assertEqual(response.json()['data']['event']['id'], str(self.other_event.pk))
+
     def test_admin_data_scoped_and_private_social_content_absent(self):
         response = self.client.get('/api/event-admin/')
         self.assertEqual(response.status_code, 200)

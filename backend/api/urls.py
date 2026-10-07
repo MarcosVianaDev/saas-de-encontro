@@ -3,6 +3,7 @@ from . import views
 from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView
 from .event_operations import EventTransitionView, EventConfigurationView
 from .global_admin import GlobalView
+from .event_requests import EventRequestView
 from .contexts import ContextView, GlobalEventContextView
 from .team import TeamView
 from .profile_operations import ActivationView, OutfitView, OutfitContentView, ProfileInterventionView, ProfileFieldsView, ProfileDispositionView
@@ -37,6 +38,7 @@ urlpatterns = [
     path('global/',GlobalView.as_view()),
     path('global/event/',GlobalEventContextView.as_view()),
     path('event-admin/team/',TeamView.as_view()),
+    path('event-admin/requests/', EventRequestView.as_view()),
     path('event-admin/transition/', EventTransitionView.as_view()),
     path('event-admin/configuration/', EventConfigurationView.as_view()),
     path('join/<str:token>/', JoinView.as_view()),

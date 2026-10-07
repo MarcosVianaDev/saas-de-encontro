@@ -94,7 +94,12 @@ export type Bootstrap = {
 };
 export type SessionData =
   | Bootstrap
-  | { navigation: "administration"; role: string; globalContext?: boolean }
+  | {
+      navigation: "administration";
+      role: string;
+      globalContext?: boolean;
+      initialPage?: "event" | "dashboard";
+    }
   | { navigation: "global" }
   | { navigation: "selection"; contexts: Context[] };
 export type Context = {

@@ -20,13 +20,17 @@ def managed_event(request):
     return event
 
 
-def event_data(event):
+def event_data(event, actor=None):
     actions=[state for state in TRANSITIONS[event.state] if state!='ARCHIVED']
     now=timezone.now()
     if 'OPEN' in actions and (not event.starts_at or now<event.starts_at-timedelta(hours=2)):actions.remove('OPEN')
     if 'RUNNING' in actions and event.state=='OPEN' and (not event.starts_at or now<event.starts_at+(timedelta(minutes=10) if event.opening_origin=='automatic' else timedelta())):actions.remove('RUNNING')
     if 'SCHEDULED' in actions and (not event.starts_at or not event.ends_at):actions.remove('SCHEDULED')
+    if 'SCHEDULED' in actions and event.requested_by_id and not (actor and actor.is_superuser):
+        actions.remove('SCHEDULED')
     return {'state': event.state, 'status': event.get_state_display(),
+        'pendingApproval': bool(event.requested_by_id and event.state == 'DRAFT'),
+        'canEditRequestedDraft': bool(event.requested_by_id and event.state == 'DRAFT'),
         'timeline': [{'state': state, 'label': label} for state, label in Event.State.choices],
         'actions': actions,
         'configuration': {field: getattr(event, field) for field in ['name', 'description', 'starts_at', 'ends_at',
@@ -39,7 +43,7 @@ class EventTransitionView(APIView):
         left, right = secrets.randbelow(9) + 1, secrets.randbelow(9) + 1
         request.session['closing_challenge'] = {'answer': str(left + right), 'event': str(event.pk),
             'expires': timezone.now().timestamp() + 300}
-        return Response({**event_data(event), 'challenge': f'Quanto é {left} + {right}?'})
+        return Response({**event_data(event, request.user), 'challenge': f'Quanto é {left} + {right}?'})
 
     def post(self, request):
         event = managed_event(request)
@@ -51,14 +55,14 @@ class EventTransitionView(APIView):
             if challenge.get('event') != str(event.pk) or challenge.get('expires', 0) < timezone.now().timestamp() or challenge.get('answer') != str(request.data.get('captcha', '')):
                 raise ValidationError('Verificação inválida ou expirada. Solicite uma nova verificação.')
         event = transition(event, state, actor=request.user, reason=str(request.data.get('reason', '')).strip())
-        return Response(event_data(event))
+        return Response(event_data(event, request.user))
 
 
 class EventConfigurationView(APIView):
     def get(self, request):
-        return Response(event_data(managed_event(request)))
+        return Response(event_data(managed_event(request), request.user))
 
     @transaction.atomic
     def put(self, request):
         event=configure(managed_event(request),request.user,{key:value for key,value in request.data.items() if key!='confirmed'},request.data.get('confirmed') is True)
-        return Response(event_data(event))
+        return Response(event_data(event, request.user))

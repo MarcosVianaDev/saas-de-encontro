@@ -5,6 +5,7 @@ type EventInfo = {
   state: string;
   status: string;
   actions: string[];
+  pendingApproval?: boolean;
   challenge?: string;
   timeline: { state: string; label: string }[];
   configuration: Record<string, unknown>;
@@ -65,9 +66,19 @@ export function EventOperations({
     ) : (
       <p>Carregando ciclo do evento…</p>
     );
+  const actionLabel = (state: string) =>
+    state === "SCHEDULED" && data.pendingApproval
+      ? "Aprovar e agendar evento"
+      : labels[state];
   return (
     <section className="adm-card">
       <h2>Status: {data.status}</h2>
+      {data.pendingApproval && (
+        <p>
+          Solicitação salva como rascunho. O evento aguarda aprovação da
+          Administração Global.
+        </p>
+      )}
       <ol className="event-timeline">
         {data.timeline.map((item) => (
           <li
@@ -89,7 +100,7 @@ export function EventOperations({
           >
             {state === "RUNNING" && data.state === "PAUSED"
               ? "Retomar evento"
-              : labels[state]}
+              : actionLabel(state)}
           </button>
         ))}
       </div>
@@ -98,7 +109,7 @@ export function EventOperations({
           <h3>
             {action === "CLOSED"
               ? "Encerrar evento antes do horário?"
-              : `${labels[action]}?`}
+              : `${actionLabel(action)}?`}
           </h3>
           {action === "PAUSED" && (
             <p>
@@ -140,7 +151,7 @@ export function EventOperations({
               Cancelar
             </button>
             <button disabled={busy} className="adm-primary" type="submit">
-              {labels[action]}
+              {actionLabel(action)}
             </button>
           </div>
         </form>

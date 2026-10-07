@@ -26,8 +26,17 @@ def select(request, key):
     return context
 
 
+def administration_context(user):
+    return next((context for context in available(user) if context['navigation'] in ['global', 'administration']), None)
+
+
 class ContextView(APIView):
     def get(self,request):
+        context = administration_context(request.user)
+        if context:
+            select(request, context['key'])
+            from .views import login_payload
+            return Response(login_payload(request))
         return Response({'navigation':'selection','contexts':available(request.user)})
 
     def post(self,request):
@@ -43,4 +52,5 @@ class GlobalEventContextView(APIView):
         event = get_object_or_404(Event,pk=request.data.get('event'))
         request.session['event_id'] = str(event.pk)
         request.session['navigation'] = 'administration'
-        return Response({'navigation':'administration','role':'ADMIN','globalContext':True})
+        return Response({'navigation':'administration','role':'ADMIN','globalContext':True,
+            'initialPage': 'event' if event.state == 'DRAFT' else 'dashboard'})
