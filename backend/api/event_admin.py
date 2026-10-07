@@ -183,7 +183,7 @@ class AdminBootstrapView(APIView):
                 'starts': event.starts_at, 'ends': event.ends_at,
                 'responsible': [m.user.get_full_name() or m.user.email for m in event.administrators.filter(role='ADMIN').select_related('user')],
                 'state': event.state, 'status': event.get_state_display(), 'mode': event.mode,
-                  'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?event=' + str(event.pk) + '&invite=' + token},
+                  'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?invite=' + token},
             'participants': [participant_payload(p, moderate) for p in participants],
             'cases': [case_payload(c) for c in cases.order_by('-created_at')],
             'metrics': {'participants': participants.count(), 'active': active_count,

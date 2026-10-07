@@ -371,9 +371,8 @@ function App() {
       location.hash.startsWith("#admin-"),
   );
   const invite = new URLSearchParams(location.search).get("invite");
-  const inviteEventId = new URLSearchParams(location.search).get("event");
   const invitePath = invite
-    ? `join/${encodeURIComponent(invite)}/${inviteEventId !== null ? `?event=${encodeURIComponent(inviteEventId)}` : ""}`
+    ? `join/${encodeURIComponent(invite)}/`
     : "";
   const [real] = useState(!frontendConfig.useMocks);
   const mockEvent = frontendConfig.useMocks
@@ -656,11 +655,7 @@ function App() {
         if (!active) return;
         if (session.authenticated) {
           if (invite) {
-            await request(
-              invitePath,
-              "POST",
-              inviteEventId !== null ? { event: inviteEventId } : undefined,
-            );
+            await request(invitePath, "POST");
             history.replaceState(null, "", location.pathname);
           }
           const data = await api.bootstrap();

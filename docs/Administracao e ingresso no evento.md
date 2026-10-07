@@ -71,7 +71,7 @@ Bloqueios são consultados como indicadores agregados e linha do tempo. A consul
 
 Evento e Dashboard oferecem QR Code enquanto o evento estiver aberto para ingresso. A imagem é gerada no navegador com [node-qrcode](https://github.com/soldair/node-qrcode), sem enviar a URL a um serviço externo.
 
-A URL tem o formato `/?event=<UUID-do-evento>&invite=<token-assinado>`. O backend valida o UUID e sua correspondência com o evento do convite, assinatura com salt exclusivo de ingresso, validade de 30 dias e término do evento. Links antigos que contêm apenas o convite assinado continuam aceitos. O encerramento recusa novos ingressos mesmo que o token ainda esteja dentro do prazo. O QR Code representa um convite compartilhável, não uma credencial administrativa.
+A URL tem o formato `/?invite=<token-assinado>`. O evento e seu nome na tela de login são identificados pelo convite assinado, sem exigir o parâmetro `event`. O backend valida a assinatura com salt exclusivo de ingresso, validade de 30 dias e término do evento. O encerramento recusa novos ingressos mesmo que o token ainda esteja dentro do prazo. O QR Code representa um convite compartilhável, não uma credencial administrativa.
 
 Ao abrir o link, o usuário vê o evento de destino e pode entrar ou criar uma conta. O cadastro de participantes exige convite válido, inclusive em DEBUG. O acesso direto à página inicial mostra apenas o login; contas de gestão devem ser criadas no Django Admin, em `/admin/`. Usuários já autenticados são associados pelo endpoint de ingresso com CSRF. O token é retirado da URL após a associação; o evento escolhido fica na sessão.
 

@@ -159,7 +159,7 @@ class EventAdministrationTests(TestCase):
     @override_settings(DEBUG=False)
     def test_invite_register_outside_debug_and_correct_event_link(self):
         self.client.logout()
-        response = self.client.post('/api/auth/register/', {'email': 'qr-new@example.com', 'password': 'Good-password-2026!', 'invite': self.token(self.other_event), 'event': str(self.other_event.pk), 'is_staff': True, 'is_superuser': True}, format='json')
+        response = self.client.post('/api/auth/register/', {'email': 'qr-new@example.com', 'password': 'Good-password-2026!', 'invite': self.token(self.other_event), 'is_staff': True, 'is_superuser': True}, format='json')
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(response.json()['data']['event']['id'], str(self.other_event.pk))
         user = get_user_model().objects.get(email='qr-new@example.com')
@@ -173,19 +173,19 @@ class EventAdministrationTests(TestCase):
 
     def test_existing_user_invite_login_and_idempotent_join(self):
         self.client.logout()
-        response = self.client.post('/api/auth/login/', {'email': self.actor.user.email, 'password': 'Demo-password-2026!', 'invite': self.token(self.other_event), 'event': str(self.other_event.pk)}, format='json')
+        response = self.client.post('/api/auth/login/', {'email': self.actor.user.email, 'password': 'Demo-password-2026!', 'invite': self.token(self.other_event)}, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['data']['event']['id'], str(self.other_event.pk))
         for _ in range(2):
-            self.assertEqual(self.client.post(f'/api/join/{self.token(self.other_event)}/', {'event': str(self.other_event.pk)}, format='json').status_code, 200)
+            self.assertEqual(self.client.post(f'/api/join/{self.token(self.other_event)}/', {}, format='json').status_code, 200)
         self.assertEqual(EventParticipant.objects.filter(user=self.actor.user, event=self.other_event).count(), 1)
 
-    def test_qr_url_has_event_uuid_and_matching_signed_invite(self):
+    def test_qr_url_identifies_event_with_only_signed_invite(self):
         event = self.client.get('/api/event-admin/').json()['event']
         params = parse_qs(urlsplit(event['joinPath']).query)
-        self.assertEqual(params['event'], [str(self.event.pk)])
-        self.assertEqual(signing.loads(params['invite'][0], salt='event-join'), params['event'][0])
-        response = self.client.get(f"/api/join/{params['invite'][0]}/", {'event': params['event'][0]})
+        self.assertEqual(set(params), {'invite'})
+        self.assertEqual(signing.loads(params['invite'][0], salt='event-join'), str(self.event.pk))
+        response = self.client.get(f"/api/join/{params['invite'][0]}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['id'], str(self.event.pk))
 

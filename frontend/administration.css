@@ -681,6 +681,7 @@
   color: #c62835;
 }
 .global-context .adm-sidebar button.selected,
+.global-context .adm-actions button.adm-primary,
 .global-context .adm-primary {
   color: white;
 }
