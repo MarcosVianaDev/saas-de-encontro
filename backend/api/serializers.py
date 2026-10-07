@@ -24,7 +24,7 @@ class ProfileSerializer(serializers.Serializer):
 
 class FilterSerializer(serializers.Serializer):
     min = serializers.IntegerField(min_value=18, max_value=70)
-    max = serializers.IntegerField(min_value=18, max_value=70)
+    max = serializers.IntegerField(min_value=18, max_value=100)
     gender = serializers.ChoiceField(choices=["Todos", "Mulheres", "Homens"])
     interests = serializers.ListField(child=serializers.ChoiceField(choices=["Música", "Viagens", "Tecnologia", "Gastronomia", "Esportes", "Arte", "Networking", "Outros"]), max_length=8)
     purpose = serializers.ChoiceField(choices=["Networking", "Amizade", "Relacionamento", "Negócios", "Troca de ideias", "Outros"])

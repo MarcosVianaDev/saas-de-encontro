@@ -1885,7 +1885,7 @@ function App() {
                               aria-label="Idade máxima"
                               type="range"
                               min="18"
-                              max="70"
+                              max="100"
                               value={draft.max}
                               onChange={(e) =>
                                 setDraft({
