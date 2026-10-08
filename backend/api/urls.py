@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView
+from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView, AdminParticipantProfileView
 from .event_operations import EventTransitionView, EventConfigurationView
 from .global_admin import GlobalView
 from .event_requests import EventRequestView
@@ -14,6 +14,7 @@ from .location import LocationView,LocationExceptionView,LocationHistoryView,Loc
 from .notifications import NotificationView,AnnouncementView
 
 urlpatterns = [
+    path('event-admin/participants/<uuid:participant_id>/profile/',AdminParticipantProfileView.as_view()),
     path('outfits/<uuid:participant_id>/content/',OutfitContentView.as_view()),
     path('event-admin/participants/<uuid:participant_id>/profile-intervention/',ProfileInterventionView.as_view()),
     path('notifications/',NotificationView.as_view()),

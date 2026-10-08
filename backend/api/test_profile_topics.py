@@ -84,3 +84,26 @@ class ProfileTopicTests(TestCase):
     def test_empty_topic_options_are_rejected(self):
         response = self.client.post('/api/global/', {'action': 'save_topic', 'name': 'Empty', 'options': [], 'multiple': False}, format='json')
         self.assertEqual(response.status_code, 400)
+
+    def test_event_only_exposes_enabled_topics_and_enforces_distinct_minimum(self):
+        interests = ProfileTopic.objects.get(key='interests')
+        purpose = ProfileTopic.objects.get(key='purpose')
+        event = self.actor.event
+        event.settings = {**event.settings, 'participant_topics': [
+            {'topic': str(interests.pk), 'enabled': True, 'required': True, 'minimum': 2},
+            {'topic': str(purpose.pk), 'enabled': False, 'required': False, 'minimum': 1},
+        ]}
+        event.save()
+        self.client.force_login(self.actor.user)
+        session = self.client.session
+        session['event_id'] = str(event.pk)
+        session.save()
+        data = self.client.get('/api/bootstrap/').json()
+        self.assertEqual([topic['key'] for topic in data['profileTopics']], ['interests'])
+        self.assertEqual(data['profileTopics'][0]['minimum'], 2)
+        self.assertTrue(data['profileTopics'][0]['required'])
+        for values in [[], ['Arte'], ['Arte', 'Arte']]:
+            response = self.client.put('/api/profile/', {**data['profile'], 'topicAnswers': {'interests': values}}, format='json')
+            self.assertEqual(response.status_code, 400, response.content)
+        response = self.client.put('/api/profile/', {**data['profile'], 'topicAnswers': {'interests': ['Arte', 'Música']}}, format='json')
+        self.assertEqual(response.status_code, 200, response.content)

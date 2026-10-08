@@ -5,6 +5,7 @@ import Tab from "react-bootstrap/Tab";
 import { request } from "./backend-client";
 import type { SessionData, ProfileTopic } from "./types";
 import { ProfileTopicManagement } from "./ProfileTopicManagement";
+import { EventParticipantTopics, type EventTopicRule } from "./EventParticipantTopics";
 import "./administration.css";
 import { AdminNavigation } from "./AdminNavigation";
 
@@ -76,6 +77,7 @@ export function GlobalAdministration({
     "client-create" | "client-edit" | "event-create" | "team-create" | "team-edit"
   >("client-create");
   const [pendingPage, setPendingPage] = useState<string | null>(null);
+  const [topicRules, setTopicRules] = useState<EventTopicRule[]>([]);
   const selectedClient = data?.clients.find(
     (client) => client.id === selectedClientId,
   );
@@ -102,6 +104,7 @@ export function GlobalAdministration({
   ) => {
     setFormKind(kind);
     setDraft(values);
+    setTopicRules((data?.topics || []).map((topic) => ({ topic: topic.id, enabled: true, required: false, minimum: 1 })));
     setDirty(false);
     setError("");
     setWizard(true);
@@ -178,6 +181,7 @@ export function GlobalAdministration({
           ? {
               starts: new Date(draft.starts).toISOString(),
               ends: new Date(draft.ends).toISOString(),
+              participant_topics: topicRules,
               location_interval_minutes:
                 draft.location_interval_minutes || "15",
               radius_m: draft.radius_m || "100",
@@ -294,6 +298,7 @@ export function GlobalAdministration({
                 )}
                 {formKind === "event-create" && (
                   <>
+                    <div className="event-form-pair">
                     <label>
                       Cliente
                       <select
@@ -318,18 +323,6 @@ export function GlobalAdministration({
                           ))}
                       </select>
                     </label>
-                    {field("event", "Nome do evento")}
-                    <label>
-                      Descrição
-                      <textarea
-                        maxLength={4000}
-                        value={draft.description || ""}
-                        onChange={(e) => {
-                          setDraft({ ...draft, description: e.target.value });
-                          setDirty(true);
-                        }}
-                      />
-                    </label>
                     <label>
                       Modalidade
                       <select
@@ -348,6 +341,23 @@ export function GlobalAdministration({
                         <option value="HYBRID">Híbrido</option>
                       </select>
                     </label>
+                    </div>
+                    {field("event", "Nome do evento")}
+                    <label>
+                      Descrição
+                      <textarea
+                        maxLength={4000}
+                        value={draft.description || ""}
+                        onChange={(e) => {
+                          setDraft({ ...draft, description: e.target.value });
+                          setDirty(true);
+                        }}
+                      />
+                    </label>
+                    <div className="event-form-pair">
+                    {field("starts", "Início", "datetime-local")}
+                    {field("ends", "Término", "datetime-local")}
+                    </div>
                     {draft.mode === "ONLINE" ? (
                       <label>
                         <input
@@ -374,8 +384,11 @@ export function GlobalAdministration({
                       </label>
                     ) : (
                       <>
+                        <div className="event-form-pair">
                         {field("latitude", "Latitude", "number")}
                         {field("longitude", "Longitude", "number")}
+                        </div>
+                        <div className="event-form-pair">
                         {field("radius_m", "Raio (metros)", "number", false)}
                         {field(
                           "tolerance_m",
@@ -383,6 +396,7 @@ export function GlobalAdministration({
                           "number",
                           false,
                         )}
+                        </div>
                       </>
                     )}
                     {field(
@@ -398,8 +412,6 @@ export function GlobalAdministration({
                         minutos.
                       </p>
                     )}
-                    {field("starts", "Início", "datetime-local")}
-                    {field("ends", "Término", "datetime-local")}
                     <label>
                       E-mail da conta responsável
                       <select required value={draft.responsible || ""} onChange={(e) => {
@@ -420,6 +432,11 @@ export function GlobalAdministration({
                       Selecione um membro vinculado ao cliente. O
                       evento será criado como agendado.
                     </p>
+                    <hr />
+                    <EventParticipantTopics topics={data?.topics || []} rules={topicRules} onChange={(rules) => {
+                      setTopicRules(rules);
+                      setDirty(true);
+                    }} />
                   </>
                 )}
                 <div className="adm-actions">
@@ -435,7 +452,7 @@ export function GlobalAdministration({
                       : formKind === "event-create"
                         ? "Criar evento"
                         : formKind === "team-edit"
-                          ? "Salvar altera??es"
+                          ? "Salvar alterações"
                         : formKind === "team-create"
                           ? "Cadastrar membro"
                         : formKind === "client-edit"
@@ -596,7 +613,7 @@ export function GlobalAdministration({
                           role: member.role,
                         })} aria-label={`Editar ${member.firstName} ${member.lastName}`}>
                           <strong>{member.firstName.toLocaleUpperCase("pt-BR")}</strong>
-                          <span>{member.role === "ADMIN" ? "Respons?vel pelo evento" : member.role === "MODERATOR" ? "Moderador" : "Operador"}{!member.active && " ? Inativo"}</span>
+                          <span>{member.role === "ADMIN" ? "Responsável pelo evento" : member.role === "MODERATOR" ? "Moderador" : "Operador"}{!member.active && " ? Inativo"}</span>
                         </button>
                         <a className="client-password-button" href={`/admin/accounts/user/${member.id}/password/`} target="_blank" rel="noreferrer" aria-label={`Redefinir senha de ${member.firstName} ${member.lastName}`}>
                           Redefinir senha

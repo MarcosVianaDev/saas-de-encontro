@@ -10,7 +10,7 @@ export function ProfileTopics({ topics, profile, onChange }: {
     return (
       <fieldset className="filter-card" key={topic.id}>
         <legend>{topic.name}</legend>
-        <p className="microcopy">{topic.multiple ? "Selecione uma ou mais opções." : "Selecione uma opção."}</p>
+        <p className="microcopy">{topic.required ? `Obrigatório: selecione pelo menos ${topic.minimum || 1} opção(ões).` : topic.multiple ? "Selecione uma ou mais opções." : "Selecione uma opção."}</p>
         <div className="chips">
           {topic.options.map((option) => (
             <button type="button" key={option} className={`chip ${selected.includes(option) ? "active" : ""}`} aria-pressed={selected.includes(option)} onClick={() => {

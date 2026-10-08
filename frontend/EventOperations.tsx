@@ -7,7 +7,7 @@ type EventInfo = {
   actions: string[];
   pendingApproval?: boolean;
   challenge?: string;
-  timeline: { state: string; label: string }[];
+  timeline: { state: string; label: string; enteredAt?: string | null }[];
   configuration: Record<string, unknown>;
 };
 const labels: Record<string, string> = {
@@ -80,12 +80,22 @@ export function EventOperations({
         </p>
       )}
       <ol className="event-timeline">
-        {data.timeline.map((item) => (
+        {data.timeline.filter((item) => !["DRAFT", "ARCHIVED"].includes(item.state)).map((item) => (
           <li
             key={item.state}
             aria-current={data.state === item.state ? "step" : undefined}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.enteredAt ? (
+              <time
+                dateTime={item.enteredAt}
+                title={new Date(item.enteredAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+              >
+                {new Date(item.enteredAt).toLocaleTimeString("pt-BR", {
+                  timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit",
+                })}
+              </time>
+            ) : <span aria-label="Horário não registrado">—</span>}
           </li>
         ))}
       </ol>

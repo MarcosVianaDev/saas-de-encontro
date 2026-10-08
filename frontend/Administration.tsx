@@ -10,6 +10,7 @@ import "./administration.css";
 import { AdminNavigation, type AdminNavItem } from "./AdminNavigation";
 import { EventOperations } from "./EventOperations";
 import { EventConfiguration } from "./EventConfiguration";
+import { AdminParticipantProfile } from "./AdminParticipantProfile";
 import { EventRequestForm } from "./EventRequestForm";
 import { TeamManagement } from "./TeamManagement";
 import {
@@ -163,6 +164,10 @@ export function Administration({
   } | null>(null);
   const [signalId, setSignalId] = useState<string | null>(null);
   const [tab, setTab] = useState("Informações");
+  const [showParticipantProfile, setShowParticipantProfile] = useState(false);
+  useEffect(() => {
+    setShowParticipantProfile(false);
+  }, [personId]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Todos");
   const [recent, setRecent] = useState(false);
@@ -706,6 +711,9 @@ export function Administration({
                   </button>
                 ),
               )}
+              <button onClick={() => setShowParticipantProfile(true)}>
+                Perfil
+              </button>
             </div>
             {tab === "Informações" ? (
               <section className="adm-card">
@@ -1386,11 +1394,17 @@ export function Administration({
                   <p>{data.event.description}</p>
                 </section>
                 <section className="adm-card">
+                  <dl className="adm-event-dates">
+                    <div>
+                      <dt>Início</dt>
+                      <dd>{date(data.event.starts)}</dd>
+                    </div>
+                    <div>
+                      <dt>Término</dt>
+                      <dd>{date(data.event.ends)}</dd>
+                    </div>
+                  </dl>
                   <dl>
-                    <dt>Início</dt>
-                    <dd>{date(data.event.starts)}</dd>
-                    <dt>Término</dt>
-                    <dd>{date(data.event.ends)}</dd>
                     <dt>UUID do evento</dt>
                     <dd>{data.event.id}</dd>
                     <dt>Administradores responsáveis</dt>
@@ -1605,6 +1619,14 @@ export function Administration({
           </>
         )}
       </main>
+      {person && showParticipantProfile && (
+        <AdminParticipantProfile
+          key={person.id}
+          participant={person}
+          mock={mock}
+          onClose={() => setShowParticipantProfile(false)}
+        />
+      )}
       <AdminNavigation
         current={
           page === "qr"

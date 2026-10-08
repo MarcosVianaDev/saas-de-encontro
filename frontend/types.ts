@@ -97,6 +97,8 @@ export type Bootstrap = {
   };
 };
 export type ProfileTopic = {
+  required?: boolean;
+  minimum?: number;
   id: string;
   key: string;
   name: string;

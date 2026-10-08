@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 from apps.audit.models import AuditLog
 from apps.events.models import Event, EventAdministrator
 from apps.organizations.models import Organization, OrganizationMember
+from apps.profiles.models import ProfileTopic
 
 
 class GlobalClientTests(TestCase):
@@ -250,3 +251,20 @@ class GlobalClientTests(TestCase):
         self.assertEqual(self.client.post('/api/global/', {**body, 'client': str(other.pk)}, format='json').status_code, 404)
         self.client.force_login(self.owner)
         self.assertEqual(self.client.post('/api/global/', body, format='json').status_code, 403)
+
+    def test_event_topic_configuration_is_saved_and_minimum_is_validated(self):
+        org = Organization.objects.get(pk=self.new_client().json()['id'])
+        topic = ProfileTopic.objects.get(key='interests')
+        rule = {'topic': str(topic.pk), 'enabled': True, 'required': True, 'minimum': 5}
+        body = {**self.event_body(org), 'participant_topics': [rule]}
+        for extra in [{'minimum': 0}, {'minimum': 6}, {'enabled': False}]:
+            response = self.client.post('/api/global/', {**body, 'participant_topics': [{**rule, **extra}]}, format='json')
+            self.assertEqual(response.status_code, 400, response.content)
+        purpose = ProfileTopic.objects.get(key='purpose')
+        response = self.client.post('/api/global/', {**body, 'participant_topics': [{**rule, 'topic': str(purpose.pk), 'minimum': 2}]}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Event.objects.exists())
+        response = self.client.post('/api/global/', body, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        event = Event.objects.get(pk=response.json()['id'])
+        self.assertEqual(event.settings['participant_topics'], [rule])

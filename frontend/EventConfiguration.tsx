@@ -140,21 +140,29 @@ export function EventConfiguration({
         </select>
       </label>
       <h3>Datas e horários</h3>
-      {fields([
-        ["starts_at", "Início", "datetime-local"],
-        ["ends_at", "Término", "datetime-local"],
-      ])}
+      <div className="event-configuration-pair">
+        {fields([
+          ["starts_at", "Início", "datetime-local"],
+          ["ends_at", "Término", "datetime-local"],
+        ])}
+      </div>
       <h3>Localização</h3>
-      {draft.mode !== "ONLINE" &&
-        fields(
-          [
-            ["latitude", "Latitude", "number"],
-            ["longitude", "Longitude", "number"],
-            ["radius_m", "Raio (metros)", "number"],
-            ["tolerance_m", "Limite adicional (metros)", "number"],
-          ],
-          true,
-        )}
+      {draft.mode !== "ONLINE" && (
+        <>
+          <div className="event-configuration-pair">
+            {fields([
+              ["latitude", "Latitude", "number"],
+              ["longitude", "Longitude", "number"],
+            ], true)}
+          </div>
+          <div className="event-configuration-pair">
+            {fields([
+              ["radius_m", "Raio (metros)", "number"],
+              ["tolerance_m", "Limite adicional (metros)", "number"],
+            ], true)}
+          </div>
+        </>
+      )}
       {fields([
         [
           "location_interval_minutes",

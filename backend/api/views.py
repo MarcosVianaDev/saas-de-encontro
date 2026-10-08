@@ -158,6 +158,8 @@ class ProfileView(APIView):
                 answers['purpose'] = [data['purpose']] if data['purpose'] else []
             answers.update(data.get('topicAnswers', {}))
             profile.topic_answers = answers
+            from apps.profiles.topics import validate_topic_requirements
+            validate_topic_requirements(participant.event, answers)
             profile.interests = answers.get('interests', profile.interests)
             if 'purpose' in answers:
                 profile.purpose = next(iter(answers['purpose']), '')

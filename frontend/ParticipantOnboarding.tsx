@@ -25,8 +25,9 @@ export function ParticipantOnboarding({
     [values, setValues] = useState<Record<string, Record<string, unknown>>>({}),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const fields = data.profileFields || [];
-  const steps = fields.length
+  const fields = (data.profileFields || []).filter((field) => field.required);
+  const topics = (data.profileTopics || []).filter((topic) => topic.required);
+  const steps = fields.length || topics.length
     ? ["Seu perfil", "Suas fotos", "Requisitos do evento"]
     : ["Seu perfil", "Suas fotos"];
   const change = (key: keyof Profile, value: string) =>
@@ -34,12 +35,25 @@ export function ParticipantOnboarding({
   async function next(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (step === 1 && photos.length < 3) {
+      setError("Adicione três fotos públicas antes de continuar.");
+      return;
+    }
     if (step < steps.length - 1) {
       setStep(step + 1);
       return;
     }
     setBusy(true);
     try {
+      for (const topic of topics) {
+        const selected = profile.topicAnswers?.[topic.key] ?? (
+          topic.key === "interests" ? profile.interests : topic.key === "purpose" && profile.purpose ? [profile.purpose] : []
+        );
+        const valid = [...new Set(selected)].filter((option) => topic.options.includes(option));
+        if (valid.length < (topic.minimum || 1)) {
+          throw new Error(`${topic.name}: selecione pelo menos ${topic.minimum || 1} opção(ões).`);
+        }
+      }
       if (photos.length < 3) throw new Error("Adicione três fotos públicas.");
       if (fields.length) await request("profile/fields/", "PUT", { values });
       onComplete(await api.saveProfile(profile));
@@ -60,7 +74,6 @@ export function ParticipantOnboarding({
         <h2>{steps[step]}</h2>
         {step === 0 && (
           <>
-            <ProfileTopics topics={data.profileTopics || []} profile={profile} onChange={setProfile} />
             {[
               ["first", "Nome"],
               ["last", "Sobrenome"],
@@ -188,8 +201,9 @@ export function ParticipantOnboarding({
             </label>
           </>
         )}
-        {step === 2 && fields.length > 0 && (
+        {step === 2 && (
           <>
+            <ProfileTopics topics={topics} profile={profile} onChange={setProfile} />
             {fields.map((field) => (
               <label key={field.id}>
                 {field.name}

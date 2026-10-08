@@ -316,6 +316,24 @@ class AdminEvidenceContentView(APIView):
         return response
 
 
+class AdminParticipantProfileView(APIView):
+    def get(self, request, participant_id):
+        member = access(request)
+        participant = get_object_or_404(EventParticipant.objects.select_related('user', 'profile', 'event'),
+            pk=participant_id, event=member.event)
+        from .services import person_payload, ordered_photos
+        payload = person_payload(participant)
+        profile = getattr(participant, 'profile', None)
+        payload['name'] = (f'{profile.first_name} {profile.last_name}'.strip() if profile else '') or participant.user.email
+        photos = [photo for photo in ordered_photos(participant) if photo.visibility == 'PRE_MATCH']
+        def url(photo):
+            return photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/event-admin/photos/{photo.pk}/content/'
+        primary = next((photo for photo in photos if photo.is_primary), None)
+        payload['image'] = url(primary) if primary else '/images/profile-placeholder.svg'
+        payload['photos'] = [url(photo) for photo in photos]
+        return Response(payload)
+
+
 class AdminPhotoContentView(APIView):
     def get(self, request, photo_id):
         member = access(request)

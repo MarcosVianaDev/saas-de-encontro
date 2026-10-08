@@ -21,6 +21,12 @@ from .services import current, bootstrap, ordered_photos, ensure_writable, match
 
 def validate_activation(p):
     profile = p.profile
+    from apps.profiles.topics import validate_topic_requirements
+    validate_topic_requirements(p.event, {
+        'interests': profile.interests,
+        'purpose': [profile.purpose] if profile.purpose else [],
+        **profile.topic_answers,
+    })
     public = p.photos.filter(removed_at__isnull=True,visibility='PRE_MATCH')
     if public.count()!=3 or public.filter(is_primary=True).count()!=1:
         raise ValidationError('São necessárias três fotos públicas válidas, uma principal e a foto de outfit capturada pela equipe.')

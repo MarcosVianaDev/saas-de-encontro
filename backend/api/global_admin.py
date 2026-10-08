@@ -66,9 +66,32 @@ class ClientDetailsSerializer(ClientContactSerializer):
     notes = serializers.CharField(max_length=4000, required=False, allow_blank=True)
 
 
+class EventTopicSerializer(serializers.Serializer):
+    topic = serializers.UUIDField()
+    enabled = serializers.BooleanField()
+    required = serializers.BooleanField(default=False)
+    minimum = serializers.IntegerField(min_value=1, max_value=5, default=1)
+
+
 class NewEventSerializer(EventDetailsSerializer):
     client = serializers.UUIDField()
     responsible = serializers.EmailField()
+    participant_topics = EventTopicSerializer(many=True, required=False)
+
+    def validate_participant_topics(self, values):
+        topics = {topic.pk: topic for topic in ProfileTopic.objects.all()}
+        seen = set()
+        for item in values:
+            topic = topics.get(item['topic'])
+            if not topic or topic.pk in seen:
+                raise ValidationError('Selecione tópicos cadastrados, sem repetição.')
+            seen.add(topic.pk)
+            if item['required'] and not item['enabled']:
+                raise ValidationError('Um tópico obrigatório deve estar habilitado.')
+            if item['enabled'] and item['required'] and (item['minimum'] > len(topic.options) or not topic.multiple and item['minimum'] != 1):
+                raise ValidationError(f'{topic.name}: mínimo incompatível com as opções e o tipo de escolha.')
+            item['topic'] = str(item['topic'])
+        return values
 
 
 class TeamMemberSerializer(serializers.Serializer):
@@ -194,6 +217,8 @@ def create_event(request):
         raise ValidationError({'responsible': 'Selecione um membro ativo da equipe deste cliente.'})
     owner = owners.get()
     event = Event(organization=org, responsible=owner, **event_details(values))
+    if 'participant_topics' in values:
+        event.settings['participant_topics'] = values['participant_topics']
     try:
         event.full_clean()
     except ModelValidationError as error:

@@ -11,6 +11,7 @@ from apps.events.models import Event
 from apps.events.services import transition, is_manager, TRANSITIONS
 from apps.events.services import configure
 from apps.audit.services import record
+from apps.audit.models import AuditLog
 
 
 def managed_event(request):
@@ -21,6 +22,15 @@ def managed_event(request):
 
 
 def event_data(event, actor=None):
+    entered_at = {}
+    for entry in AuditLog.objects.filter(action='event.transition', object_label=event._meta.label,
+                                         object_id=event.pk).order_by('created_at', 'id'):
+        state = entry.details.get('state')
+        if state:
+            entered_at[state] = entry.details.get('timestamp') or entry.created_at
+    for state, timestamp in [('OPEN', event.opened_at), ('CLOSED', event.closed_at)]:
+        if timestamp and state not in entered_at:
+            entered_at[state] = timestamp
     actions=[state for state in TRANSITIONS[event.state] if state!='ARCHIVED']
     now=timezone.now()
     if 'OPEN' in actions and (not event.starts_at or now<event.starts_at-timedelta(hours=2)):actions.remove('OPEN')
@@ -31,7 +41,8 @@ def event_data(event, actor=None):
     return {'state': event.state, 'status': event.get_state_display(),
         'pendingApproval': bool(event.requested_by_id and event.state == 'DRAFT'),
         'canEditRequestedDraft': bool(event.requested_by_id and event.state == 'DRAFT'),
-        'timeline': [{'state': state, 'label': label} for state, label in Event.State.choices],
+        'timeline': [{'state': state, 'label': label, 'enteredAt': entered_at.get(state)}
+                     for state, label in Event.State.choices if state not in ['DRAFT', 'ARCHIVED']],
         'actions': actions,
         'configuration': {field: getattr(event, field) for field in ['name', 'description', 'starts_at', 'ends_at',
             'mode', 'latitude', 'longitude', 'radius_m', 'tolerance_m', 'location_interval_minutes', 'settings','pass_payment_instructions']}}
