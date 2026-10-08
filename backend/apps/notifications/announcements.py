@@ -7,6 +7,14 @@ from .models import EventAnnouncement
 from .services import notify
 
 
+def deliver_sent_announcements(participant):
+    for announcement in EventAnnouncement.objects.filter(
+        event_id=participant.event_id, state='SENT', sent_at__isnull=False,
+    ).order_by('sent_at', 'id'):
+        notify(participant,'announcement',announcement.title,announcement.body,
+               key=f'announcement:{announcement.pk}:{participant.pk}',action_path=announcement.url)
+
+
 @transaction.atomic
 def send(announcement,actor=None,automatic=False):
     from apps.events.models import Event

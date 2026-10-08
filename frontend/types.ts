@@ -16,6 +16,9 @@ export type Person = {
   photoEvidence?: { id: string; url: string }[];
 };
 export type Profile = {
+  topicAnswers?: Record<string, string[]>;
+  interests: string[];
+  purpose: string;
   first: string;
   last: string;
   month: string;
@@ -38,6 +41,7 @@ export type Message = {
   time: string;
 };
 export type Bootstrap = {
+  profileTopics?: ProfileTopic[];
   discoveryReport?: {
     likesSent: number;
     likesReceived: number;
@@ -91,6 +95,13 @@ export type Bootstrap = {
     endingSoon?: boolean;
     readOnly?: boolean;
   };
+};
+export type ProfileTopic = {
+  id: string;
+  key: string;
+  name: string;
+  options: string[];
+  multiple: boolean;
 };
 export type SessionData =
   | Bootstrap

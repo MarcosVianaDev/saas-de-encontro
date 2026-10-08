@@ -1,11 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Dropdown from "react-bootstrap/Dropdown";
+import Tabs from "react-bootstrap/Tabs";
+import Tab from "react-bootstrap/Tab";
 import { request } from "./backend-client";
-import type { SessionData } from "./types";
+import type { SessionData, ProfileTopic } from "./types";
+import { ProfileTopicManagement } from "./ProfileTopicManagement";
 import "./administration.css";
 import { AdminNavigation } from "./AdminNavigation";
 
 type GlobalData = {
+  topics: ProfileTopic[];
   staff: boolean;
   metrics: Record<string, number>;
   safety: {
@@ -766,34 +770,18 @@ export function GlobalAdministration({
               {page === "Mais" && (
                 <>
                   <h1>Mais</h1>
-                  <section
-                    className="adm-card account-options"
-                    aria-label="Conta"
-                  >
-                    <h2>Conta</h2>
-                    <button
-                      className="account-logout"
-                      disabled={busy}
-                      onClick={async () => {
-                        setBusy(true);
-                        setError("");
-                        try {
-                          await onLogout();
-                        } catch (e) {
-                          setError(
-                            e instanceof Error
-                              ? e.message
-                              : "Não foi possível sair da conta.",
-                          );
-                        } finally {
-                          setBusy(false);
-                        }
-                      }}
-                    >
-                      Sair da conta
-                    </button>
-                  </section>
-                  <h2>Acompanhamento de segurança</h2>
+                  <Tabs id="global-settings-tabs" defaultActiveKey="events" className="mb-3">
+                    <Tab eventKey="events" title="Eventos">
+                      <section className="adm-card">
+                        <h2>Configurações globais de eventos</h2>
+                        <p>Nenhuma configuração global de eventos definida.</p>
+                      </section>
+                    </Tab>
+                    <Tab eventKey="participants" title="Participantes">
+                      <section className="adm-card">
+                        <h2>Configurações globais de participantes</h2>
+                        <ProfileTopicManagement topics={data?.topics || []} onChanged={load} />
+                  <h3>Acompanhamento de segurança</h3>
                   <p>
                     A marcação de recorrência não bloqueia o ingresso em outros
                     eventos. A comunicação à organização local depende de uma
@@ -840,11 +828,45 @@ export function GlobalAdministration({
                         ))}
                     </article>
                   ))}
-                  {data?.staff && (
-                    <a href="/admin/" target="_blank" rel="noreferrer">
-                      Admin do sistema
-                    </a>
-                  )}
+                      </section>
+                    </Tab>
+                    <Tab eventKey="account" title="Conta">
+                  <section
+                    className="adm-card account-options"
+                    aria-label="Conta"
+                  >
+                    <h2>Conta</h2>
+                    <div className="adm-actions">
+                    <button
+                      className="account-logout"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        setError("");
+                        try {
+                          await onLogout();
+                        } catch (e) {
+                          setError(
+                            e instanceof Error
+                              ? e.message
+                              : "Não foi possível sair da conta.",
+                          );
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      Sair da conta
+                    </button>
+                    {data?.staff && (
+                      <button type="button" className="adm-primary" onClick={() => window.open("/admin/", "_blank", "noopener,noreferrer")}>
+                        Acessar Django Admin
+                      </button>
+                    )}
+                    </div>
+                  </section>
+                    </Tab>
+                  </Tabs>
                 </>
               )}
             </>

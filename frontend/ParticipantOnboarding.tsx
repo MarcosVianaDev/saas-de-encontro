@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { api, request } from "./backend-client";
 import type { Bootstrap, Profile } from "./types";
 import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
+import { ProfileTopics } from "./ProfileTopics";
 
 export function ParticipantOnboarding({
   data,
@@ -16,6 +17,8 @@ export function ParticipantOnboarding({
   const [step, setStep] = useState(0),
     [profile, setProfile] = useState<Profile>({
       ...data.profile,
+      interests: data.profile.interests || [],
+      purpose: data.profile.purpose || "",
       year: data.profile.year || String(latestBirthYear),
     }),
     [photos, setPhotos] = useState(data.photos),
@@ -57,6 +60,7 @@ export function ParticipantOnboarding({
         <h2>{steps[step]}</h2>
         {step === 0 && (
           <>
+            <ProfileTopics topics={data.profileTopics || []} profile={profile} onChange={setProfile} />
             {[
               ["first", "Nome"],
               ["last", "Sobrenome"],
@@ -65,7 +69,7 @@ export function ParticipantOnboarding({
                 {label}
                 <input
                   required
-                  value={profile[key as keyof Profile]}
+                  value={profile[key as "first" | "last"]}
                   type="text"
                   onChange={(e) => change(key as keyof Profile, e.target.value)}
                 />

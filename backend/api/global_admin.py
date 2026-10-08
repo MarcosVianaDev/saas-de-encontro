@@ -20,6 +20,32 @@ from apps.participants.models import EventParticipant
 from apps.reports.models import Report
 from django.db.models import Q
 from .event_requests import EventDetailsSerializer, event_details
+from apps.profiles.models import ProfileTopic
+import uuid
+
+
+class TopicSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    options = serializers.ListField(child=serializers.CharField(max_length=200), allow_empty=False, max_length=100)
+    multiple = serializers.BooleanField()
+
+
+def save_topic(request):
+    serializer = TopicSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    values = serializer.validated_data
+    values['options'] = list(dict.fromkeys(values['options']))
+    identifier = request.data.get('id')
+    if identifier:
+        identifier = serializers.UUIDField().run_validation(identifier)
+        topic = get_object_or_404(ProfileTopic.objects.select_for_update(), pk=identifier)
+        for key, value in values.items():
+            setattr(topic, key, value)
+        topic.save()
+    else:
+        topic = ProfileTopic.objects.create(key=str(uuid.uuid4()), **values)
+    record(request.user, 'profile.topic_saved', topic)
+    return Response({'id': str(topic.pk), 'ok': True}, status=200 if identifier else 201)
 
 
 def authorize(request):
@@ -185,6 +211,7 @@ class GlobalView(APIView):
     def get(self,request):
         authorize(request)
         return Response({'navigation':'global', 'staff':request.user.is_staff,
+            'topics':[{'id':str(t.pk),'key':t.key,'name':t.name,'options':t.options,'multiple':t.multiple} for t in ProfileTopic.objects.order_by('created_at')],
             'metrics':{**{s:Event.objects.filter(state=s).count() for s in ['RUNNING','SCHEDULED','PAUSED','DRAFT']},
                 'clients':Organization.objects.filter(is_active=True).count(),
                 'critical':ModerationCase.objects.filter(priority=2,closed_at__isnull=True).count(),
@@ -201,6 +228,8 @@ class GlobalView(APIView):
     def post(self,request):
         authorize(request)
         d = request.data
+        if d.get('action') == 'save_topic':
+            return save_topic(request)
         if d.get('action') in ['create_client', 'update_client']:
             return save_client(request, d['action'])
         if d.get('action') == 'create_event':

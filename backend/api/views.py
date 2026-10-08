@@ -148,6 +148,19 @@ class ProfileView(APIView):
             profile = participant.profile
             for source, target in {"first": "first_name", "last": "last_name", "month": "birth_month", "year": "birth_year", "gender": "gender", "bio": "bio"}.items():
                 setattr(profile, target, data[source])
+            for field in ['interests', 'purpose']:
+                if field in data:
+                    setattr(profile, field, data[field])
+            answers = dict(profile.topic_answers)
+            if 'interests' in data:
+                answers['interests'] = data['interests']
+            if 'purpose' in data:
+                answers['purpose'] = [data['purpose']] if data['purpose'] else []
+            answers.update(data.get('topicAnswers', {}))
+            profile.topic_answers = answers
+            profile.interests = answers.get('interests', profile.interests)
+            if 'purpose' in answers:
+                profile.purpose = next(iter(answers['purpose']), '')
             profile.full_clean()
             profile.save()
             from .profile_operations import validate_activation

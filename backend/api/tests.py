@@ -74,6 +74,34 @@ class DemoFlowTests(TestCase):
         historical = demo_id("history.target")
         self.assertEqual(self.client.post(f"/api/interactions/{historical}/", {"decision": "LIKE"}, format="json").status_code, 404)
 
+    def test_profile_saves_and_clears_interests_and_purpose_without_changing_filters(self):
+        data = self.client.get('/api/bootstrap/').json()
+        profile = {**data['profile'], 'interests': ['Música', 'Tecnologia'], 'purpose': 'Amizade'}
+        response = self.client.put('/api/profile/', profile, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.actor.profile.refresh_from_db()
+        self.assertEqual(self.actor.profile.interests, profile['interests'])
+        self.assertEqual(self.actor.profile.purpose, 'Amizade')
+        saved = self.client.get('/api/profile/').json()['profile']
+        self.assertEqual(saved['interests'], profile['interests'])
+        self.assertEqual(saved['purpose'], 'Amizade')
+        self.assertEqual(response.json()['filters'], data['filters'])
+        legacy = {key: value for key, value in profile.items() if key not in ['interests', 'purpose']}
+        self.assertEqual(self.client.put('/api/profile/', legacy, format='json').status_code, 200)
+        self.actor.profile.refresh_from_db()
+        self.assertEqual(self.actor.profile.interests, profile['interests'])
+        self.assertEqual(self.actor.profile.purpose, 'Amizade')
+        response = self.client.put('/api/profile/', {**profile, 'interests': [], 'purpose': ''}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['profile']['interests'], [])
+        self.assertEqual(response.json()['profile']['purpose'], '')
+
+    def test_profile_rejects_unknown_interest_and_purpose(self):
+        profile = self.client.get('/api/profile/').json()['profile']
+        for extra in [{'interests': ['Inválido']}, {'purpose': 'Inválido'}]:
+            with self.subTest(extra=extra):
+                self.assertEqual(self.client.put('/api/profile/', {**profile, **extra}, format='json').status_code, 400)
+
     def test_reciprocal_match_message_and_readonly_end(self):
         peer = demo_id("person.1")
         endpoint = f"/api/interactions/{peer}/"

@@ -53,8 +53,16 @@ def notification_participant(notification):
 
 class NotificationView(APIView):
     def query(self,request):
-        q=Notification.objects.filter(Q(recipient=request.user)|Q(participant__user=request.user))
-        if request.session.get('event_id'):q=q.filter(Q(event_id=request.session['event_id'])|Q(event__isnull=True,participant__event_id=request.session['event_id']))
+        context=request.session.get('navigation')
+        if context=='administration':
+            member=access(request)
+            q=Notification.objects.filter(recipient=request.user,participant__isnull=True,event=member.event)
+        elif context=='global' and request.user.is_superuser:
+            q=Notification.objects.filter(recipient=request.user,participant__isnull=True)
+        else:
+            event_id=request.session.get('event_id')
+            q=Notification.objects.filter(participant__user=request.user,recipient__isnull=True,
+                                          participant__event_id=event_id) if event_id else Notification.objects.none()
         return q.select_related('participant__event').order_by('-created_at')
 
     def get(self,request):

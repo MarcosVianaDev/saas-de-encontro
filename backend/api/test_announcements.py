@@ -9,8 +9,9 @@ from rest_framework.test import APIClient
 from apps.audit.services import AuditUnavailable
 from apps.events.models import Event, EventAdministrator
 from apps.events.services import configure
-from apps.notifications.announcements import dispatch_due
+from apps.notifications.announcements import dispatch_due, send
 from apps.notifications.models import EventAnnouncement
+from api.event_admin import join_event
 from apps.organizations.models import Organization
 
 
@@ -129,3 +130,54 @@ class AnnouncementSchedulingTests(TestCase):
             item.refresh_from_db()
             self.assertEqual(item.state, 'SCHEDULED')
             self.assertIsNone(item.sent_at)
+
+
+class AnnouncementJoinTests(TestCase):
+    def setUp(self):
+        self.author = get_user_model().objects.create_user(username='manager')
+        self.user = get_user_model().objects.create_user(username='new-participant')
+        self.event = Event.objects.create(
+            organization=Organization.objects.create(name='Cliente'),
+            name='Evento', mode='ONLINE', state='OPEN',
+        )
+
+    def announcement(self, **extra):
+        return EventAnnouncement.objects.create(
+            event=self.event, author=self.author, title='Aviso', body='Mensagem',
+            url='https://example.com/event', **extra,
+        )
+
+    def test_join_delivers_all_sent_notices_from_this_event_only(self):
+        sent = [self.announcement(state='SENT', sent_at=timezone.now()) for _ in range(3)]
+        for state in ['DRAFT', 'SCHEDULED', 'HELD', 'CANCELLED']:
+            self.announcement(state=state)
+        other = Event.objects.create(organization=self.event.organization, name='Outro', mode='ONLINE')
+        EventAnnouncement.objects.create(event=other, author=self.author, title='Outro',
+                                         body='Mensagem', state='SENT', sent_at=timezone.now())
+
+        participant = join_event(self.user, self.event)
+
+        self.assertEqual(participant.notifications.count(), len(sent))
+        for item in sent:
+            notice = participant.notifications.get(dedupe_key=f'announcement:{item.pk}:{participant.pk}')
+            self.assertEqual((notice.title, notice.body, notice.action_path), (item.title, item.body, item.url))
+            self.assertEqual(notice.kind, 'announcement')
+            self.assertEqual(notice.event_id, self.event.pk)
+            self.assertIsNone(notice.read_at)
+
+    def test_rejoining_preserves_read_status_and_future_delivery_has_no_duplicates(self):
+        previous = self.announcement(state='SENT', sent_at=timezone.now())
+        participant = join_event(self.user, self.event)
+        notice = participant.notifications.get()
+        notice.read_at = timezone.now()
+        notice.save()
+        future = self.announcement()
+        send(future, actor=self.author)
+
+        self.assertEqual(join_event(self.user, self.event).pk, participant.pk)
+        send(previous, actor=self.author)
+        send(future, actor=self.author)
+
+        self.assertEqual(participant.notifications.count(), 2)
+        notice.refresh_from_db()
+        self.assertIsNotNone(notice.read_at)

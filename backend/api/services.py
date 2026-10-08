@@ -1,3 +1,4 @@
+from apps.profiles.models import ProfileTopic
 from django.db.models import Q
 from django.db import transaction
 from datetime import timedelta
@@ -144,8 +145,9 @@ def bootstrap(participant):
             if state["blocked"]:
                 data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", gender="", bio="", interests=[], online=False, age=0)
             participants.append(data)
-    return {"profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
-            "year": str(profile.birth_year or ""), "gender": profile.gender or "Prefiro não informar", "bio": profile.bio},
+    return {"profileTopics": [{'id': str(t.pk), 'key': t.key, 'name': t.name, 'options': t.options, 'multiple': t.multiple} for t in ProfileTopic.objects.order_by('created_at')], "profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
+            "year": str(profile.birth_year or ""), "gender": profile.gender or "Prefiro não informar", "bio": profile.bio,
+            "interests": profile.interests, "purpose": profile.purpose, "topicAnswers": profile.topic_answers},
           "photos": [photo_url(photo) for photo in ordered_photos(participant)],
           'publicPhotos':[photo_url(photo) for photo in ordered_photos(participant) if photo.visibility=='PRE_MATCH'],
         "active": participant.is_active, 'registrationStatus':participant.registration_status,

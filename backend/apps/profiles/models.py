@@ -14,6 +14,8 @@ class ParticipantProfile(BaseModel):
     job = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=200, default="São Paulo, SP")
     interests = models.JSONField(default=list, blank=True)
+    purpose = models.CharField(max_length=200, blank=True)
+    topic_answers = models.JSONField(default=dict, blank=True)
     is_online = models.BooleanField(default=False)
 
 
@@ -57,3 +59,10 @@ class ParticipantFieldValue(BaseModel):
 class ParticipantPreference(BaseModel):
     participant = models.OneToOneField("participants.EventParticipant", on_delete=models.PROTECT, related_name="preference")
     filters = models.JSONField(default=dict, blank=True)
+
+
+class ProfileTopic(BaseModel):
+    name = models.CharField(max_length=200)
+    key = models.CharField(max_length=50, unique=True)
+    options = models.JSONField(default=list)
+    multiple = models.BooleanField(default=False)

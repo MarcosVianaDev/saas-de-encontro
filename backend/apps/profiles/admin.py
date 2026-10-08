@@ -11,6 +11,7 @@ admin.site.register(models.EventOutfitPhoto, BaseAdmin)
 admin.site.register(models.ProfileField, BaseAdmin)
 
 admin.site.register(models.ProfileFieldOption, BaseAdmin)
+admin.site.register(models.ProfileTopic, BaseAdmin)
 
 admin.site.register(models.ParticipantFieldValue, BaseAdmin)
 

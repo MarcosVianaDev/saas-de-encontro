@@ -15,6 +15,7 @@ import { Administration } from "./Administration";
 import { GlobalAdministration } from "./GlobalAdministration";
 import { Contexts } from "./Contexts";
 import type { Context } from "./types";
+import { ProfileTopics } from "./ProfileTopics";
 import { ParticipantOnboarding } from "./ParticipantOnboarding";
 import { ProfileGallery } from "./ProfileGallery";
 import { CachedImage, clearImageCache } from "./CachedImage";
@@ -310,7 +311,7 @@ const stages: { page: Page; title: string; description: string }[] = [
     description: "Faça parte dessa comunidade.",
   },
 ];
-const interests = [
+const mockInterests = [
   "Música",
   "Viagens",
   "Tecnologia",
@@ -320,7 +321,7 @@ const interests = [
   "Networking",
   "Outros",
 ];
-const purposes = [
+const mockPurposes = [
   "Networking",
   "Amizade",
   "Relacionamento",
@@ -363,6 +364,8 @@ function Avatar({
 }
 function App() {
   const [serverData, setServerData] = useState<Bootstrap | null>(null);
+  const interests = !frontendConfig.useMocks ? serverData?.profileTopics?.find((topic) => topic.key === "interests")?.options || [] : mockInterests;
+  const purposes = !frontendConfig.useMocks ? serverData?.profileTopics?.find((topic) => topic.key === "purpose")?.options || [] : mockPurposes;
   const [mailbox, setMailbox] = useState("messages");
   const [noticeUnread, setNoticeUnread] = useState(0);
   const [globalMode, setGlobalMode] = useState(false);
@@ -401,6 +404,8 @@ function App() {
   const [profile, setProfile] = useState<Profile>(
     real
       ? {
+          interests: [],
+          purpose: "",
           first: "",
           last: "",
           month: "1",
@@ -409,6 +414,8 @@ function App() {
           bio: "",
         }
       : {
+          interests: ["Música", "Viagens", "Gastronomia"],
+          purpose: "Amizade",
           first: "Camila",
           last: "Souza",
           month: "6",
@@ -592,6 +599,8 @@ function App() {
     setServerData(data);
     setProfile({
       ...data.profile,
+      interests: data.profile.interests || [],
+      purpose: data.profile.purpose || "",
       year: data.profile.year || String(latestBirthYear),
     });
     setPhotos(data.photos);
@@ -1703,6 +1712,45 @@ function App() {
                           <span>Mínimo de 50 caracteres</span>
                           <span>{profile.bio.length}/200</span>
                         </div>
+                        {real ? (
+                          <ProfileTopics topics={serverData?.profileTopics || []} profile={profile} onChange={setProfile} />
+                        ) : (<>
+                        <fieldset className="filter-card">
+                          <legend>Interesses</legend>
+                          <p className="microcopy">Selecione os interesses que combinam com você.</p>
+                          <div className="chips">
+                            {interests.map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                aria-pressed={profile.interests.includes(item)}
+                                className={`chip ${profile.interests.includes(item) ? "active" : ""}`}
+                                onClick={() => setProfile({
+                                  ...profile,
+                                  interests: profile.interests.includes(item)
+                                    ? profile.interests.filter((interest) => interest !== item)
+                                    : [...profile.interests, item],
+                                })}
+                              >{item}</button>
+                            ))}
+                          </div>
+                        </fieldset>
+                        <fieldset className="filter-card">
+                          <legend>Finalidade no evento</legend>
+                          <p className="microcopy">Selecione o que você procura neste evento.</p>
+                          <div className="chips">
+                            {purposes.map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                aria-pressed={profile.purpose === item}
+                                className={`chip ${profile.purpose === item ? "active" : ""}`}
+                                onClick={() => setProfile({ ...profile, purpose: profile.purpose === item ? "" : item })}
+                              >{item}</button>
+                            ))}
+                          </div>
+                        </fieldset>
+                        </>)}
                         <div className="section-label">
                           <h3>Fotos do seu perfil</h3>
                           <span>{photos.length}/10</span>
@@ -2117,18 +2165,8 @@ function App() {
                                     i
                                   </button>
                                 </div>
-                                <p>
-                                  <Icon name="work" size={14} />
-                                  {candidate.job}
-                                </p>
-                                {(candidate.city || !real) && (
-                                  <p>
-                                    <Icon name="pin" size={14} />
-                                    {candidate.city || "São Paulo, SP"}
-                                  </p>
-                                )}
                                 <div className="person-tags">
-                                  {candidate.interests.map((i) => (
+                                  {candidate.interests.slice(0, 3).map((i) => (
                                     <span key={i}>{i}</span>
                                   ))}
                                 </div>
@@ -2684,21 +2722,6 @@ function App() {
                     <Icon name="check" size={13} />
                   </span>
                 </h2>
-                <p className="modal-location">
-                  {details.city && (
-                    <>
-                      <Icon name="pin" size={15} />
-                      {details.city} ·{" "}
-                    </>
-                  )}
-                  {!real && !details.city && (
-                    <>
-                      <Icon name="pin" size={15} />
-                      São Paulo, SP ·{" "}
-                    </>
-                  )}
-                  {details.job}
-                </p>
                 {(details.bio || !real) && (
                   <p>
                     {details.bio ||
@@ -2706,7 +2729,7 @@ function App() {
                   </p>
                 )}
                 <div className="chips">
-                  {details.interests.map((item) => (
+                  {details.interests.slice(0, 3).map((item) => (
                     <span className="chip" key={item}>
                       {item}
                     </span>

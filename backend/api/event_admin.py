@@ -21,6 +21,7 @@ from apps.matches.models import Match
 from apps.messaging.models import Conversation
 from apps.audit.models import AuditLog
 from apps.notifications.models import Notification
+from apps.notifications.announcements import deliver_sent_announcements
 from .services import DEFAULT_FILTERS, age
 from types import SimpleNamespace
 from apps.events.permissions import effective_role
@@ -55,6 +56,7 @@ def join_event(user, event):
         ParticipantProfile.objects.get_or_create(participant=participant)
         ParticipantPreference.objects.get_or_create(participant=participant, defaults={'filters': DEFAULT_FILTERS.copy()})
         if created:
+            deliver_sent_announcements(participant)
             global_profile=getattr(user,'profile',None)
             if global_profile and global_profile.recurring_reported:
                 Notification.objects.bulk_create([Notification(recipient=manager,event=event,title='Perfil em acompanhamento ingressou em novo evento',body='Consulte o histórico global e decida se a organização local deve ser informada. Nenhuma restrição automática foi aplicada.') for manager in get_user_model().objects.filter(is_active=True,is_superuser=True)])
