@@ -14,6 +14,7 @@ class Organization(BaseModel):
 
 
 class OrganizationMember(BaseModel):
+    role = models.CharField(max_length=20, choices=[('ADMIN', 'Responsável pelo evento'), ('MODERATOR', 'Moderador'), ('OPERATOR', 'Operador')], default='ADMIN')
     organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="members")
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="organization_memberships")
 

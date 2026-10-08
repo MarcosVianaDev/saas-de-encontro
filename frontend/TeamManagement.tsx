@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
+import Form from "react-bootstrap/Form";
 type Member = {
   id: string;
   email: string;
@@ -39,6 +40,7 @@ export function TeamManagement({
 }) {
   const [data, setData] = useState<Team | null>(null),
     [editor, setEditor] = useState(false),
+    [editingMemberId, setEditingMemberId] = useState<string | null>(null),
     [email, setEmail] = useState(""),
     [role, setRole] = useState("OPERATOR"),
     [permissions, setPermissions] = useState<string[]>([]),
@@ -52,6 +54,15 @@ export function TeamManagement({
   useEffect(() => {
     void load();
   }, [eventId]);
+  function cancelEditor() {
+    setEditor(false);
+    setEditingMemberId(null);
+    setEmail("");
+    setRole("OPERATOR");
+    setPermissions([]);
+    setActive(true);
+    setError("");
+  }
   async function save(e: FormEvent) {
     e.preventDefault();
     try {
@@ -69,13 +80,15 @@ export function TeamManagement({
     }
   }
   return (
-    <section className="adm-card">
-      <h2>Equipe e Permissões</h2>
-      {error && <p role="alert">{error}</p>}
+    <>
+      <div className="event-team-header">
+        <h1>Equipe do evento</h1>
       {!readOnly && (
         <button
+          className="adm-primary"
           onClick={() => {
             setEditor(true);
+            setEditingMemberId(null);
             setEmail("");
             setRole("OPERATOR");
             setPermissions([]);
@@ -85,30 +98,43 @@ export function TeamManagement({
           + Adicionar integrante
         </button>
       )}
-      {data?.members.map((m) => (
-        <article key={m.id}>
+      </div>
+      <p>Papéis e vínculos administrativos</p>
+      <section className="adm-card">
+      <h2>Equipe e Permissões</h2>
+      {error && <p role="alert">{error}</p>}
+      {data?.members.filter((m) => !editor || !editingMemberId || m.id === editingMemberId).map((m) => (
+        <article className="event-team-member" key={m.id}>
+          <div className="event-team-member-details">
           <strong>{m.name}</strong>
           <p>
             {labels[m.role] || m.role} · {m.active ? "Ativo" : "Inativo"} ·{" "}
             {m.permissions.map((p) => labels[p] || p).join(", ") ||
               "Permissões do papel"}
           </p>
+          {!readOnly && m.role === "MODERATOR" && m.active && (
+            <button onClick={() => setDelegate(m)}>
+              Transferir administração
+            </button>
+          )}
+          </div>
           {!readOnly && (
             <button
+              className="event-team-member-edit"
               onClick={() => {
+                if (editor && editingMemberId === m.id) {
+                  cancelEditor();
+                  return;
+                }
                 setEditor(true);
+                setEditingMemberId(m.id);
                 setEmail(m.email);
                 setRole(m.role);
                 setPermissions(m.permissions);
                 setActive(m.active);
               }}
             >
-              Editar
-            </button>
-          )}
-          {!readOnly && m.role === "MODERATOR" && m.active && (
-            <button onClick={() => setDelegate(m)}>
-              Transferir administração
+              {editor && editingMemberId === m.id ? "Cancelar" : "Editar"}
             </button>
           )}
         </article>
@@ -126,7 +152,12 @@ export function TeamManagement({
           </label>
           <label>
             Papel
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <select value={active ? role : "INACTIVE"} onChange={(e) => {
+              const participates = e.target.value !== "INACTIVE";
+              setActive(participates);
+              if (participates) setRole(e.target.value);
+            }}>
+              <option value="INACTIVE">Não participa deste evento</option>
               {["ADMIN", "MODERATOR", "OPERATOR"]
                 .filter(
                   (r) =>
@@ -141,10 +172,13 @@ export function TeamManagement({
                 ))}
             </select>
           </label>
+          <div className="event-team-permissions">
           {data?.permissions.map((p) => (
-            <label key={p}>
-              <input
-                type="checkbox"
+            <Form.Check
+                key={p}
+                id={`team-permission-${p}`}
+                type="switch"
+                label={labels[p] || p}
                 checked={permissions.includes(p)}
                 onChange={(e) =>
                   setPermissions(
@@ -154,21 +188,14 @@ export function TeamManagement({
                   )
                 }
               />
-              {labels[p] || p}
-            </label>
           ))}
-          <label>
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-            />
-            Vínculo ativo
-          </label>
-          <button type="button" onClick={() => setEditor(false)}>
-            Cancelar
-          </button>
-          <button className="adm-primary">Salvar</button>
+          </div>
+          <div className="event-team-form-actions">
+            {!editingMemberId && (
+              <button type="button" onClick={cancelEditor}>Cancelar</button>
+            )}
+            <button className="adm-primary" type="submit">Salvar</button>
+          </div>
         </form>
       )}
       {delegate && (
@@ -205,5 +232,6 @@ export function TeamManagement({
         </section>
       )}
     </section>
+    </>
   );
 }

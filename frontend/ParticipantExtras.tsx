@@ -286,7 +286,6 @@ export function SupportPanel({ admin = false }: { admin?: boolean }) {
   const current = threads.find((t) => t.id === thread);
   return (
     <section className="participant-tools adm-card">
-      <h2>Suporte</h2>
       <select value={thread} onChange={(e) => setThread(e.target.value)}>
         <option value="">
           {admin ? "Selecione um atendimento" : "Nova solicitação"}

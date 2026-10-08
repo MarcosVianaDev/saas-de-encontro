@@ -127,6 +127,8 @@ export function EventRequestForm({
               <label>
                 <input
                   type="checkbox"
+                  role="switch"
+                  className="app-toggle"
                   checked={draft.auto_activate_participants === "true"}
                   onChange={(e) =>
                     change(

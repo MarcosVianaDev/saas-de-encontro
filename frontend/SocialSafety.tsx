@@ -117,6 +117,8 @@ export function SocialSafety({
                 <label key={r}>
                   <input
                     type="checkbox"
+                    role="switch"
+                    className="app-toggle"
                     checked={selected.includes(r)}
                     onChange={(e) =>
                       setSelected(
@@ -139,6 +141,8 @@ export function SocialSafety({
               <label>
                 <input
                   type="checkbox"
+                  role="switch"
+                  className="app-toggle"
                   checked={photoChanged}
                   onChange={(e) => setPhotoChanged(e.target.checked)}
                 />

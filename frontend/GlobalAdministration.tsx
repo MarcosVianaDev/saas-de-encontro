@@ -24,6 +24,7 @@ type GlobalData = {
     description: string;
     active: boolean;
     draft: Record<string, string>;
+    team: { id: string; email: string; firstName: string; lastName: string; role: string; active: boolean; passwordConfigured: boolean }[];
     accessUser?: {
       id: string;
       email: string;
@@ -68,7 +69,7 @@ export function GlobalAdministration({
   const [eventFilter, setEventFilter] = useState("Todos");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [formKind, setFormKind] = useState<
-    "client-create" | "client-edit" | "event-create"
+    "client-create" | "client-edit" | "event-create" | "team-create" | "team-edit"
   >("client-create");
   const [pendingPage, setPendingPage] = useState<string | null>(null);
   const selectedClient = data?.clients.find(
@@ -162,6 +163,10 @@ export function GlobalAdministration({
         action:
           formKind === "event-create"
             ? "create_event"
+            : formKind === "team-create"
+              ? "create_team_member"
+            : formKind === "team-edit"
+              ? "update_team_member"
             : formKind === "client-edit"
               ? "update_client"
               : "create_client",
@@ -184,7 +189,7 @@ export function GlobalAdministration({
       setSearch("");
       setClientFilter("Todos");
       setEventFilter("Todos");
-      setSelectedClientId(formKind === "event-create" ? null : result.id);
+      setSelectedClientId(formKind === "event-create" ? null : (formKind === "team-create" || formKind === "team-edit") ? draft.client : result.id);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível salvar.");
@@ -220,6 +225,10 @@ export function GlobalAdministration({
               <h2>
                 {formKind === "event-create"
                   ? "Novo evento"
+                  : formKind === "team-edit"
+                    ? "Editar membro da equipe"
+                  : formKind === "team-create"
+                    ? "Cadastrar membro da equipe"
                   : formKind === "client-edit"
                     ? "Completar cadastro do cliente"
                     : "Novo cliente"}
@@ -229,7 +238,7 @@ export function GlobalAdministration({
                   <>
                     {field("contact", "Nome")}
                     {field("email", "E-mail", "email")}
-                    {field("phone", "Telefone", "tel")}
+                    {!formKind.startsWith("team-") && field("phone", "Telefone", "tel")}
                   </>
                 )}
                 {formKind === "client-edit" && (
@@ -266,6 +275,19 @@ export function GlobalAdministration({
                     </label>
                   </>
                 )}
+                {formKind.startsWith("team-") && (
+                  <label>
+                    Perfil de acesso
+                    <select value={draft.role || "OPERATOR"} onChange={(e) => {
+                      setDraft({ ...draft, role: e.target.value });
+                      setDirty(true);
+                    }}>
+                      <option value="OPERATOR">Operador</option>
+                      <option value="MODERATOR">Moderador</option>
+                      <option value="ADMIN">Responsável pelo evento</option>
+                    </select>
+                  </label>
+                )}
                 {formKind === "event-create" && (
                   <>
                     <label>
@@ -275,7 +297,7 @@ export function GlobalAdministration({
                         required
                         value={draft.client || ""}
                         onChange={(e) => {
-                          setDraft({ ...draft, client: e.target.value });
+                          setDraft({ ...draft, client: e.target.value, responsible: "" });
                           setDirty(true);
                         }}
                       >
@@ -326,6 +348,8 @@ export function GlobalAdministration({
                       <label>
                         <input
                           type="checkbox"
+                          role="switch"
+                          className="app-toggle"
                           checked={draft.auto_activate_participants === "true"}
                           onChange={(e) => {
                             setDirty(true);
@@ -372,13 +396,24 @@ export function GlobalAdministration({
                     )}
                     {field("starts", "Início", "datetime-local")}
                     {field("ends", "Término", "datetime-local")}
-                    {field(
-                      "responsible",
-                      "E-mail da conta responsável",
-                      "email",
-                    )}
+                    <label>
+                      E-mail da conta responsável
+                      <select required value={draft.responsible || ""} onChange={(e) => {
+                        setDraft({ ...draft, responsible: e.target.value });
+                        setDirty(true);
+                      }}>
+                        <option value="">Selecione um membro da equipe</option>
+                        {data?.clients.find((client) => client.id === draft.client)?.team
+                          .filter((member) => member.active)
+                          .map((member) => (
+                            <option key={member.id} value={member.email}>
+                              {member.firstName} {member.lastName} — {member.email}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
                     <p>
-                      Informe o e-mail da conta de acesso do responsável. O
+                      Selecione um membro vinculado ao cliente. O
                       evento será criado como agendado.
                     </p>
                   </>
@@ -395,6 +430,10 @@ export function GlobalAdministration({
                       ? "Salvando…"
                       : formKind === "event-create"
                         ? "Criar evento"
+                        : formKind === "team-edit"
+                          ? "Salvar altera??es"
+                        : formKind === "team-create"
+                          ? "Cadastrar membro"
                         : formKind === "client-edit"
                           ? "Salvar alterações"
                           : "Cadastrar cliente"}
@@ -441,12 +480,20 @@ export function GlobalAdministration({
                   </div>
                   <section className="adm-card">
                     <h2>Ações rápidas</h2>
+                    <div className="adm-actions">
                     <button
                       className="adm-primary"
                       onClick={() => begin("client-create")}
                     >
                       + Novo cliente
                     </button>
+                    <button
+                      className="adm-primary"
+                      onClick={() => begin("event-create")}
+                    >
+                      + Novo evento
+                    </button>
+                    </div>
                   </section>
                   <h2>Alertas do sistema</h2>
                   {data?.alerts.map((n) => (
@@ -465,12 +512,6 @@ export function GlobalAdministration({
               )}
               {page === "Clientes" && selectedClient && (
                 <>
-                  <button
-                    className="adm-back"
-                    onClick={() => setSelectedClientId(null)}
-                  >
-                    ← Voltar aos clientes
-                  </button>
                   <h2>{selectedClient.contact || selectedClient.name}</h2>
                   <section className="adm-card">
                     <h3>Dados do cliente</h3>
@@ -502,6 +543,7 @@ export function GlobalAdministration({
                     {selectedClient.description && (
                       <p>{selectedClient.description}</p>
                     )}
+                    <div className="adm-actions">
                     <button
                       className="adm-primary"
                       onClick={() =>
@@ -526,31 +568,39 @@ export function GlobalAdministration({
                     >
                       Completar / editar cadastro
                     </button>
-                  </section>
-                  {selectedClient.accessUser && (
-                    <section className="adm-card">
-                      <h3>Acesso ao sistema</h3>
-                      <p>{selectedClient.accessUser.email}</p>
-                      <p>
-                        {selectedClient.accessUser.firstName}{" "}
-                        {selectedClient.accessUser.lastName}
-                      </p>
-                      {!selectedClient.accessUser.passwordConfigured && (
-                        <p>
-                          Defina a senha no Django Admin para habilitar o login.
-                        </p>
-                      )}
-                      <a
-                        href={`/admin/accounts/user/${selectedClient.accessUser.id}/password/`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {selectedClient.accessUser.passwordConfigured
-                          ? "Alterar senha no Django Admin"
-                          : "Definir senha no Django Admin"}
+                    {selectedClient.accessUser && (
+                      <a className="client-password-button" href={`/admin/accounts/user/${selectedClient.accessUser.id}/password/`} target="_blank" rel="noreferrer">
+                        {selectedClient.accessUser.passwordConfigured ? "Alterar senha" : "Definir senha"}
                       </a>
-                    </section>
-                  )}
+                    )}
+                    </div>
+                  </section>
+                  <section className="adm-card">
+                    <div className="client-team-header">
+                      <h3>Equipe</h3>
+                      <button className="adm-primary" onClick={() => begin("team-create", { client: selectedClient.id, role: "OPERATOR" })}>
+                        + Cadastrar membro
+                      </button>
+                    </div>
+                    {selectedClient.team.map((member) => (
+                      <div className="client-team-card" key={member.id}>
+                        <button className="client-team-edit" onClick={() => begin("team-edit", {
+                          client: selectedClient.id,
+                          user: member.id,
+                          contact: `${member.firstName} ${member.lastName}`.trim(),
+                          email: member.email,
+                          role: member.role,
+                        })} aria-label={`Editar ${member.firstName} ${member.lastName}`}>
+                          <strong>{member.firstName.toLocaleUpperCase("pt-BR")}</strong>
+                          <span>{member.role === "ADMIN" ? "Respons?vel pelo evento" : member.role === "MODERATOR" ? "Moderador" : "Operador"}{!member.active && " ? Inativo"}</span>
+                        </button>
+                        <a className="client-password-button" href={`/admin/accounts/user/${member.id}/password/`} target="_blank" rel="noreferrer" aria-label={`Redefinir senha de ${member.firstName} ${member.lastName}`}>
+                          Redefinir senha
+                        </a>
+                      </div>
+                    ))}
+                    {!selectedClient.team.length && <p>Nenhum membro cadastrado.</p>}
+                  </section>
                   <section className="adm-card">
                     <h3>Eventos do cliente</h3>
                     {data?.events

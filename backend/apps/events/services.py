@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.audit.services import record
-from apps.notifications.models import Notification
+from apps.notifications.models import Notification, EventAnnouncement
 from .models import Event, EventAdministrator
 from django.core.exceptions import ValidationError as ModelValidationError
 
@@ -67,6 +67,15 @@ def configure(event,actor,data,confirmed=False):
         event.full_clean()
     except (ModelValidationError,ValueError,TypeError):raise ValidationError('Verifique os valores das configurações e as datas do evento.')
     event._domain_write=True;event.save()
+    if {'starts_at','ends_at'} & set(data):
+        announcements=EventAnnouncement.objects.select_for_update().filter(event=event,state='SCHEDULED',sent_at__isnull=True)
+        if event.starts_at and event.ends_at:
+            announcements=announcements.filter(Q(scheduled_at__lt=event.starts_at)|Q(scheduled_at__gte=event.ends_at)|Q(scheduled_at__isnull=True))
+        for announcement in announcements:
+            scheduled=announcement.scheduled_at
+            announcement.state='DRAFT';announcement.scheduled_at=None
+            announcement.save(update_fields=['state','scheduled_at','updated_at'])
+            record(actor,'announcement.draft',announcement,event,reason='event.schedule_changed',previous_scheduled=str(scheduled))
     record(actor,'event.configuration',event,event,previous=previous,values={key:str(getattr(event,event._meta.get_field(key).attname)) for key in data})
     return event
 

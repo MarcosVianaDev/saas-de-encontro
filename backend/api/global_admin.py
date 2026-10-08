@@ -45,6 +45,51 @@ class NewEventSerializer(EventDetailsSerializer):
     responsible = serializers.EmailField()
 
 
+class TeamMemberSerializer(serializers.Serializer):
+    client = serializers.UUIDField()
+    contact = serializers.CharField(max_length=200)
+    email = serializers.EmailField(max_length=254)
+    role = serializers.ChoiceField(choices=['ADMIN', 'MODERATOR', 'OPERATOR'])
+
+
+def create_team_member(request):
+    serializer = TeamMemberSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    values = serializer.validated_data
+    org = get_object_or_404(Organization.objects.select_for_update(), pk=values['client'])
+    user = create_client_account(values)
+    member = OrganizationMember.objects.create(organization=org, user=user, role=values['role'])
+    record(request.user, 'account.created', user, client=str(org.pk))
+    record(request.user, 'client.team_member_created', member, client=str(org.pk), role=member.role)
+    return Response({'id': str(member.pk), 'ok': True}, status=201)
+
+
+def update_team_member(request):
+    serializer = TeamMemberSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    values = serializer.validated_data
+    identifier = serializers.UUIDField().run_validation(request.data.get('user'))
+    member = get_object_or_404(OrganizationMember.objects.select_for_update(),
+                              organization_id=values['client'], user_id=identifier)
+    User = get_user_model()
+    user = User.objects.select_for_update().get(pk=member.user_id)
+    email = values['email'].lower()
+    words = values['contact'].split()
+    if len(email) > User._meta.get_field('username').max_length:
+        raise ValidationError({'email': 'O e-mail excede o tamanho permitido para o login.'})
+    if len(words[0]) > 150 or len(words[-1]) > 150:
+        raise ValidationError({'contact': 'A primeira e a última palavra do nome devem ter até 150 caracteres.'})
+    if User.objects.exclude(pk=user.pk).filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
+        raise ValidationError({'email': 'Já existe uma conta com este e-mail.'})
+    user.first_name, user.last_name = words[0], words[-1]
+    user.email = user.username = email
+    user.save(update_fields=['first_name', 'last_name', 'email', 'username'])
+    member.role = values['role']
+    member.save(update_fields=['role'])
+    record(request.user, 'client.team_member_updated', member, client=str(member.organization_id), role=member.role)
+    return Response({'id': str(member.pk), 'ok': True})
+
+
 def access_user_payload(user):
     return {'id': str(user.pk), 'email': user.email, 'firstName': user.first_name,
             'lastName': user.last_name, 'passwordConfigured': user.has_usable_password()}
@@ -118,9 +163,9 @@ def create_event(request):
     serializer.is_valid(raise_exception=True)
     values = serializer.validated_data
     org = get_object_or_404(Organization.objects.select_for_update(), pk=values['client'], is_active=True)
-    owners = get_user_model().objects.filter(email__iexact=values['responsible'], is_active=True)
+    owners = get_user_model().objects.filter(email__iexact=values['responsible'], is_active=True, organization_memberships__organization=org)
     if owners.count() != 1:
-        raise ValidationError({'responsible': 'Informe o e-mail de uma conta de acesso ativa e única.'})
+        raise ValidationError({'responsible': 'Selecione um membro ativo da equipe deste cliente.'})
     owner = owners.get()
     event = Event(organization=org, responsible=owner, **event_details(values))
     try:
@@ -129,6 +174,8 @@ def create_event(request):
         raise ValidationError(error.message_dict)
     event.save()
     EventAdministrator.objects.create(event=event, user=owner, role='ADMIN')
+    for member in org.members.select_related('user').filter(user__is_active=True).exclude(user=owner):
+        EventAdministrator.objects.create(event=event, user=member.user, role=member.role)
     transition(event, 'SCHEDULED', actor=request.user)
     record(request.user, 'event.created', event, event)
     return Response({'id': str(event.pk), 'client': str(org.pk), 'ok': True}, status=201)
@@ -142,7 +189,7 @@ class GlobalView(APIView):
                 'clients':Organization.objects.filter(is_active=True).count(),
                 'critical':ModerationCase.objects.filter(priority=2,closed_at__isnull=True).count(),
                 'pending':ModerationCase.objects.filter(closed_at__isnull=True).count()},
-            'clients':[{'id':str(o.pk),'name':o.name,'contact':o.contact_name,'email':o.contact_email,'phone':o.contact_phone,'description':o.description,'active':o.is_active,'draft':o.onboarding_draft,'accessUser':client_access_user(o)} for o in Organization.objects.prefetch_related('members__user').order_by('-created_at')],
+            'clients':[{'id':str(o.pk),'name':o.name,'contact':o.contact_name,'email':o.contact_email,'phone':o.contact_phone,'description':o.description,'active':o.is_active,'draft':o.onboarding_draft,'accessUser':client_access_user(o),'team':[{**access_user_payload(m.user), 'role':m.role, 'active':m.user.is_active} for m in o.members.all()]} for o in Organization.objects.prefetch_related('members__user').order_by('-created_at')],
             'events':[{'id':str(e.pk),'name':e.name,'state':e.state,'status':e.get_state_display(),'organization':e.organization.name,'organizationId':str(e.organization_id)} for e in Event.objects.select_related('organization').order_by('-created_at')],
             'safety':[{'id':str(p.pk),'user':str(p.user_id),'email':p.user.email,'recurring':p.recurring_reported,
                 'reports':Report.objects.filter(reported__user=p.user,is_unfounded=False,is_administrative=False).count(),
@@ -158,6 +205,10 @@ class GlobalView(APIView):
             return save_client(request, d['action'])
         if d.get('action') == 'create_event':
             return create_event(request)
+        if d.get('action') == 'create_team_member':
+            return create_team_member(request)
+        if d.get('action') == 'update_team_member':
+            return update_team_member(request)
         if d.get('action') in ['recurrence','inform_event']:
             profile=get_object_or_404(UserProfile.objects.select_for_update(),pk=d.get('profile'))
             reason=str(d.get('reason','')).strip()

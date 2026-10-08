@@ -9,11 +9,13 @@ from .services import notify
 
 @transaction.atomic
 def send(announcement,actor=None,automatic=False):
-    a=EventAnnouncement.objects.select_for_update().select_related('event').get(pk=announcement.pk)
     from apps.events.models import Event
-    a.event=Event.objects.select_for_update().get(pk=a.event_id)
+    event=Event.objects.select_for_update().get(pk=announcement.event_id)
+    a=EventAnnouncement.objects.select_for_update().get(pk=announcement.pk)
+    a.event=event
     if a.sent_at:return a
     if automatic and a.state!='SCHEDULED':return a
+    if automatic and a.event.state in ['DRAFT','SCHEDULED']:return a
     if a.event.state in ['CLOSED','ARCHIVED']:
         if not automatic:raise PermissionDenied('Não é permitido enviar avisos após o encerramento.')
         a.state='CANCELLED';a.save()

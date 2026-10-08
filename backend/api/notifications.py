@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.notifications.models import Notification,EventAnnouncement
 from apps.notifications.announcements import send
 from apps.events.permissions import require
+from apps.events.models import Event
 from apps.audit.services import record
 from .event_admin import access
 
@@ -78,8 +79,10 @@ class AnnouncementView(APIView):
     @transaction.atomic
     def post(self,request):
         member=access(request);require(member,'announcements')
-        if member.event.state not in ['OPEN','RUNNING','PAUSED']:raise PermissionDenied('Avisos podem ser criados ou editados em Aberto, Em andamento e Pausado.')
+        member.event=Event.objects.select_for_update().get(pk=member.event.pk)
+        if member.event.state not in ['DRAFT','SCHEDULED','OPEN','RUNNING','PAUSED']:raise PermissionDenied('Evento encerrado: avisos em modo somente leitura.')
         d=request.data;action=d.get('action','draft')
+        if action=='send' and member.event.state not in ['OPEN','RUNNING','PAUSED']:raise PermissionDenied('O envio imediato requer um evento aberto, em andamento ou pausado.')
         a=get_object_or_404(EventAnnouncement.objects.select_for_update(),pk=d['id'],event=member.event) if d.get('id') else EventAnnouncement(event=member.event,author=request.user)
         if a.sent_at:raise PermissionDenied('Avisos enviados não podem ser editados.')
         a.title=str(d.get('title',a.title)).strip();a.body=str(d.get('body',a.body)).strip();a.url=str(d.get('url',a.url)).strip()
@@ -88,7 +91,8 @@ class AnnouncementView(APIView):
         if action=='schedule':
             scheduled=parse_datetime(str(d.get('scheduled','')))
             if not scheduled or timezone.is_naive(scheduled) or scheduled<=timezone.now():raise ValidationError('Informe um horário futuro com fuso horário.')
-            if not member.event.ends_at or scheduled>=member.event.ends_at:raise ValidationError('Não é permitido agendar após o encerramento previsto.')
+            if not member.event.starts_at or not member.event.ends_at:raise ValidationError('Defina o início e o término do evento antes de agendar avisos.')
+            if scheduled<member.event.starts_at or scheduled>=member.event.ends_at:raise ValidationError('Agende o aviso a partir do início e antes do término previsto do evento.')
             if scheduled>=member.event.ends_at-timedelta(minutes=30) and d.get('confirmed') is not True:raise ValidationError('Este aviso está próximo ao encerramento. Confirme explicitamente o agendamento.')
             a.scheduled_at=scheduled;a.state='SCHEDULED'
         elif action=='draft':a.state='DRAFT';a.scheduled_at=None

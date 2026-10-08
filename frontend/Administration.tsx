@@ -2,6 +2,7 @@ import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import Dropdown from "react-bootstrap/Dropdown";
+import Accordion from "react-bootstrap/Accordion";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
@@ -1169,6 +1170,8 @@ export function Administration({
                     <label>
                       <input
                         type="checkbox"
+                        role="switch"
+                        className="app-toggle"
                         checked={recent}
                         onChange={(e) => setRecent(e.target.checked)}
                       />{" "}
@@ -1410,11 +1413,11 @@ export function Administration({
                   >
                     Exibir QR Code
                   </button>
-                ) : (
+                ) : data.event.status === "Encerrado" ? (
                   <section className="adm-card">
                     Evento encerrado: novos ingressos estão desabilitados.
                   </section>
-                )}
+                ) : null}
               </>
             )}
             {page === "qr" && (
@@ -1517,19 +1520,49 @@ export function Administration({
                     Sair da conta
                   </button>
                 </section>
-                {!mock && data.permissions?.includes("announcements") && (
-                  <Announcements readOnly={readOnly} />
-                )}
-                {!mock && moderate && <SupportPanel admin />}
-                {!mock && data.permissions?.includes("passes") && (
-                  <PassManagement role={data.role} readOnly={readOnly} />
+                {!mock && (
+                  <Accordion className="adm-more-accordion">
+                    {data.permissions?.includes("announcements") && (
+                      <Accordion.Item eventKey="announcements">
+                        <Accordion.Header>Avisos do Evento</Accordion.Header>
+                        <Accordion.Body>
+                          <Announcements
+                            readOnly={readOnly}
+                            eventState={data.event.state}
+                            starts={data.event.starts}
+                            ends={data.event.ends}
+                          />
+                        </Accordion.Body>
+                      </Accordion.Item>
+                    )}
+                    {moderate && (
+                      <Accordion.Item eventKey="support">
+                        <Accordion.Header>Suporte</Accordion.Header>
+                        <Accordion.Body>
+                          <SupportPanel admin />
+                        </Accordion.Body>
+                      </Accordion.Item>
+                    )}
+                    {data.permissions?.includes("passes") && (
+                      <Accordion.Item eventKey="passes">
+                        <Accordion.Header>Passes</Accordion.Header>
+                        <Accordion.Body>
+                          <PassManagement role={data.role} readOnly={readOnly} />
+                        </Accordion.Body>
+                      </Accordion.Item>
+                    )}
+                  </Accordion>
                 )}
               </>
             )}
             {page === "team" && data.role === "ADMIN" && (
               <>
-                <h1>Equipe do evento</h1>
-                <p>Papéis e vínculos administrativos</p>
+                {mock && (
+                  <>
+                    <h1>Equipe do evento</h1>
+                    <p>Papéis e vínculos administrativos</p>
+                  </>
+                )}
                 {!mock && (
                   <TeamManagement
                     eventId={data.event.id}
@@ -1537,22 +1570,6 @@ export function Administration({
                     onChanged={() => void fetchData()}
                   />
                 )}
-                <section className="adm-card">
-                  {data.team.map((m) => (
-                    <article key={m.id}>
-                      <strong>{m.name}</strong>
-                      <p>
-                        <Badge>{m.role}</Badge>
-                      </p>
-                    </article>
-                  ))}
-                  {mock && (
-                    <small>
-                      Alterações de equipe são realizadas no Django Admin pela
-                      equipe autorizada.
-                    </small>
-                  )}
-                </section>
               </>
             )}
             {page === "report" && data.role === "ADMIN" && (
@@ -1664,6 +1681,8 @@ export function Administration({
             <label>
               <input
                 type="checkbox"
+                role="switch"
+                className="app-toggle"
                 checked={unfounded}
                 onChange={(e) => setUnfounded(e.target.checked)}
               />
@@ -1727,6 +1746,8 @@ export function Administration({
             <label className="adm-checkbox">
               <input
                 type="checkbox"
+                role="switch"
+                className="app-toggle"
                 required
                 checked={confirmed}
                 onChange={(e) => setConfirmed(e.target.checked)}

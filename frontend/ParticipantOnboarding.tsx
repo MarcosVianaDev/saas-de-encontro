@@ -193,6 +193,8 @@ export function ParticipantOnboarding({
                 {field.kind === "consent" ? (
                   <input
                     type="checkbox"
+                    role="switch"
+                    className="app-toggle"
                     required={field.required}
                     checked={values[field.id]?.accepted === true}
                     onChange={(e) =>

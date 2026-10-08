@@ -30,10 +30,12 @@ class GlobalClientTests(TestCase):
         }, format='json')
 
     def event_body(self, client):
+        OrganizationMember.objects.get_or_create(organization=client, user=self.owner)
         start = timezone.now() + timedelta(days=2)
         return {
             'action': 'create_event', 'client': str(client.pk),
             'event': 'Evento do cliente', 'starts': start.isoformat(),
+            'mode': 'ONLINE',
             'ends': (start + timedelta(hours=3)).isoformat(),
             'responsible': self.owner.email,
         }
@@ -187,3 +189,64 @@ class GlobalClientTests(TestCase):
         org.refresh_from_db()
         self.assertEqual(org.name, 'Cliente')
         self.assertFalse(Event.objects.exists())
+
+    def test_team_members_are_created_listed_and_receive_event_roles(self):
+        org = Organization.objects.get(pk=self.new_client().json()['id'])
+        for role in ['MODERATOR', 'OPERATOR', 'ADMIN']:
+            response = self.client.post('/api/global/', {
+                'action': 'create_team_member', 'client': str(org.pk),
+                'contact': 'Pessoa da Equipe', 'email': f'{role}@example.com', 'role': role,
+            }, format='json')
+            self.assertEqual(response.status_code, 201, response.content)
+            member = org.members.get(user__email=f'{role.lower()}@example.com')
+            self.assertEqual(member.role, role)
+            self.assertFalse(member.user.has_usable_password())
+        team = self.client.get('/api/global/').json()['clients'][0]['team']
+        self.assertEqual(len(team), 4)
+        response = self.client.post('/api/global/', self.event_body(org), format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        event = Event.objects.get(pk=response.json()['id'])
+        for member in org.members.all():
+            self.assertEqual(event.administrators.get(user=member.user).role, member.role)
+
+    def test_responsible_must_be_an_active_member_of_selected_client(self):
+        org = Organization.objects.get(pk=self.new_client().json()['id'])
+        body = self.event_body(org)
+        org.members.filter(user=self.owner).delete()
+        self.assertEqual(self.client.post('/api/global/', body, format='json').status_code, 400)
+        OrganizationMember.objects.create(organization=org, user=self.owner)
+        self.owner.is_active = False
+        self.owner.save()
+        self.assertEqual(self.client.post('/api/global/', body, format='json').status_code, 400)
+        self.assertFalse(Event.objects.exists())
+
+    def test_invalid_team_registration_does_not_create_partial_accounts(self):
+        org = Organization.objects.get(pk=self.new_client().json()['id'])
+        users = get_user_model().objects.count()
+        body = {'action': 'create_team_member', 'client': str(org.pk),
+                'contact': 'Pessoa', 'email': 'team@example.com', 'role': 'OPERATOR'}
+        for extra in [{'role': 'INVALID'}, {'email': self.owner.email}, {'contact': ''}]:
+            self.assertEqual(self.client.post('/api/global/', {**body, **extra}, format='json').status_code, 400)
+        self.assertEqual(get_user_model().objects.count(), users)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post('/api/global/', body, format='json').status_code, 403)
+
+    def test_team_member_edit_preserves_password_and_rejects_foreign_members(self):
+        org = Organization.objects.get(pk=self.new_client().json()['id'])
+        user = org.members.get().user
+        user.set_password('Original-password-123!')
+        user.save()
+        body = {'action': 'update_team_member', 'client': str(org.pk), 'user': str(user.pk),
+                'contact': 'Ana Souza', 'email': 'ana@example.com', 'role': 'MODERATOR'}
+        response = self.client.post('/api/global/', body, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        user.refresh_from_db()
+        self.assertEqual((user.first_name, user.last_name, user.email, user.username),
+                         ('Ana', 'Souza', 'ana@example.com', 'ana@example.com'))
+        self.assertTrue(user.check_password('Original-password-123!'))
+        self.assertEqual(org.members.get().role, 'MODERATOR')
+        self.assertEqual(self.client.post('/api/global/', {**body, 'email': self.owner.email}, format='json').status_code, 400)
+        other = Organization.objects.create(name='Outro cliente')
+        self.assertEqual(self.client.post('/api/global/', {**body, 'client': str(other.pk)}, format='json').status_code, 404)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post('/api/global/', body, format='json').status_code, 403)

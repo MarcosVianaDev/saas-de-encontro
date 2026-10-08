@@ -174,6 +174,8 @@ export function EventConfiguration({
         <label>
           <input
             type="checkbox"
+            role="switch"
+            className="app-toggle"
             disabled={Boolean(frozen)}
             checked={
               (draft.settings as Record<string, unknown>)

@@ -244,7 +244,6 @@ export function PassManagement({
   }
   return (
     <section className="adm-card">
-      <h2>Passes</h2>
       {!readOnly && role === "OPERATOR" && participantId && !granting && (
         <button onClick={() => setGranting(true)}>Conceder passe</button>
       )}
@@ -776,7 +775,26 @@ type Announcement = {
   scheduled: string | null;
   sent: string | null;
 };
-export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
+export function Announcements({
+  readOnly = false,
+  eventState,
+  starts,
+  ends,
+}: {
+  readOnly?: boolean;
+  eventState?: string;
+  starts?: string | null;
+  ends?: string | null;
+}) {
+  const canSend = ["OPEN", "RUNNING", "PAUSED"].includes(eventState || "");
+  const localDateTime = (value: string | null | undefined) =>
+    value
+      ? new Date(
+          new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000,
+        )
+          .toISOString()
+          .slice(0, 16)
+      : undefined;
   const [items, setItems] = useState<Announcement[]>([]),
     [tab, setTab] = useState("Todos"),
     [editor, setEditor] = useState(false),
@@ -799,6 +817,22 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
   }, []);
   const execute = async (e: FormEvent) => {
     e.preventDefault();
+    if (action === "schedule") {
+      const scheduled = new Date(draft.scheduled).getTime();
+      if (
+        !starts ||
+        !ends ||
+        !Number.isFinite(scheduled) ||
+        scheduled <= Date.now() ||
+        scheduled < new Date(starts).getTime() ||
+        scheduled >= new Date(ends).getTime()
+      ) {
+        setError(
+          "Agende um horário futuro a partir do início e antes do término previsto do evento.",
+        );
+        return;
+      }
+    }
     if (action !== "draft" && !confirmation) {
       setConfirmation(true);
       return;
@@ -822,16 +856,11 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
     }
   };
   return (
-    <section className="adm-card">
-      <h2>Avisos do Evento</h2>
-      <div className="adm-actions">
-        {["Todos", "Rascunhos", "Agendados", "Enviados"].map((t) => (
-          <button key={t} onClick={() => setTab(t)}>
-            {t}
-          </button>
-        ))}
+    <section className="adm-card adm-announcements">
+      <div className="adm-actions adm-announcement-actions">
         {!readOnly && (
           <button
+            className="adm-primary adm-new-announcement"
             onClick={() => {
               setEditor(true);
               setDraft({ id: "", title: "", body: "", url: "", scheduled: "" });
@@ -842,6 +871,11 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
             + Novo aviso
           </button>
         )}
+        {["Todos", "Rascunhos", "Agendados", "Enviados"].map((t) => (
+          <button key={t} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
       </div>
       {items
         .filter(
@@ -895,10 +929,10 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
                       : "",
                   });
                   setConfirmation(false);
-                  setAction(a.state === "HELD" ? "send" : "draft");
+                  setAction(a.state === "HELD" && canSend ? "send" : "draft");
                 }}
               >
-                {a.state === "HELD" ? "Enviar manualmente" : "Editar"}
+                {a.state === "HELD" && canSend ? "Enviar manualmente" : "Editar"}
               </button>
             )}
           </article>
@@ -941,8 +975,10 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
               }}
             >
               <option value="draft">Salvar rascunho</option>
-              <option value="send">Enviar agora</option>
-              <option value="schedule">Agendar</option>
+              {canSend && <option value="send">Enviar agora</option>}
+              <option value="schedule" disabled={!starts || !ends}>
+                Agendar
+              </option>
             </select>
           </label>
           {action === "schedule" && (
@@ -951,6 +987,8 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
               <input
                 required
                 type="datetime-local"
+                min={localDateTime(starts)}
+                max={localDateTime(ends)}
                 value={draft.scheduled}
                 onChange={(e) =>
                   setDraft({ ...draft, scheduled: e.target.value })
@@ -958,6 +996,11 @@ export function Announcements({ readOnly = false }: { readOnly?: boolean }) {
               />
             </label>
           )}
+          <p>
+            {starts && ends
+              ? `Os avisos podem ser agendados a partir de ${new Date(starts).toLocaleString("pt-BR")} e antes de ${new Date(ends).toLocaleString("pt-BR")}. Se o período do evento mudar, avisos fora dele voltarão a rascunho.`
+              : "Defina o início e o término do evento para agendar avisos. Você pode salvar rascunhos."}
+          </p>
           {confirmation && (
             <section>
               <h3>

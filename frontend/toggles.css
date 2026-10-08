@@ -1,0 +1,47 @@
+:root label:has(> .app-toggle) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  width: 100%;
+  text-align: left;
+}
+
+:root label:has(> .app-toggle) > p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+:root label > input.app-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  width: 40px;
+  height: 22px;
+  min-width: 40px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #817891;
+  border-radius: 22px;
+  background: #817891;
+  background-image: radial-gradient(circle at 10px 10px, white 0 7px, transparent 7.5px);
+  cursor: pointer;
+}
+
+:root label > input.app-toggle:checked {
+  border-color: #6634ed;
+  background-color: #6634ed;
+  background-image: radial-gradient(circle at 28px 10px, white 0 7px, transparent 7.5px);
+}
+
+:root label > input.app-toggle:focus-visible {
+  outline: 3px solid #b9a1f8;
+  outline-offset: 3px;
+}
+
+:root label > input.app-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -8,6 +8,7 @@ import {
 import { createRoot } from "react-dom/client";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
+import "./toggles.css";
 import { frontendConfig } from "./config";
 import { api, ApiError, request } from "./backend-client";
 import { Administration } from "./Administration";

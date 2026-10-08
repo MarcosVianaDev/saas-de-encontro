@@ -253,6 +253,20 @@
   border-radius: 18px;
   margin-bottom: 20px;
 }
+.adm-more-accordion .accordion-body {
+  padding: 0;
+}
+.adm-more-accordion .accordion-body > .adm-card {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.adm-more-accordion .accordion-body > .adm-announcements {
+  padding-top: 0;
+}
+.adm-more-accordion .adm-announcement-actions {
+  margin-top: 0;
+}
 .adm-number {
   font-size: 32px;
   color: #0aaf67;
@@ -393,6 +407,23 @@
 .adm-actions > * {
   flex: 1;
   min-width: 140px;
+}
+.adm-announcement-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.adm-announcement-actions > * {
+  min-width: 0;
+}
+.adm-announcement-actions .adm-new-announcement {
+  grid-column: 1 / -1;
+  background: var(--adm-purple);
+  color: white;
+}
+@media (max-width: 480px) {
+  .adm-announcement-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .adm-actions a {
   display: flex;
@@ -1013,6 +1044,139 @@
 }
 .account-options {
   margin-top: 20px;
+}
+.event-team-header,
+.client-team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.event-team-header h1 {
+  margin: 0;
+}
+.event-team-header > button {
+  flex-shrink: 0;
+}
+.event-team-member {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.event-team-member-details {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.event-team-member-edit {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.event-team-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.event-team-permissions {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+}
+.event-team-permissions .form-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-left: 0;
+  margin: 0;
+  min-height: 24px;
+}
+.adm-card .event-team-permissions .form-check-label {
+  order: 0;
+  flex: 1;
+  display: block;
+  margin: 0;
+  line-height: 24px;
+}
+.adm-card .event-team-permissions .form-check-input {
+  order: 1;
+  float: none;
+  flex-shrink: 0;
+  width: 2em;
+  height: 1em;
+  padding: 0;
+  margin: 0;
+  border-radius: 2em;
+  cursor: pointer;
+}
+.event-team-permissions .form-check-input:checked {
+  background-color: #6634ed;
+  border-color: #6634ed;
+}
+.client-team-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 1px solid #dce6f3;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.global-administration .client-team-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  padding: 18px;
+}
+.client-team-edit strong,
+.client-team-edit span {
+  overflow-wrap: anywhere;
+}
+.client-team-edit span {
+  border-left: 1px solid #dce6f3;
+  padding-left: 16px;
+}
+.client-team-edit:hover,
+.client-team-edit:focus-visible {
+  background: #f3f6fb;
+}
+.client-password-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid #dce6f3;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.client-team-card > .client-password-button {
+  margin: 10px;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .global-administration .client-team-edit {
+    gap: 8px;
+    padding: 12px 8px;
+  }
+  .client-team-edit span {
+    padding-left: 8px;
+  }
+  .client-team-card > .client-password-button {
+    padding: 8px;
+    margin: 6px;
+    max-width: 95px;
+  }
 }
 .adm-workspace .account-logout,
 .account-logout {
