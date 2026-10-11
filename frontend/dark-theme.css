@@ -1,0 +1,912 @@
+/* Dark palette overrides. Keep access identity colors from the base styles. */
+:root {
+  color-scheme: dark;
+  --muted: #a8acc1;
+  --border: #394157;
+  --bs-body-bg: #101522;
+  --bs-body-color: #e8ebf4;
+  --bs-secondary-color: #a8acc1;
+  --bs-tertiary-bg: #202638;
+  --bs-secondary-bg: #191e2c;
+  --bs-border-color: #394157;
+  --bs-emphasis-color: #f4f6fc;
+  background: #101522;
+  color: #e8ebf4;
+}
+body { background: #101522; color: #e8ebf4; }
+
+:root {
+  color: #bdb6e2;
+}
+.debug-page {
+  background: radial-gradient(circle at top right, #293148, #202638 65%);
+}
+.debug-card {
+  background: #191e2c;
+  box-shadow: 0 20px 70px #00000018;
+}
+.debug-card h1 {
+  color: #ab89e6;
+}
+.debug-card p {
+  color: #baabc4;
+}
+.debug-status {
+  background: #202638;
+}
+.debug-status dd {
+  color: #ab89e6;
+}
+.debug-status .debug-error {
+  color: #eaaebf;
+}
+.debug-admin {
+  color: #ab89e6;
+}
+.debug-pending {
+  border-top: 1px solid #4f3762;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #493762;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #453762;
+}
+img {
+  background: #293148;
+}
+.sidebar {
+  border-right: 1px solid #4c4c4c0d;
+}
+.brand-icon {
+  border: 1px solid #4b376245;
+}
+.live-dot {
+  box-shadow: 0 0 8px #00000050;
+}
+.sidebar-intro {
+  color: #b6aac5;
+}
+.stage-number {
+  color: #b7a3cc;
+}
+.stage-nav small {
+  color: #b6abc4;
+}
+.selected .stage-number {
+  box-shadow: 0 0 18px #00000040;
+}
+.nav-dot {
+  background: #312046;
+}
+.sidebar-footer {
+  color: #b6abc4;
+}
+.main-area {
+  background: radial-gradient(ellipse at 80% 30%, #293148 0%, transparent 50%), #202638;
+}
+.desktop-heading {
+  color: #b5abc4;
+}
+.event-tag {
+  color: #cabfd9;
+}
+.app-screen {
+  background: linear-gradient(140deg, #191e2c, #191e2c);
+  box-shadow: 0 20px 70px #00000018,
+    0 2px 6px #00000009;
+  border: 1px solid #4c4c4c;
+}
+.onboarding-progress {
+  color: #b6abc4;
+}
+.progress-track {
+  background: #293148;
+}
+.icon-button {
+  color: #b6adc2;
+}
+.icon-button:hover {
+  background: #202638;
+}
+.subtitle {
+  color: #b7adc3;
+}
+.tiny-spark {
+  color: #b289e6;
+}
+.primary {
+  box-shadow: 0 6px 18px #0000001c;
+}
+.primary:hover {
+  box-shadow: 0 7px 24px #0000003d;
+}
+.onboarding-footer {
+  background: #191e2c;
+  border-top: 1px solid #4c3762;
+}
+.text-button {
+  color: #b291de;
+}
+.profile-avatar > img {
+  border: 4px solid #4c4c4c;
+  box-shadow: 0 6px 20px #00000018;
+}
+.camera-button {
+  border: 3px solid #473762;
+}
+.field {
+  background: #191e2c4d;
+  border: 1px solid #493762;
+}
+.field > span {
+  color: #b4aac5;
+}
+.field input,
+.field select,
+.field textarea {
+  color: #c6b8e0;
+}
+.birth-field {
+  border: 1px solid #493762;
+}
+.birth-field legend {
+  color: #b4aac5;
+}
+.birth-field label {
+  color: #b4aac5;
+}
+.birth-field input,
+.birth-field select {
+  color: #c6b8e0;
+}
+.field-help {
+  color: #b6aac5;
+}
+.section-label span {
+  color: #b6aac5;
+}
+.microcopy {
+  color: #b7adc2;
+}
+.remove-photo {
+  border: 1px solid #4c4c4c;
+}
+.add-photo {
+  background: #20263866;
+  border: 1px dashed #493762;
+}
+.filter-card {
+  background: #191e2c5e;
+  border: 1px solid #4a3762;
+  box-shadow: 0 2px 5px #00000003;
+}
+.range-inputs label {
+  color: #b5a7c8;
+}
+.chip {
+  background: #202638;
+  color: #cabeda;
+}
+.chip:hover:not(span) {
+  background: #293148;
+}
+.chip.active {
+  box-shadow: 0 3px 8px #00000023;
+}
+.search-field {
+  background: #202638;
+  color: #b6a8c7;
+}
+.search-field input {
+  color: #cbb8e0;
+}
+.search-field:focus-within {
+  border-color: #493762;
+}
+.search-field input::placeholder {
+  color: #b5aac6;
+}
+.search-field.small {
+  border-color: #4b3762;
+}
+.filter-summary {
+  color: #b6a0cf;
+}
+.discovery-report {
+  background: var(--surface, #191e2c);
+}
+.discovery-meta {
+  color: #b8acc3;
+}
+.discovery-card {
+  box-shadow: 0 6px 20px #00000018;
+}
+.verified {
+  border: 1px solid #374a62;
+}
+.info-button {
+  background: #191e2c;
+  color: #b6a0cf;
+}
+.person-tags span {
+  background: #191e2c24;
+  border: 1px solid #4c4c4c16;
+}
+.action-circle {
+  border: 1px solid #4c3762;
+  background: #191e2c;
+  box-shadow: 0 4px 10px #00000009;
+}
+.action-circle:hover {
+  box-shadow: 0 6px 18px #00000017;
+}
+.pass {
+  color: #b1a6c9;
+}
+.favorite {
+  color: #89a3e6;
+}
+.favorite svg {
+  fill: #89a3e6;
+}
+.favorite.is-saved {
+  background: #202638;
+}
+.like {
+  color: #e689b1;
+}
+.like svg {
+  fill: #e689b1;
+}
+.actions-caption {
+  color: #b7acc3;
+}
+.bottom-nav {
+  border-top: 1px solid #4b3762;
+  background: #191e2c;
+}
+.bottom-nav button {
+  color: #b5a9c6;
+}
+.nav-unread {
+  border: 1px solid #4c4c4c;
+}
+.avatar img {
+  border: 2px solid #4c4c4c;
+}
+.online-dot {
+  border: 2px solid #473762;
+}
+.count-badge {
+  background: #202638;
+  color: #b390e0;
+}
+.conversation-row {
+  border-bottom: 1px solid #4b3762;
+}
+.conversation-row:hover {
+  background: #202638;
+}
+.conversation-info > span {
+  color: #b7a9c7;
+}
+.conversation-time {
+  color: #b7a9c7;
+}
+.safe-chat {
+  color: #baaac6;
+}
+.participant-tile > span:not(.avatar) {
+  color: #b8adc2;
+}
+.participant-tile .match-label {
+  color: #b68be4 !important;
+}
+.participants-note {
+  color: #bbabc4;
+}
+.chat-heading {
+  border-bottom: 1px solid #4b3762;
+  background: #191e2c;
+}
+.chat-participant-card:focus-visible {
+  outline: 3px solid #493762;
+}
+.chat-participant-info > span {
+  color: #b7abc4;
+}
+.chat-participant-dropdown {
+  background: #191e2c;
+  border: 1px solid #473762;
+  box-shadow: 0 8px 24px #00000026;
+}
+.chat-participant-dropdown button:hover {
+  background: #202638;
+}
+.chat-heading > div > span {
+  color: #b7abc4;
+}
+.day-divider {
+  color: #b9a8c7;
+  background: #202638;
+}
+.match-note {
+  color: #bba9c7;
+}
+.message-bubble {
+  border: 1px solid #4b3762;
+  background: #191e2c;
+}
+.message-bubble > span {
+  color: #b8a6c9;
+}
+.message-composer {
+  border-top: 1px solid #4b3762;
+  background: #191e2c;
+}
+.message-composer input {
+  border: 1px solid #4b3762;
+  background: #202638;
+}
+.context-panel {
+  color: #cebfd9;
+}
+.eyebrow {
+  color: #bda1ce;
+}
+.context-panel h2 {
+  color: #d2b6e2;
+}
+.context-panel h2 span:nth-child(2) {
+  color: #b689e6;
+}
+.context-panel > p {
+  color: #bbaec2;
+}
+.event-preview {
+  border-top: 1px solid #4e3762;
+  border-bottom: 1px solid #4e3762;
+}
+.event-art {
+  box-shadow: 0 4px 15px #00000020;
+}
+.event-preview small {
+  color: #bba9c6;
+}
+.event-preview > div > span {
+  color: #bcaac5;
+}
+.avatar-stack img {
+  border: 2px solid #4b3762;
+}
+.community > span {
+  color: #bcaac5;
+}
+.community strong {
+  color: #d0bfd9;
+}
+.context-tip > span {
+  color: #bb8ee2;
+}
+.context-tip p {
+  color: #bcaac6;
+}
+.context-footnote {
+  color: #bba8c7;
+}
+.desktop-footer {
+  color: #baa8c7;
+}
+.desktop-footer button {
+  color: #baa7c9;
+}
+.login-screen {
+  border: 1px solid #4c376280;
+}
+.login-pill {
+  border: 1px solid #4b376240;
+}
+.hero-line {
+  box-shadow: 0 0 15px #00000055;
+}
+.glass {
+  border: 1px solid #49376260;
+}
+.or span {
+  background: #29314823;
+}
+.social {
+  background: #191e2c;
+  color: #ceb5e3;
+}
+.social small {
+  background: #293148;
+  color: #b8aac5;
+}
+.google-mark {
+  color: #89ace6;
+}
+.apple-mark {
+  color: #cccccc;
+}
+.login-terms span {
+  color: #baa5ca;
+}
+.login-form input {
+  border: 1px solid #4d376250;
+  background: #191e2c0f;
+}
+.login-form input::placeholder {
+  color: #bba6c9;
+}
+.empty-state {
+  color: #baa5ca;
+}
+.empty-state h3 {
+  color: #cdb9df;
+}
+.toast {
+  box-shadow: 0 7px 35px #00000033;
+}
+.notification-toast-container .notification-toast {
+  color: #c6ccd2;
+}
+.notification-toast .toast-header {
+  color: #b2b8bd;
+}
+.notification-toast .btn-close {
+  color: #b2b8bd;
+}
+.notification-toast button.toast-body {
+  color: #c6ccd2;
+}
+.notification-toast .toast-body span {
+  color: #ac89e6;
+}
+.person-modal,
+.match-modal {
+  background: #191e2c;
+  box-shadow: 0 20px 100px #00000070;
+}
+.modal-close {
+  background: #191e2cde;
+  color: #cfb8e0;
+}
+.person-modal .safety-controls button {
+  border: 1px solid #473762;
+  background: #191e2c;
+}
+.global-popup {
+  background: #191e2c;
+}
+.profile-carousel-controls button {
+  background: #202638;
+}
+.expanded-carousel-controls button {
+  color: #c6b8e0;
+}
+.modal-location {
+  color: #bcacc4;
+}
+.modal-body > p {
+  color: #baabc4;
+}
+.match-modal {
+  background: radial-gradient(circle at top, #202638, #191e2c 60%);
+}
+.match-spark {
+  color: #b689e6;
+}
+.match-modal h2 {
+  color: #b189e6;
+}
+.match-modal > p {
+  color: #bda5ca;
+}
+.match-avatars img {
+  border: 5px solid #4c4c4c;
+  box-shadow: 0 3px 15px #00000020;
+}
+.match-avatars > span {
+  background: #191e2c;
+  color: #e689b4;
+}
+.match-avatars svg {
+  fill: #e689b4;
+}
+.match-modal > strong {
+  color: #baa4cb;
+}
+@media (max-width: 700px) {
+.main-area {
+  background: #191e2c;
+}
+}
+.backend-ribbon {
+  background: #191e2c;
+  color: #c7b3e5;
+  box-shadow: 0 2px 14px #00000020;
+}
+.participant-onboarding {
+  background: #191e2c;
+}
+.profile-account {
+  border-top: 1px solid #4b3762;
+}
+.participant-onboarding input,
+.participant-onboarding select,
+.participant-onboarding textarea,
+.participant-tools textarea,
+dialog textarea {
+  border: 1px solid #463762;
+}
+.mailbox-tabs {
+  border-bottom: 1px solid #424c57;
+}
+.mailbox-tabs .nav-link {
+  color: #ac89e6;
+}
+.mailbox-tabs .nav-link:hover {
+  border-color: #404d59 #404d59 #424c57;
+}
+.mailbox-tabs .nav-link.active {
+  border-color: #424c57 #424c57 #4c4c4c;
+  background: #191e2c;
+  color: #c8ccd0;
+}
+.participant-tools {
+  border: 1px solid #473762;
+  background: #202638;
+}
+.event-banner.alert {
+  border: 1px solid #625737;
+  background: #293148;
+  color: #eddcab;
+}
+.event-banner.alert-info {
+  border-color: #375b62;
+  background: #293148;
+  color: #abe2ed;
+}
+.profile-disposition-actions .soft-success {
+  background: #293148;
+  border-color: #37624e;
+  color: #abedce;
+}
+.profile-disposition-actions .soft-danger,
+.disposition-dialog .soft-danger {
+  background: #293148;
+  border-color: #62373c;
+  color: #ebadb3;
+}
+.disposition-dialog .soft-secondary {
+  background: #293148;
+  border-color: #484d51;
+  color: #c8ccd0;
+}
+dialog.disposition-dialog {
+  background: #191e2c;
+  color: #c6ccd2;
+}
+.participant-tools .notification-card {
+  border: 1px solid #473762;
+  background: #191e2c;
+}
+.notification-card:hover {
+  box-shadow: 0 3px 12px #00000014;
+}
+.notification-card:focus-visible {
+  outline: 3px solid #493762;
+}
+.notification-read-status {
+  color: #b2b8bd;
+}
+dialog {
+  border: 1px solid #493762;
+}
+.adm-workspace {
+  background: #202638;
+  color: #c2bcdc;
+}
+.adm-workspace button,
+.adm-loading button {
+  background: #202638;
+  color: #a48ee1;
+}
+.adm-workspace button:focus-visible,
+.adm-workspace input:focus-visible,
+.adm-workspace select:focus-visible,
+.adm-workspace textarea:focus-visible {
+  outline: 3px solid #423762;
+}
+.adm-sidebar {
+  background: #191e2c;
+  border-right: 1px solid #483762;
+}
+.adm-brand {
+  color: #c1bddb;
+}
+.adm-brand span {
+  color: #b189e6;
+}
+.adm-sidebar > p {
+  color: #b6b0bf;
+}
+.adm-sidebar > small {
+  color: #b6b0bf;
+}
+.adm-topbar {
+  border-bottom: 1px solid #473762;
+}
+.adm-topbar small {
+  color: #b4adc2;
+}
+.adm-workspace small {
+  color: #b6b0bf;
+}
+.adm-hero button {
+  background: #191e2c20;
+}
+.adm-workspace .adm-stat {
+  background: #191e2c;
+  color: #c2bcdc;
+  border: 1px solid #483762;
+  box-shadow: 0 4px 16px #00000005;
+}
+.adm-stat > span {
+  background: #202638;
+  color: #a489e6;
+}
+.adm-stat.stat-1 > span {
+  background: #202638;
+  color: #abedcd;
+}
+.adm-stat.stat-2 > span {
+  background: #202638;
+  color: #e689a6;
+}
+.adm-stat.stat-3 > span {
+  background: #202638;
+  color: #89afe6;
+}
+.adm-workspace .adm-attention {
+  background: #202638;
+  border: 1px solid #623741;
+  color: #e8b0c1;
+}
+.adm-card {
+  background: #191e2c;
+  border: 1px solid #483762;
+}
+.adm-number {
+  color: #abedd0;
+}
+.adm-heading p {
+  color: #b6b0bf;
+}
+.adm-workspace input:not([type="checkbox"]),
+.adm-workspace select,
+.adm-workspace textarea {
+  border: 1px solid #463762;
+  background: #202638;
+  color: #c5c0d8;
+}
+.adm-workspace .adm-person {
+  border-bottom: 1px solid #493762;
+  color: #c2bcdc;
+}
+.adm-badge {
+  background: #202638;
+  color: #a993dc;
+}
+.adm-badge.positive {
+  background: #202638;
+  color: #abedc8;
+}
+.adm-badge.danger {
+  background: #202638;
+  color: #e6899c;
+}
+.adm-workspace dt {
+  color: #b6b0bf;
+}
+.adm-actions a {
+  color: #a289e6;
+}
+.adm-workspace .adm-case {
+  background: #191e2c;
+  border: 1px solid #483762;
+  color: #c2bcdc;
+}
+.adm-case-icon {
+  background: #202638;
+  color: #e6899c;
+}
+.adm-workspace article {
+  border-bottom: 1px solid #483762;
+}
+.adm-timeline {
+  border-left: 2px solid #433762;
+}
+.adm-dialog {
+  color: #c2bcdc;
+  background: #191e2c;
+  box-shadow: 0 15px 80px #00000035;
+}
+.adm-alert,
+.adm-success {
+  background: #202638;
+}
+.adm-success {
+  background: #293148;
+}
+.adm-form-error {
+  color: #e6899f;
+}
+.adm-loading {
+  background: #202638;
+  color: #c2bcdc;
+}
+@media (max-width: 760px) {
+.adm-bottom {
+  background: #191e2c;
+  border-top: 1px solid #473762;
+}
+.adm-bottom .selected {
+  background: #202638;
+  color: #a289e6;
+}
+}
+.global-context .adm-sidebar button,
+.global-context .adm-back,
+.global-context .adm-topbar button,
+.global-context .adm-actions button {
+  color: #e68991;
+}
+.global-context .event-timeline [aria-current],
+.global-context .adm-badge {
+  color: #e68991;
+}
+.global-context .adm-back,
+.global-context .adm-badge {
+  background: #202638;
+}
+@media (max-width: 700px) {
+.configuration-actions {
+  background: #191e2c;
+  box-shadow: 0 -2px 10px #00000011;
+}
+}
+.global-context.administration {
+  background: #191e2c;
+}
+.event-timeline [aria-current="step"] {
+  color: #a789e6;
+}
+.adm-card input,
+.adm-card textarea,
+.adm-card select {
+  border: 1px solid #473762;
+}
+.adm-card input:disabled {
+  background: #202638;
+  color: #b8b8b8;
+}
+.adm-bottom {
+  background: #191e2c;
+  border-top: 1px solid #473762;
+  box-shadow: 0 -4px 20px #00000008;
+}
+.adm-workspace .adm-bottom button {
+  color: #b6b0bf;
+}
+.global-context .adm-bottom {
+  border-color: #62373c;
+}
+.global-context .adm-topbar .adm-badge {
+  background: #191e2c;
+  color: #edabb4;
+}
+.global-administration {
+  background: #202638;
+  color: #abcbed;
+}
+.event-request-form input,
+.event-request-form select,
+.event-request-form textarea {
+  border: 1px solid #374a62;
+}
+.global-administration .adm-topbar {
+  border-color: #374a62;
+}
+.global-content > form {
+  border: 1px solid #374a62;
+  background: #191e2c;
+}
+.global-content input,
+.global-content textarea,
+.global-content select {
+  border: 1px solid #374a62;
+}
+.client-details dt {
+  color: #abb6c5;
+}
+.global-administration .adm-bottom {
+  border-color: #374a62;
+}
+.global-list-tools input {
+  background: #202638;
+}
+.event-topic-card {
+  border: 1px solid #374a62;
+}
+.client-team-card {
+  border: 1px solid #374a62;
+}
+.client-team-edit span {
+  border-left: 1px solid #374a62;
+}
+.client-team-edit:hover,
+.client-team-edit:focus-visible {
+  background: #202638;
+}
+.client-password-button {
+  border: 1px solid #374a62;
+}
+.adm-workspace .account-logout,
+.account-logout {
+  color: #e68996;
+  background: #202638;
+  border: 1px solid #62373f;
+}
+
+/* Bootstrap components and shared controls inherit their access color. */
+.workspace, .participant-onboarding, .adm-workspace {
+  --access-color: #7125f5;
+  --access-link: #bb9aff;
+  --bs-primary: var(--access-color);
+  --bs-link-color: var(--access-link);
+  --bs-link-hover-color: #e8ebf4;
+  accent-color: var(--access-color);
+}
+.adm-workspace { --access-color: #6634ed; }
+.global-administration { --access-color: #1260ed; --access-link: #83b0ff; }
+.global-context { --access-color: #c62835; --access-link: #ff9aa6; }
+:root:has(.global-administration) { --bs-link-color: #83b0ff; }
+:root:has(.global-context) { --bs-link-color: #ff9aa6; }
+:root:has(.adm-workspace) { --bs-body-bg: #101522; }
+:is(.workspace, .adm-workspace, .participant-onboarding, dialog) :is(input:not([type="checkbox"]):not([type="range"]), textarea, select) {
+  background-color: #151b2a;
+  color: #e8ebf4;
+  border-color: #394157;
+}
+::placeholder { color: #9aa3bc; opacity: 1; }
+option { background-color: #151b2a; color: #e8ebf4; }
+.adm-workspace .accordion {
+  --bs-accordion-bg: #191e2c;
+  --bs-accordion-color: #e8ebf4;
+  --bs-accordion-border-color: #394157;
+  --bs-accordion-btn-bg: #191e2c;
+  --bs-accordion-btn-color: #e8ebf4;
+  --bs-accordion-active-bg: #293148;
+  --bs-accordion-active-color: var(--access-link);
+}
+.adm-workspace .accordion-button { background: var(--bs-accordion-btn-bg); color: var(--bs-accordion-btn-color); }
+.adm-workspace .accordion-button:not(.collapsed) { background: var(--bs-accordion-active-bg); color: var(--access-link); }
+.adm-workspace .nav-tabs { --bs-nav-tabs-link-active-bg: #191e2c; --bs-nav-tabs-link-active-color: var(--access-link); --bs-nav-tabs-border-color: #394157; --bs-nav-tabs-link-active-border-color: #394157; }
+.adm-workspace .dropdown-menu { --bs-dropdown-bg: #191e2c; --bs-dropdown-color: #e8ebf4; --bs-dropdown-link-color: #e8ebf4; --bs-dropdown-link-hover-bg: #293148; --bs-dropdown-link-hover-color: #fff; --bs-dropdown-link-active-bg: var(--access-color); }
+:is(.adm-workspace, .workspace) :is(.adm-primary, .selected, .btn-primary) { background-color: var(--access-color); color: #fff; }
+:root:has(.global-administration) input.app-toggle:checked,
+.global-administration .form-check-input:checked { background-color: #1260ed; border-color: #1260ed; }
+:root:has(.global-context) input.app-toggle:checked,
+.global-context .form-check-input:checked { background-color: #c62835; border-color: #c62835; }
+input.app-toggle { box-shadow: none; }
+input[type="range"] { accent-color: var(--access-color, #7125f5); }
+:root .event-topic-options .chip { background-color: #293148; color: #e8ebf4; }
+:is(.workspace, .adm-workspace, .participant-onboarding) :is(button, a, input, textarea, select):focus-visible {
+  outline-color: var(--access-link);
+}

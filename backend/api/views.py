@@ -151,6 +151,8 @@ class ProfileView(APIView):
             for field in ['interests', 'purpose']:
                 if field in data:
                     setattr(profile, field, data[field])
+            if 'residenceState' in data:
+                profile.residence_state = data['residenceState']
             answers = dict(profile.topic_answers)
             if 'interests' in data:
                 answers['interests'] = data['interests']

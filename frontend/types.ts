@@ -1,5 +1,6 @@
 export type PersonId = string | number;
 export type Person = {
+  residenceState?: string;
   id: PersonId;
   name: string;
   age: number;
@@ -16,6 +17,7 @@ export type Person = {
   photoEvidence?: { id: string; url: string }[];
 };
 export type Profile = {
+  residenceState?: string;
   topicAnswers?: Record<string, string[]>;
   interests: string[];
   purpose: string;

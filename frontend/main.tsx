@@ -21,6 +21,7 @@ import { ProfileGallery } from "./ProfileGallery";
 import { CachedImage, clearImageCache } from "./CachedImage";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
+import { brazilStates, brazilStateName } from "./brazil-states";
 import { SocialSafety } from "./SocialSafety";
 import {
   NotificationCenter,
@@ -39,6 +40,8 @@ import type {
   Bootstrap,
   SessionData,
 } from "./types";
+
+import "./dark-theme.css";
 
 type Page =
   "login" | "perfil" | "filtros" | "descobrir" | "mensagens" | "participantes";
@@ -599,6 +602,7 @@ function App() {
     setServerData(data);
     setProfile({
       ...data.profile,
+      residenceState: data.profile.residenceState || "",
       interests: data.profile.interests || [],
       purpose: data.profile.purpose || "",
       year: data.profile.year || String(latestBirthYear),
@@ -1681,20 +1685,34 @@ function App() {
                             </label>
                           </div>
                         </fieldset>
-                        <label className="field">
-                          <span>Gênero</span>
-                          <select
-                            value={profile.gender}
-                            onChange={(e) =>
-                              setProfile({ ...profile, gender: e.target.value })
-                            }
-                          >
-                            <option value="Homens">Masculino</option>
-                            <option value="Mulheres">Feminino</option>
-                            <option>Não binário</option>
-                            <option>Prefiro não informar</option>
-                          </select>
-                        </label>
+                        <div className="form-row">
+                          <label className="field">
+                            <span>Gênero</span>
+                            <select
+                              value={profile.gender}
+                              onChange={(e) =>
+                                setProfile({ ...profile, gender: e.target.value })
+                              }
+                            >
+                              <option value="Homens">Masculino</option>
+                              <option value="Mulheres">Feminino</option>
+                              <option>Não binário</option>
+                              <option>Prefiro não informar</option>
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Estado em que reside (opcional)</span>
+                            <select
+                              value={profile.residenceState || ""}
+                              onChange={(e) => setProfile({ ...profile, residenceState: e.target.value })}
+                            >
+                              <option value="">Não informado</option>
+                              {brazilStates.map(([code, name]) => (
+                                <option key={code} value={code}>{name}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
                         <label className="field bio-field">
                           <span>Sobre você</span>
                           <textarea
@@ -2165,6 +2183,9 @@ function App() {
                                     i
                                   </button>
                                 </div>
+                                {candidate.residenceState && (
+                                  <p><Icon name="pin" size={14} />{brazilStateName(candidate.residenceState)}</p>
+                                )}
                                 <div className="person-tags">
                                   {candidate.interests.slice(0, 3).map((i) => (
                                     <span key={i}>{i}</span>
@@ -2518,6 +2539,7 @@ function App() {
                               <Avatar person={p} large />
                               <strong>{p.name}</strong>
                               <span>{p.age} anos</span>
+                              {p.residenceState && <span>{brazilStateName(p.residenceState)}</span>}
                               {p.id in chats && (
                                 <span className="match-label">Seu match</span>
                               )}
@@ -2722,6 +2744,9 @@ function App() {
                     <Icon name="check" size={13} />
                   </span>
                 </h2>
+                {details.residenceState && (
+                  <p className="modal-location"><Icon name="pin" size={15} />{brazilStateName(details.residenceState)}</p>
+                )}
                 {(details.bio || !real) && (
                   <p>
                     {details.bio ||

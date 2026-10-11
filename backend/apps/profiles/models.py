@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from common.models import BaseModel
+from .locations import BRAZIL_STATES
 
 
 class ParticipantProfile(BaseModel):
@@ -13,6 +14,7 @@ class ParticipantProfile(BaseModel):
     bio = models.TextField(blank=True)
     job = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=200, default="São Paulo, SP")
+    residence_state = models.CharField(max_length=2, choices=BRAZIL_STATES, blank=True, default='')
     interests = models.JSONField(default=list, blank=True)
     purpose = models.CharField(max_length=200, blank=True)
     topic_answers = models.JSONField(default=dict, blank=True)

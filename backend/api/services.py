@@ -86,6 +86,7 @@ def person_payload(person):
     return {"id": str(person.id), "name": profile.first_name if profile else person.user.first_name,
         "age": age(profile) if profile else None, "gender": profile.gender if profile else "",
         "job": profile.job if profile else "", "city": profile.city if profile else "",
+        "residenceState": profile.residence_state if profile else "",
         "image": photo_url(primary) if primary else "/images/profile-placeholder.svg",
         "interests": profile.interests if profile else [], "online": person.activity_is_recent(),
         "mutual": False, "bio": profile.bio if profile else ""}
@@ -143,11 +144,12 @@ def bootstrap(participant):
             peer = EventParticipant.objects.select_related("profile").get(id=peer_id)
             data = person_payload(peer)
             if state["blocked"]:
-                data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", gender="", bio="", interests=[], online=False, age=0)
+                data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", residenceState="", gender="", bio="", interests=[], online=False, age=0)
             participants.append(data)
     return {"profileTopics": [{'id': str(t.pk), 'key': t.key, 'name': t.name, 'options': t.options, 'multiple': t.multiple, 'required': rule.get('required', False), 'minimum': rule.get('minimum', 1)} for t, rule in event_topics(participant.event)], "profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
             "year": str(profile.birth_year or ""), "gender": profile.gender or "Prefiro não informar", "bio": profile.bio,
-            "interests": profile.interests, "purpose": profile.purpose, "topicAnswers": profile.topic_answers},
+            "interests": profile.interests, "purpose": profile.purpose, "topicAnswers": profile.topic_answers,
+            "residenceState": profile.residence_state},
           "photos": [photo_url(photo) for photo in ordered_photos(participant)],
           'publicPhotos':[photo_url(photo) for photo in ordered_photos(participant) if photo.visibility=='PRE_MATCH'],
         "active": participant.is_active, 'registrationStatus':participant.registration_status,
