@@ -41,7 +41,7 @@ import type {
   SessionData,
 } from "./types";
 
-import "./dark-theme.css";
+import { ThemeSelector } from "./ThemeSelector";
 
 type Page =
   "login" | "perfil" | "filtros" | "descobrir" | "mensagens" | "participantes";
@@ -1595,6 +1595,9 @@ function App() {
                       id="profile-form"
                       onSubmit={saveProfile}
                     >
+                      <div className="profile-theme-toolbar">
+                        <ThemeSelector />
+                      </div>
                       <fieldset
                         disabled={Boolean(serverData?.event.readOnly)}
                         className="profile-readonly-fields"
