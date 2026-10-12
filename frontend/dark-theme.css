@@ -453,10 +453,14 @@ img {
   box-shadow: 0 7px 35px #00000033;
 }
 .notification-toast-container .notification-toast {
-  color: #c6ccd2;
+  background: #191e2c;
+  border-color: #394157;
+  color: #e8ebf4;
 }
 .notification-toast .toast-header {
-  color: #b2b8bd;
+  background: #202638;
+  border-bottom-color: #394157;
+  color: #e8ebf4;
 }
 .notification-toast .btn-close {
   color: #b2b8bd;
