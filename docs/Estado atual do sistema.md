@@ -1,5 +1,7 @@
 # Estado atual do sistema
 
+> Atualização de 12/10/2026: a exportação assíncrona dos itens 10.3/10.4 passou a existir. Veja [Exportação de eventos](<Exportacao de eventos.md>): geração e download global, `ExportJob`, Celery, SQL/consulta offline, manifesto e termo PDF. As observações de ausência de exportação na revisão original abaixo são históricas; não significam ausência na versão atual.
+
 Revisão do código em **12/10/2026**. Este documento consolida a implementação atual. Documentos de escopo descrevem requisitos; os relatórios de 03 e 04/10 registram verificações anteriores. Consulte [o índice](README.md), [operação e desenvolvimento](<Operacao e desenvolvimento.md>) e [a avaliação da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
 
 ## Arquitetura e contextos
@@ -118,9 +120,9 @@ Estados: Rascunho → Agendado → Aberto → Em andamento; pausa/retomada, Ence
 
 A API bloqueia diversas operações em Encerrado/Arquivado; o frontend utiliza `readOnly`. Isso ainda **não comprova leitura exclusiva integral**: suporte administrativo e retomada de delegação possuem caminhos de escrita sem a mesma barreira, detalhados na [avaliação da etapa 10](<Etapa 10 - verificacao e pendencias.md>). A gestão global conserva ações fora do contexto arquivado que exigem análise de escopo.
 
-`AuditLog` possui proteção append-only e registro de ações do domínio. Históricos de casos e downloads autorizados de evidências são auditados. Não existe, no painel, consulta geral da auditoria de um evento nem exportação formal em ZIP. Modelos de retenção, consentimento e Legal Hold não equivalem a um motor de retenção operacional concluído.
+`AuditLog` possui proteção append-only e registro de ações do domínio. Históricos de casos e downloads autorizados de evidências são auditados. A consulta geral da auditoria no painel ainda está pendente; a exportação ZIP e a consulta offline dos registros de auditoria foram adicionadas, conforme o guia de exportação. Modelos de retenção, consentimento e Legal Hold não equivalem a um motor de retenção operacional concluído.
 
-As etapas 1–8 têm registros históricos de conclusão; melhorias posteriores ampliaram esses recursos. A etapa 9 continua parcial; a etapa 10 é parcial somente quanto ao arquivamento/consulta, e a exportação está pendente. Homologação integral e gate de produção permanecem no backlog.
+As etapas 1–8 têm registros históricos de conclusão; melhorias posteriores ampliaram esses recursos. A etapa 9 continua parcial; a etapa 10 é parcial somente quanto ao arquivamento/consulta, e a exportação técnica foi entregue e a homologação formal permanece pendente. Homologação integral e gate de produção permanecem no backlog.
 
 ## Automações registradas
 
@@ -131,7 +133,7 @@ As etapas 1–8 têm registros históricos de conclusão; melhorias posteriores 
 | `apps.passes.tasks.expire` | 30 s | Expiração de passes |
 | `apps.passes.tasks.initial_gifts` | 30 s | Presente inicial |
 
-Não há tarefa Celery de exportação ou retenção registrada em `CELERY_BEAT_SCHEDULE`. A separação por filas descrita no backlog é direção de arquitetura, não prova de roteamento implementado.
+Exportação usa a tarefa sob demanda `apps.events.export_tasks.generate`, não Beat. Retenção ainda não possui tarefa periódica registrada. A separação por filas descrita no backlog é direção de arquitetura, não prova de roteamento implementado.
 
 ## Migrações e validação
 

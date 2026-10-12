@@ -7,3 +7,4 @@ __pycache__/
 .tools/
 backend/staticfiles/
 backend/media/
+backend/backups

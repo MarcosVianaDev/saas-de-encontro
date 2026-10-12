@@ -2,6 +2,7 @@ import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import Dropdown from "react-bootstrap/Dropdown";
+import { EventExportButton } from "./EventExportButton";
 import Accordion from "react-bootstrap/Accordion";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
@@ -1526,6 +1527,7 @@ export function Administration({
                       Relatório do evento ›
                     </button>
                   )}
+                  {!mock && data.globalContext && <EventExportButton key={data.event.id} eventId={data.event.id} />}
                   <button
                     className="account-logout"
                     disabled={busy}

@@ -1,4 +1,4 @@
-# Recria o banco local para testes manuais. Nao cria usuarios nem dados demo.
+# Limpa banco, Redis e exportacoes locais. Preserva as fotos e nao cria usuarios.
 [CmdletBinding()]
 param([switch]$Force)
 
@@ -20,6 +20,7 @@ try {
     Invoke-Compose -ComposeArgs @('version')
     Write-Host 'ATENCAO: todos os cadastros, usuarios, sessoes e registros de auditoria serao apagados.' -ForegroundColor Yellow
     Write-Host 'O Redis do projeto tambem sera esvaziado. Fotos em backend/media serao preservadas.'
+    Write-Host 'Todo o conteudo de backend/backups (ZIPs e termos PDF) tambem sera removido.' -ForegroundColor Yellow
     if (-not $Force) {
         $answer = Read-Host 'Digite ZERAR para confirmar'
         if ($answer -cne 'ZERAR') {
@@ -49,17 +50,38 @@ try {
 
     $resetCode = @'
 import os
+import shutil
+from pathlib import Path
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 import django
 django.setup()
 from django.core.management import call_command
 from django.db import connection, transaction
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 if connection.vendor != "postgresql":
     raise RuntimeError("Este script exige o PostgreSQL local do projeto.")
 if connection.settings_dict["HOST"] != "db":
     raise RuntimeError("POSTGRES_HOST deve ser db: reset permitido apenas no Compose local.")
+
+# O backend e montado em /app pelo Compose. Limpa somente o diretorio
+# backups desta montagem, sem seguir links para fora do projeto.
+backend_root = Path(settings.BASE_DIR).resolve()
+backups = backend_root / "backups"
+if backups.is_symlink() or backups.resolve().parent != backend_root:
+    raise RuntimeError("Diretorio de backups invalido: a limpeza nao segue links externos.")
+backups.mkdir(exist_ok=True)
+for entry in backups.iterdir():
+    if entry.is_symlink():
+        entry.unlink()
+    elif entry.is_dir():
+        if not entry.resolve().is_relative_to(backups.resolve()):
+            raise RuntimeError("Diretorio fora da pasta de backups.")
+        shutil.rmtree(entry)
+    else:
+        entry.unlink()
+print("Conteudo de backend/backups removido; diretorio preservado.")
 
 with transaction.atomic():
     with connection.cursor() as cursor:

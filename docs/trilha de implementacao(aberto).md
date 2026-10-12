@@ -153,7 +153,7 @@ Portanto, desenvolver mecanismo e configuração, mas não fixar arbitrariamente
 
 # ETAPA 10 — Arquivamento e exportação
 
-Revisão de 12/10/2026: **10.1 parcial; 10.2 e 10.3 não implementados; 10.4 com requisitos principais definidos e geração pendente**. Evidências, lacunas de leitura exclusiva, dependências de retenção/Legal Hold, critérios de aceite e sequência de entrega estão em [Etapa 10 — verificação e pendências](<Etapa 10 - verificacao e pendencias.md>). Todos os cards abaixo permanecem abertos.
+Revisão de 12/10/2026: **10.1 parcial; 10.2 com botão de teste; 10.3 e 10.4 com implementação técnica entregue (homologação formal pendente)**. Evidências, lacunas de leitura exclusiva, dependências de retenção/Legal Hold, critérios de aceite e sequência de entrega estão em [Etapa 10 — verificação e pendências](<Etapa 10 - verificacao e pendencias.md>). Todos os cards abaixo permanecem abertos.
 
 ## Card 10.1 — Evento arquivado
 
@@ -208,13 +208,15 @@ Não tentar produzir pacote pesado dentro da requisição HTTP.
 
 ## Card 10.3 — Celery de exportação
 
-**Status: não implementado.** Não há `ExportJob`, tarefa de exportação ou rota de download registrada.
+> Implementação posterior em 12/10/2026: job, API, fila Celery, progresso, retry e downloads auditados foram entregues, com botão de testes no acesso global. Ver [Exportação de eventos](<Exportacao de eventos.md>). A lista original abaixo identifica a revisão anterior; a homologação formal integrada de toda a etapa continua pendente.
 
-- [ ] Modelo/migração, estados e timestamps do job.
-- [ ] Serviço de domínio e tarefa Celery idempotente, com fotografia consistente e tratamento de falha/retry.
-- [ ] Consulta de progresso, retry e mensagens controladas.
-- [ ] Armazenamento privado e downloads autenticados/auditados de ZIP e PDF.
-- [ ] Testes de repetição, falha e acesso cruzado a artefatos.
+**Status: implementação técnica entregue.** `ExportJob`, tarefa Celery, retry, API de status e downloads autenticados/auditados estão em funcionamento. A homologação formal integrada continua pendente.
+
+- [x] Modelo/migração, estados e timestamps do job.
+- [x] Serviço de domínio e tarefa Celery idempotente, com fotografia consistente e tratamento de falha/retry.
+- [x] Consulta de progresso, retry e mensagens controladas.
+- [x] Armazenamento privado e downloads autenticados/auditados de ZIP e PDF.
+- [x] Testes de repetição, falha e acesso cruzado a artefatos.
 
 API cria `ExportJob`.
 
@@ -248,7 +250,9 @@ Botão:
 
 ## Card 10.4 — Estrutura do pacote
 
-**Status: requisitos principais definidos; geração não implementada.** A consolidação posterior em [Escopo Técnico — Exportação auditável do evento](<Escopo Técnico.md>) especifica:
+> Implementação posterior em 12/10/2026: formato v1 com SQL isolado, consulta administrativa offline, mídias disponíveis, manifesto, hashes e PDF externo foi entregue. Ver [Exportação de eventos](<Exportacao de eventos.md>) para detalhes e limites de assinatura/retenção. Preservação de dados e entrega formal ainda dependem das políticas aplicáveis.
+
+**Status: formato v1 implementado.** A consolidação posterior em [Escopo Técnico — Exportação auditável do evento](<Escopo Técnico.md>) especifica:
 
 - ZIP limitado ao evento e ao escopo autorizado;
 - SQL restrito ao evento, incluindo todos os logs relacionados;

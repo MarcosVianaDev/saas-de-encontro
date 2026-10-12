@@ -77,3 +77,30 @@ class EventAdministrator(BaseModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=('event', 'user'), name="events_eventadministrator_unique")]
+
+
+class ExportJob(BaseModel):
+    event = models.ForeignKey(Event, on_delete=models.PROTECT, related_name='exports')
+    requested_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='exports')
+    reference = models.CharField(max_length=500, blank=True)
+    modules = models.JSONField(default=list)
+    state = models.CharField(max_length=12, default='PENDING', choices=[('PENDING', 'Pendente'), ('PROCESSING', 'Processando'), ('COMPLETED', 'Concluído'), ('FAILED', 'Falhou')])
+    progress = models.PositiveSmallIntegerField(default=0)
+    stage = models.CharField(max_length=200, default='Aguardando Celery')
+    attempts = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    zip_path = models.CharField(max_length=500, blank=True)
+    pdf_path = models.CharField(max_length=500, blank=True)
+    zip_sha256 = models.CharField(max_length=64, blank=True)
+    pdf_sha256 = models.CharField(max_length=64, blank=True)
+    error = models.CharField(max_length=500, blank=True)
+    manifest = models.JSONField(default=dict)
+    signed_pdf_path = models.CharField(max_length=500, blank=True)
+    signed_pdf_sha256 = models.CharField(max_length=64, blank=True)
+    signature_reference = models.CharField(max_length=500, blank=True)
+    delivery_reference = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['event'], condition=models.Q(state__in=['PENDING', 'PROCESSING']), name='event_one_active_export')]

@@ -22,7 +22,15 @@ docker compose exec backend python manage.py createsuperuser
 docker compose up -d --force-recreate frontend
 ```
 
-Os scripts `zerar-banco.ps1` e `zerar-banco.sh` são destrutivos: apagam dados do banco/Redis do projeto e preservam arquivos de mídia conforme a implementação. Não fazem parte da inicialização comum. Consulte o README da raiz para as condições e confirmações desses scripts.
+Os scripts [full-clean.ps1](../full-clean.ps1) e [full-clean.sh](../full-clean.sh) são destrutivos: apagam dados do PostgreSQL/Redis do projeto e **todo o conteúdo de `backend/backups`**, incluindo ZIPs e termos PDF. Preservam a pasta de backups vazia e as fotos em `backend/media`. A limpeza acontece com backend/worker/Beat parados e não segue links para diretórios externos. Pedem `ZERAR`; `-Force` (PowerShell) ou `--force` (Bash) dispensam a confirmação. Usam a pasta do próprio script mesmo quando chamados de outro diretório. Não fazem parte da inicialização comum. Consulte o README da raiz para as demais condições.
+
+```powershell
+.\full-clean.ps1
+```
+
+```bash
+bash full-clean.sh
+```
 
 ## Validação
 
@@ -62,7 +70,7 @@ Alterações em tarefas ou agendamento exigem recarregar os processos correspond
 | Avisos e notificações | `backend/api/notifications.py`, `backend/apps/notifications/announcements.py` |
 | Tema e componentes | `frontend/styles.css`, `administration.css`, `toggles.css`; confira os imports vigentes de `main.tsx` |
 | Auditoria | `backend/apps/audit/models.py`, `services.py`, migrações append-only |
-| Exportação | Ainda sem módulo de implementação; seguir a avaliação da etapa 10 |
+| Exportação | `backend/api/exports.py`, `backend/apps/events/export_service.py`, `export_snapshot.py`, `export_tasks.py`; ver [Exportação de eventos](<Exportacao de eventos.md>) |
 
 ## Contratos recentes da API
 

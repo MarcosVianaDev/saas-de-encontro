@@ -52,4 +52,4 @@ A operação inclui ativação, moderação, suporte, intervenções, avisos, pa
 
 ## Arquivamento
 
-Arquivamento automático ocorre quinze dias após encerramento e mantém consultas autorizadas. Existem lacunas de leitura exclusiva, consulta geral de auditoria e exportação; consulte [a etapa 10](<Etapa 10 - verificacao e pendencias.md>). Não há exportação funcional em ZIP nesta versão.
+Arquivamento automático ocorre quinze dias após encerramento e mantém consultas autorizadas. Existem lacunas de leitura exclusiva, consulta geral de auditoria e exportação; consulte [a etapa 10](<Etapa 10 - verificacao e pendencias.md>). O botão de exportação para testes está disponível no acesso global do evento; ver [Exportação de eventos](<Exportacao de eventos.md>).

@@ -12,8 +12,12 @@ from .support import SupportView,AdminSupportView
 from .passes import LikesReceivedView,AdminPassView,FinancialReportView
 from .location import LocationView,LocationExceptionView,LocationHistoryView,LocationDecisionView
 from .notifications import NotificationView,AnnouncementView
+from .exports import EventExportsView, ExportStatusView, ExportDownloadView
 
 urlpatterns = [
+    path('event-admin/exports/', EventExportsView.as_view()),
+    path('event-admin/exports/<uuid:identifier>/', ExportStatusView.as_view()),
+    path('event-admin/exports/<uuid:identifier>/download/', ExportDownloadView.as_view()),
     path('event-admin/participants/<uuid:participant_id>/profile/',AdminParticipantProfileView.as_view()),
     path('outfits/<uuid:participant_id>/content/',OutfitContentView.as_view()),
     path('event-admin/participants/<uuid:participant_id>/profile-intervention/',ProfileInterventionView.as_view()),

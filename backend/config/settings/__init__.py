@@ -66,6 +66,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SESSION_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
 MEDIA_ROOT = BASE_DIR / "media"
+EXPORT_DOWNLOAD_TTL_HOURS = int(os.getenv('EXPORT_DOWNLOAD_TTL_HOURS', '168'))
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER':'api.exceptions.exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],

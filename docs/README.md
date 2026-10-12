@@ -4,6 +4,8 @@ Consolidação em **12/10/2026**, confrontada com o código e as verificações 
 
 ## Referência atual
 
+Atualização de implementação: [Exportação de eventos](<Exportacao de eventos.md>) documenta a entrega dos itens 10.3/10.4, o botão no acesso global, os arquivos em `backend/backups`, os testes e os limites da assinatura externa.
+
 | Documento | Uso |
 |---|---|
 | [Estado atual do sistema](<Estado atual do sistema.md>) | Implementação dos três acessos e consolidação das alterações recentes |
@@ -51,7 +53,7 @@ Os DOCX homônimos são fontes preservadas, sem sincronização automática com 
 
 Cadastro global de cliente com conta/equipe; responsável de evento vinculado ao cliente; equipe editável e controles de senha; criação/solicitação de eventos; Mais com abas/accordions; toggles; tema Claro/Escuro/Automático com cores por acesso; UF de residência; tópicos em banco com regras por evento e mínimo obrigatório; notificações por contexto e de mensagens/passes; revelação automática de likes; relatório pós-evento; Presente inicial gratuito imediato/agendado, com notificação, unicidade e validação de prazo.
 
-Exportação ZIP, `ExportJob`, worker de exportação, SPA offline e termo de integridade continuam **não implementados**. Arquivamento existe, mas leitura exclusiva e auditoria ainda têm lacunas.
+Exportação ZIP, `ExportJob`, worker, consulta offline, manifesto/hashes e termo PDF externo foram implementados em 12/10/2026; consulte Exportação de eventos. Arquivamento existe, mas leitura exclusiva e auditoria geral do painel ainda têm lacunas próprias da etapa 10.1. Assinatura criptográfica automatizada e encaminhamento externo não fazem parte do botão de testes.
 
 ## Validação e manutenção
 

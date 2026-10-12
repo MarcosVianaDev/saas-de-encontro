@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Consulta administrativa offline</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;color:#e8ebf4;background:#101522}header{background:#611b29;padding:24px;border-bottom:1px solid #8f3548}h1{margin:8px 0;font-size:25px}h2{margin:10px 0}small,.muted{color:#b9c0d3}nav{display:flex;gap:8px;flex-wrap:wrap;padding:16px;background:#191e2c;position:sticky;top:0}button{font:inherit;color:inherit;background:#293148;border:1px solid #46516d;border-radius:9px;padding:9px 13px;cursor:pointer}button[aria-current=true]{background:#c62835;color:white}main{max-width:1250px;margin:auto;padding:20px}section,.card{border:1px solid #394157;border-radius:12px;padding:18px;background:#191e2c;margin-bottom:16px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.card strong{font-size:28px;display:block}input{font:inherit;background:#151b2a;color:#e8ebf4;border:1px solid #46516d;border-radius:8px;padding:11px;width:100%;margin:12px 0}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px;border-bottom:1px solid #394157;max-width:320px;overflow-wrap:anywhere}tbody tr:hover{background:#293148;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#151b2a;padding:12px;border-radius:8px}dialog{background:#191e2c;color:#e8ebf4;border:1px solid #46516d;border-radius:12px;width:min(900px,95vw);max-height:90vh}dialog::backdrop{background:#000a}dt{font-weight:bold;margin-top:14px}dd{margin:5px 0;overflow-wrap:anywhere}img{max-width:100%;max-height:450px;border-radius:10px}.detail-top{display:flex;justify-content:space-between;align-items:center}a{color:#9fbfff}button:focus-visible,input:focus-visible{outline:3px solid #ff9aa6;outline-offset:2px}
+</style></head><body>
+<header><small>ADMINISTRAÇÃO GLOBAL · EXPORTAÇÃO SOMENTE LEITURA</small><h1 id="event-name"></h1><p>Fotografia offline do evento. Nenhuma ação administrativa ou comunicação com produção.</p></header>
+<nav id="navigation" aria-label="Consultas do evento"></nav><main id="content"></main>
+<dialog id="detail"><div class="detail-top"><h2 id="detail-name"></h2><button id="close" type="button">Fechar</button></div><div id="detail-body"></div></dialog>
+<script id="snapshot" type="application/json">__SNAPSHOT__</script>
+<script>
+const data=JSON.parse(document.getElementById('snapshot').textContent),records=data.records,schemas=data.schemas;
+const event=records['events.event'][0],content=document.getElementById('content'),detail=document.getElementById('detail');
+document.getElementById('event-name').textContent=event.name;
+document.getElementById('close').onclick=()=>detail.close();
+const sections={
+  'Dashboard':[],
+  'Evento e equipe':['events.','organizations.','rooms.'],
+  'Participantes e perfis':['participants.eventparticipant','profiles.'],
+  'Moderação':['reports.','moderation.'],
+  'Mensagens e matches':['messaging.','matches.'],
+  'Passes e financeiro':['passes.','payments.'],
+  'Avisos e suporte':['notifications.'],
+  'Geolocalização':['participants.location'],
+  'Consentimentos e preservação':['consent.','retention.'],
+  'Auditoria':['audit.'],
+  'Discovery e interações':['discovery.','interactions.'],
+};
+const names={'events.event':'Evento','events.eventadministrator':'Equipe','participants.eventparticipant':'Participações','profiles.participantprofile':'Perfis','profiles.participantphoto':'Fotos','profiles.profiletopic':'Tópicos','reports.report':'Denúncias','reports.reportevidence':'Evidências','moderation.moderationcase':'Ocorrências','messaging.message':'Mensagens','audit.auditlog':'Auditoria','notifications.supportthread':'Atendimentos','notifications.supportmessage':'Respostas de suporte','passes.participantpass':'Passes concedidos'};
+const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+function summary(row){return row.name||row.title||row.first_name&&[row.first_name,row.last_name].join(' ')||row.email||row.action||row.body||row.description||row.id;}
+function inspect(label,row){
+ document.getElementById('detail-name').textContent=names[label]||label;
+ const body=document.getElementById('detail-body');body.replaceChildren();const dl=el('dl');body.append(dl);
+ for(const [key,value] of Object.entries(row)){
+  dl.append(el('dt',key));const dd=el('dd');dl.append(dd);
+  const related=schemas[label].relations[key];const target=related&&(records[related]||[]).find(r=>String(r.id)===String(value));
+  if(target){const b=el('button',summary(target));b.type='button';b.onclick=()=>inspect(related,target);dd.append(b);}
+  else if(value&&typeof value==='object'){dd.append(el('pre',JSON.stringify(value,null,2)));}
+  else dd.textContent=value===null?'Não disponível':String(value);
+ }
+ if(row.storage_key&&data.media[row.storage_key]){const img=el('img');img.src=data.media[row.storage_key];img.alt='Mídia autorizada do registro';body.append(img);}
+ if(!detail.open)detail.showModal();
+}
+function show(name){
+ for(const b of document.querySelectorAll('nav button'))b.setAttribute('aria-current',String(b.textContent===name));
+ content.replaceChildren(el('h2',name));
+ if(name==='Dashboard'){
+  const cards=el('div');cards.className='cards';content.append(cards);
+  for(const [label,model] of Object.entries({'Participantes':'participants.eventparticipant','Ocorrências':'moderation.moderationcase','Matches':'matches.match','Mensagens':'messaging.message','Passes':'passes.participantpass','Auditoria':'audit.auditlog'})){
+   const card=el('div');card.className='card';card.append(el('strong',(records[model]||[]).length),el('span',label));cards.append(card);
+  }
+  const section=el('section');section.append(el('h2','Estado do evento'),el('p',event.state),el('p','Início: '+event.starts_at),el('p','Término: '+event.ends_at),el('p','Arquivado em: '+(event.archived_at||'Não arquivado')));content.append(section);
+  if(data.missingMedia.length)content.append(el('p',data.missingMedia.length+' mídias não estavam disponíveis no armazenamento. Consulte o manifesto.'));
+  const b=el('button','Consultar configuração do evento');b.onclick=()=>inspect('events.event',event);content.append(b);return;
+ }
+ const search=el('input');search.type='search';search.placeholder='Buscar registros';search.setAttribute('aria-label','Buscar registros');content.append(search);const results=el('div');content.append(results);
+ function render(){results.replaceChildren();let found=false;
+  for(const [label,rows] of Object.entries(records)){
+   if(!sections[name].some(prefix=>label.startsWith(prefix)))continue;
+   const filtered=rows.filter(row=>JSON.stringify(row).toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')));
+   if(!filtered.length)continue;found=true;const section=el('section');section.append(el('h2',(names[label]||label)+' ('+filtered.length+')'));
+   const wrap=el('div');wrap.className='table-wrap';section.append(wrap);const table=el('table'),head=el('thead'),body=el('tbody'),tr=el('tr');tr.append(el('th','Registro'),el('th','Data'),el('th','Consulta'));head.append(tr);table.append(head,body);wrap.append(table);
+   for(const row of filtered){const line=el('tr');line.append(el('td',String(summary(row)).slice(0,200)),el('td',row.created_at||''));const td=el('td'),b=el('button','Ver detalhes');b.onclick=()=>inspect(label,row);td.append(b);line.append(td);line.onclick=()=>inspect(label,row);body.append(line);}
+   results.append(section);
+  }if(!found)results.append(el('p','Nenhum registro disponível neste módulo/escopo.'));
+ }search.oninput=render;render();
+}
+for(const name of Object.keys(sections)){const b=el('button',name);b.type='button';b.onclick=()=>show(name);document.getElementById('navigation').append(b);}show('Dashboard');
+</script></body></html>

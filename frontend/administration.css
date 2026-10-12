@@ -1125,6 +1125,20 @@
   gap: 12px;
   margin-top: 16px;
 }
+.event-export-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.event-export-control button {
+  white-space: normal;
+}
+.event-export-control > span:empty {
+  display: none;
+}
 .event-form-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

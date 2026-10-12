@@ -1,5 +1,7 @@
 # Etapa 10 — verificação e pendências
 
+> **Atualização posterior desta mesma data:** os itens 10.3/10.4 receberam implementação de job/Celery, pacote SQL + consulta offline, manifesto/hashes, PDF externo e botão de testes no acesso global. Consulte [Exportação de eventos](<Exportacao de eventos.md>) para contratos, formato entregue, validação e limites. O diagnóstico abaixo preserva a revisão que motivou a implementação; as lacunas de 10.1/10.2 e governança continuam aplicáveis. Não usar a antiga ausência de `ExportJob` como descrição do código atualizado.
+
 Revisão em **12/10/2026**, por confronto do [backlog aberto](<trilha de implementacao(aberto).md>), da seção **Exportação auditável do evento** do [Escopo Técnico](<Escopo Técnico.md>) e do código atual. Esta revisão não implementa a exportação nem conclui cards.
 
 ## Resultado por card

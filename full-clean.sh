@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Recria o banco do Compose na VPS. Nao cria usuarios nem dados demo.
+# Limpa banco, Redis e exportacoes do Compose. Preserva as fotos.
 set -Eeuo pipefail
 
 usage() {
-    printf 'Uso: bash zerar-banco.sh [--force]\n'
+    printf 'Uso: bash full-clean.sh [--force]\n'
 }
 
 force=false
@@ -23,7 +23,7 @@ cd -- "$script_dir"
 
 on_error() {
     local status=$?
-    printf '\nFalha ao zerar o banco (codigo %s). Os servicos podem estar parados; corrija o erro e execute novamente.\n' "$status" >&2
+    printf '\nFalha na limpeza completa (codigo %s). Os servicos podem estar parados; corrija o erro e execute novamente.\n' "$status" >&2
     exit "$status"
 }
 trap on_error ERR
@@ -36,6 +36,7 @@ command -v python3 >/dev/null
 docker compose version
 printf '%s\n' \
     'ATENCAO: todos os cadastros, usuarios, sessoes e registros de auditoria serao apagados.' \
+    'Todo o conteudo de backend/backups (ZIPs e termos PDF) tambem sera removido.' \
     'O Redis do projeto tambem sera esvaziado. Fotos em backend/media serao preservadas.'
 if [[ "$force" != true ]]; then
     answer=''
@@ -70,17 +71,37 @@ docker compose exec -T redis redis-cli FLUSHALL
 
 docker compose run --rm --no-deps -T backend python - <<'PY'
 import os
+import shutil
+from pathlib import Path
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 import django
 django.setup()
 from django.core.management import call_command
 from django.db import connection, transaction
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 if connection.vendor != 'postgresql':
     raise RuntimeError('Este script exige o PostgreSQL do projeto.')
 if connection.settings_dict['HOST'] != 'db':
     raise RuntimeError('POSTGRES_HOST deve ser db: reset permitido apenas no banco deste Compose.')
+
+# Limita a limpeza a /app/backups na montagem do backend deste Compose.
+backend_root = Path(settings.BASE_DIR).resolve()
+backups = backend_root / 'backups'
+if backups.is_symlink() or backups.resolve().parent != backend_root:
+    raise RuntimeError('Diretorio de backups invalido: a limpeza nao segue links externos.')
+backups.mkdir(exist_ok=True)
+for entry in backups.iterdir():
+    if entry.is_symlink():
+        entry.unlink()
+    elif entry.is_dir():
+        if not entry.resolve().is_relative_to(backups.resolve()):
+            raise RuntimeError('Diretorio fora da pasta de backups.')
+        shutil.rmtree(entry)
+    else:
+        entry.unlink()
+print('Conteudo de backend/backups removido; diretorio preservado.')
 
 with transaction.atomic():
     with connection.cursor() as cursor:

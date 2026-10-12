@@ -1,5 +1,7 @@
 # Verificação da implementação
 
+> Atualização após a entrega de exportação: `api.test_exports` passou com 9 testes de geração, SQL/restauração, isolamento, autorização, mídia/hash/PDF, falhas, auditoria, expiração e registro de assinatura/encaminhamento. Build e checks atuais passaram; o check de migrações deixou de detectar pendência após aplicar `events.0008`. O Celery real concluiu uma exportação em `backend/backups`, e a consulta offline foi validada sem rede. A suíte completa abaixo é a execução anterior desta data, não foi declarada integralmente aprovada pela entrega de exportação.
+
 Execução em **12/10/2026**. Fontes: código, [Estado atual](<Estado atual do sistema.md>) e [avaliação da etapa 10](<Etapa 10 - verificacao e pendencias.md>). A [verificação anterior](<historico/Verificacao da implementacao - 04-10-2026.md>) foi preservada.
 
 ## Comandos e resultados
