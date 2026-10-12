@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Dropdown from "react-bootstrap/Dropdown";
 import { request } from "./backend-client";
 
 type Job = { id: string; state: string; progress: number; stage: string; error: string; download: string | null; term: string | null; expires: string | null; canRetry?: boolean };
@@ -22,7 +23,6 @@ export function EventExportButton({ eventId }: { eventId: string }) {
   const expired = Boolean(job?.expires && new Date(job.expires).getTime() <= Date.now());
   const running = Boolean(job && ["PENDING", "PROCESSING"].includes(job.state) && !job.canRetry);
   async function click() {
-    if (job?.state === "COMPLETED" && !expired && job.download) { window.location.assign(job.download); return; }
     setBusy(true); setError("");
     try {
       setJob(await request<Job>(job?.canRetry || job?.state === "FAILED" || expired ? `event-admin/exports/${job!.id}/` : "event-admin/exports/", "POST", job?.canRetry || job?.state === "FAILED" || expired ? { action: "retry" } : {}));
@@ -30,11 +30,21 @@ export function EventExportButton({ eventId }: { eventId: string }) {
     finally { setBusy(false); }
   }
   return <div className="event-export-control">
-    <button type="button" className="adm-primary" disabled={busy || running} onClick={() => void click()}>
-      {busy ? "Solicitando exportação…" : running ? `${job?.stage} (${job?.progress}%)` : job?.state === "COMPLETED" && !expired ? "Baixar exportação ZIP" : job?.canRetry || job?.state === "FAILED" || expired ? "Tentar exportação novamente" : "Gerar exportação"}
+    {job?.state === "COMPLETED" && !expired ? (
+      <Dropdown>
+        <Dropdown.Toggle className="adm-primary" id={`export-download-${job.id}`}>
+          Baixar dados
+        </Dropdown.Toggle>
+        <Dropdown.Menu align="end">
+          <Dropdown.Item href={job.term || undefined} disabled={!job.term}>Baixar o Termo</Dropdown.Item>
+          <Dropdown.Item href={job.download || undefined} disabled={!job.download}>Baixar ZIP</Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
+    ) : (
+    <button type="button" className="adm-primary" aria-live="polite" aria-busy={busy || running} disabled={busy || running} onClick={() => void click()}>
+      {busy ? "Solicitando exportação…" : running ? `${job?.stage} (${job?.progress}%)` : "Exportar dados"}
     </button>
-    <span role="status" aria-live="polite">{running ? job?.stage : job?.state === "COMPLETED" && !expired ? "Exportação concluída." : ""}</span>
-    {job?.state === "COMPLETED" && !expired && job.term && <a className="client-password-button" href={job.term}>Baixar termo de integridade PDF</a>}
+    )}
     {(error || job?.error) && <p role="alert">{error || job?.error}</p>}
   </div>;
 }

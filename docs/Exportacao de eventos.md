@@ -4,9 +4,9 @@ Implementação em 12/10/2026. A geração é assíncrona no Celery e autorizada
 
 ## Uso na interface
 
-No contexto global de um evento, abra Mais. Entre Relatório do evento e Sair da conta, Gerar exportação solicita o pacote. O botão mostra a etapa/progresso do job e consulta o status a cada dois segundos. Ao concluir, passa a Baixar exportação ZIP. O termo de integridade PDF é baixado separadamente. Em falha, há nova tentativa.
+No contexto global de um evento, abra Mais. Entre Relatório do evento e Sair da conta, **Exportar dados** solicita o pacote. O próprio botão mostra a etapa/progresso do job e consulta o status a cada dois segundos. Ao concluir, passa a um dropdown **Baixar dados** com as opções **Baixar o Termo** (PDF) e **Baixar ZIP**, sem label separada de conclusão. Em falha ou expiração, Exportar dados permite uma nova tentativa.
 
-Geração não faz download automático ao concluir: o próximo clique baixa o ZIP. Apenas uma geração pode estar pendente/processando para cada evento; repetição da requisição retorna o mesmo job. Recargas recuperam a exportação mais recente daquele evento.
+Geração não faz download automático ao concluir: escolha o arquivo no dropdown. Apenas uma geração pode estar pendente/processando para cada evento; repetição da requisição retorna o mesmo job. Recargas recuperam a exportação mais recente daquele evento.
 
 ## Arquivos e formato
 

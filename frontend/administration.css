@@ -1136,8 +1136,8 @@
 .event-export-control button {
   white-space: normal;
 }
-.event-export-control > span:empty {
-  display: none;
+.event-export-control .dropdown-toggle {
+  width: 100%;
 }
 .event-form-pair {
   display: grid;
