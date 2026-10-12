@@ -181,6 +181,8 @@ class ProfileView(APIView):
             participant.onboarding_completed_at = participant.onboarding_completed_at or timezone.now()
             participant.save()
             audit(request.user, "profile.updated" if participant.is_active else 'profile.pending', profile)
+            from apps.passes.gifts import grant_initial_gift
+            grant_initial_gift(participant)
         return Response(bootstrap(participant))
 
 

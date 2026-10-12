@@ -32,6 +32,9 @@ class ParticipantPass(BaseModel):
     offer = models.ForeignKey("passes.EventPassOffer", on_delete=models.PROTECT, related_name="participant_passes")
     expires_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['participant'], condition=models.Q(origin='INITIAL_GIFT'), name='participant_initial_gift_unique')]
+
 
 class PassUsage(BaseModel):
     participant_pass = models.ForeignKey("passes.ParticipantPass", on_delete=models.PROTECT, related_name="usages")

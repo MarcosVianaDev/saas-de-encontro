@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
+from datetime import timedelta
 from django.core.exceptions import ValidationError as ModelValidationError
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from apps.passes.gifts import InitialGiftSerializer, configure_initial_gift
 
 from apps.audit.services import record
 from apps.events.models import Event, EventAdministrator
@@ -13,6 +15,7 @@ from .event_operations import managed_event
 
 
 class EventDetailsSerializer(serializers.Serializer):
+    initial_gift = InitialGiftSerializer(required=False)
     event = serializers.CharField(max_length=200)
     description = serializers.CharField(max_length=4000, required=False, allow_blank=True, default='')
     mode = serializers.ChoiceField(choices=['ONLINE', 'PHYSICAL', 'HYBRID'], default='PHYSICAL')
@@ -28,6 +31,9 @@ class EventDetailsSerializer(serializers.Serializer):
     def validate(self, data):
         if data['ends'] <= data['starts']:
             raise serializers.ValidationError('O término deve ser posterior ao início.')
+        gift = data.get('initial_gift', {})
+        if gift.get('enabled') and data['starts'] + timedelta(minutes=gift['delay_minutes']) >= data['ends']:
+            raise serializers.ValidationError({'initial_gift': 'O horário do presente deve ser anterior ao término do evento.'})
         if data['mode'] != 'ONLINE' and (data.get('latitude') is None or data.get('longitude') is None):
             raise serializers.ValidationError('Informe latitude e longitude do evento presencial.')
         if data['auto_activate_participants'] and data['mode'] != 'ONLINE':
@@ -64,6 +70,7 @@ class EventRequestView(APIView):
         except ModelValidationError as error:
             raise ValidationError(error.message_dict)
         event.save()
+        configure_initial_gift(event, serializer.validated_data.get('initial_gift'), request.user)
         EventAdministrator.objects.create(event=event, user=request.user, role='ADMIN')
         record(request.user, 'event.requested', event, event, source_event=str(source.pk))
         Notification.objects.bulk_create([

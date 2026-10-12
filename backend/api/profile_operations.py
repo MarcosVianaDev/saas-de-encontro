@@ -59,6 +59,8 @@ class ActivationView(APIView):
             raise PermissionDenied('Resolva a sanção antes de ativar o perfil.')
         validate_activation(p)
         p.is_active=True;p.registration_status='ACTIVE';p.deactivation_reason='';p.activated_at=p.activated_at or timezone.now();p.onboarding_completed_at=p.onboarding_completed_at or timezone.now();p.save()
+        from apps.passes.gifts import grant_initial_gift
+        grant_initial_gift(p)
         record(request.user,'profile.activated',p,p.event)
         Notification.objects.create(participant=p,event=p.event,title='Seu perfil foi ativado',body='Consulte o estado do evento para começar a descobrir participantes.')
         return Response({'ok':True})

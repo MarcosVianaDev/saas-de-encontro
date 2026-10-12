@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import timedelta
 from django.core.validators import MinValueValidator, MaxValueValidator
 from common.models import BaseModel
 from django.core.exceptions import ValidationError
@@ -48,6 +49,13 @@ class Event(BaseModel):
             raise ValidationError("A ativação automática está disponível somente para eventos online.")
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             raise ValidationError('O término deve ser posterior ao início.')
+        gift = self.settings.get('initial_gift', {}) if isinstance(self.settings, dict) else {}
+        if gift.get('enabled'):
+            delay = gift.get('delay_minutes', 0)
+            if not isinstance(delay, int) or isinstance(delay, bool) or not 0 <= delay <= 525600:
+                raise ValidationError('Informe um prazo válido para o presente inicial.')
+            if self.starts_at and self.ends_at and self.starts_at + timedelta(minutes=delay) >= self.ends_at:
+                raise ValidationError('O horário do presente deve ser anterior ao término do evento.')
         if self.mode != 'ONLINE' and (self.latitude is None or self.longitude is None):
             raise ValidationError('Informe o ponto de referência do evento presencial.')
 

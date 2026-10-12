@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { request } from "./backend-client";
+import { InitialGiftFields, initialGiftPayload } from "./InitialGiftFields";
 
 export function EventRequestForm({
   onClose,
@@ -54,7 +55,11 @@ export function EventRequestForm({
         starts: new Date(draft.starts).toISOString(),
         ends: new Date(draft.ends).toISOString(),
         auto_activate_participants: draft.auto_activate_participants === "true",
+        initial_gift: initialGiftPayload(draft),
       };
+      for (const key of Object.keys(body)) {
+        if (key.startsWith("gift_") || key === "initial_gift" && typeof body[key] === "string") delete body[key];
+      }
       if (draft.mode === "ONLINE") {
         delete body.latitude;
         delete body.longitude;
@@ -147,6 +152,7 @@ export function EventRequestForm({
             </>
           )}
           {error && <p role="alert">{error}</p>}
+          <InitialGiftFields draft={draft} onChange={change} />
           <div className="adm-actions">
             <button type="button" onClick={onClose}>
               Cancelar

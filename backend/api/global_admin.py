@@ -20,6 +20,7 @@ from apps.participants.models import EventParticipant
 from apps.reports.models import Report
 from django.db.models import Q
 from .event_requests import EventDetailsSerializer, event_details
+from apps.passes.gifts import configure_initial_gift
 from apps.profiles.models import ProfileTopic
 import uuid
 
@@ -224,6 +225,7 @@ def create_event(request):
     except ModelValidationError as error:
         raise ValidationError(error.message_dict)
     event.save()
+    configure_initial_gift(event, values.get('initial_gift'), request.user)
     EventAdministrator.objects.create(event=event, user=owner, role='ADMIN')
     for member in org.members.select_related('user').filter(user__is_active=True).exclude(user=owner):
         EventAdministrator.objects.create(event=event, user=member.user, role=member.role)

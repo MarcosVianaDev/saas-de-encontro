@@ -5,6 +5,7 @@ import Tab from "react-bootstrap/Tab";
 import { request } from "./backend-client";
 import type { SessionData, ProfileTopic } from "./types";
 import { ProfileTopicManagement } from "./ProfileTopicManagement";
+import { InitialGiftFields, initialGiftPayload } from "./InitialGiftFields";
 import { EventParticipantTopics, type EventTopicRule } from "./EventParticipantTopics";
 import "./administration.css";
 import { AdminNavigation } from "./AdminNavigation";
@@ -182,6 +183,7 @@ export function GlobalAdministration({
               starts: new Date(draft.starts).toISOString(),
               ends: new Date(draft.ends).toISOString(),
               participant_topics: topicRules,
+              initial_gift: initialGiftPayload(draft),
               location_interval_minutes:
                 draft.location_interval_minutes || "15",
               radius_m: draft.radius_m || "100",
@@ -433,6 +435,10 @@ export function GlobalAdministration({
                       evento será criado como agendado.
                     </p>
                     <hr />
+                    <InitialGiftFields draft={draft} onChange={(key, value) => {
+                      setDraft({ ...draft, [key]: value });
+                      setDirty(true);
+                    }} />
                     <EventParticipantTopics topics={data?.topics || []} rules={topicRules} onChange={(rules) => {
                       setTopicRules(rules);
                       setDirty(true);
