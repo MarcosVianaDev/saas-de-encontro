@@ -1,5 +1,7 @@
 # Cards concluídos
 
+> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+
 Etapas 1 a 8: 45 cards concluídos. Validação final em 04/10/2026: 73 testes Django, build TypeScript/Vite, fluxos no navegador e concorrência real no PostgreSQL. Consulte [cobertura detalhada](<Implementacao - etapas 1 a 8.md>).
 
 ## Card 1.1 — Máquina de estados do evento

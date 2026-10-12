@@ -1,5 +1,7 @@
 # SaaS de Encontro
 
+> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+
 > Registro histórico. Para execução e estado atual, consulte o [README do projeto](../README.md); para requisitos consolidados, consulte o [índice de documentação](README.md).
 
 ## Ambiente Docker mínimo instalado

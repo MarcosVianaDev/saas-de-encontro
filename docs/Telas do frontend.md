@@ -1,5 +1,7 @@
 # Telas do EventConnect
 
+> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+
 > Este guia registra o comportamento atual da demonstração. As decisões posteriores de favoritos somente pós-match, fotos públicas imutáveis e outfit obrigatório estão nos [requisitos consolidados](<Escopo Técnico.md>); as diferenças estão no [índice e análise](README.md).
 
 Referência visual: [screen0.png](<Imagens - Telas e Protótipos/screen0.png>).

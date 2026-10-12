@@ -1,5 +1,7 @@
 # Demonstração persistida e API
 
+> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+
 Atualizado em 04/10/2026. Este guia descreve a demonstração do participante. O painel administrativo, login por papel e ingresso por convite estão em [Administração e ingresso](<Administracao e ingresso no evento.md>).
 
 Configure no `.env`:

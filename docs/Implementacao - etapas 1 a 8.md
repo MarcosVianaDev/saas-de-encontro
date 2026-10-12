@@ -1,5 +1,7 @@
 # Implementação das etapas 1 a 8
 
+> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+
 Atualizado em 04/10/2026. Os 45 cards das etapas 1 a 8 da [trilha](<trilha de implementacao.md>) foram implementados. O conteúdo de cada card e seu registro de conclusão estão em [cards concluídos](<trilha de implementacao(fechado).md>). As etapas 9 a 12 permanecem em [cards abertos](<trilha de implementacao(aberto).md>).
 
 ## Cobertura

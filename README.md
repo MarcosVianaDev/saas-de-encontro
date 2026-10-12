@@ -1,5 +1,7 @@
 # SaaS de Encontro
 
+> Documentação consolidada em **12/10/2026**: consulte [o índice de docs](docs/README.md), [Estado atual](<docs/Estado atual do sistema.md>) e [Verificação atual](<docs/Verificacao da implementacao.md>). Números de testes de 04/10 neste README são históricos; a suíte atual tem pendências registradas.
+
 ## MVP — etapas 1 a 8
 
 As etapas 1 a 8 estão implementadas, com 45 cards em [concluídos](<docs/trilha de implementacao(fechado).md>). Consulte [cobertura, operação e validação](<docs/Implementacao - etapas 1 a 8.md>): 73 testes Django aprovados, build TypeScript/Vite e fluxos verificados no navegador. As etapas 9 a 12 permanecem no [backlog aberto](<docs/trilha de implementacao(aberto).md>).

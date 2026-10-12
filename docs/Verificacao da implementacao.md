@@ -1,78 +1,62 @@
 # Verificação da implementação
 
-> **Verificação atual:** as etapas 1 a 8 foram implementadas e validadas com 73 testes Django, build do frontend e fluxos no navegador. Consulte [Implementação das etapas 1 a 8](<Implementacao - etapas 1 a 8.md>). As seções abaixo preservam o registro anterior a essa implementação; suas pendências não substituem a cobertura atual.
+Execução em **12/10/2026**. Fontes: código, [Estado atual](<Estado atual do sistema.md>) e [avaliação da etapa 10](<Etapa 10 - verificacao e pendencias.md>). A [verificação anterior](<historico/Verificacao da implementacao - 04-10-2026.md>) foi preservada.
 
-> Os DOCX foram consolidados em Markdown em 04/10/2026. As decisões finais de escopo ampliam os requisitos considerados por esta verificação. Favoritos pós-match, outfit obrigatório, imutabilidade das fotos públicas, permissões delegáveis, geolocalização, automações do ciclo completo, alertas de 10/20 denúncias, concessão manual de passes e exportação auditável precisam de nova verificação específica. A cobertura e os testes registrados abaixo não foram reexecutados nesta alteração documental. Consulte o [índice e análise](README.md).
+## Comandos e resultados
 
-Atualizado em 04/10/2026, após a implementação do painel administrativo e do ingresso por QR Code.
+| Comando | Resultado |
+|---|---|
+| `npm --prefix frontend run build` | Aprovado: TypeScript/Vite; avisos sobre diretivas `use client` de React Bootstrap |
+| `docker compose exec -T backend python manage.py check` | Aprovado, sem problemas de system check |
+| `docker compose exec -T backend python manage.py makemigrations --check --dry-run` | Não aprovado: mudanças pendentes em `Event.mode` e `Event.radius_m`; sugere `events.0008_alter_event_mode_alter_event_radius_m` |
+| `docker compose exec -T backend python manage.py test tests api --noinput` | **171 testes: 9 falhas e 5 erros**, sem aprovação integral |
+| `docker compose exec -T backend python manage.py test api.test_mvp api.test_mvp_flows api.tests --noinput` | Reprodução: **60 testes, 9 falhas e 5 erros** |
 
-Fontes: [Escopo Técnico](<Escopo Técnico.md>), [Escopo e Ideias](<Escopo e Ideias.md>), [README](../README.md) e código atual. Os documentos de escopo definem os requisitos; este documento registra a cobertura implementada.
+Esta revisão documental não gera a migração sugerida nem corrige regras/fixtures. O arquivo de migração sugerido não foi criado pelo check. Os demais 157 testes terminaram sem falha reportada; isso não certifica produção, segurança ou homologação integral. Não houve nova rodada de todos os fluxos no navegador nesta reorganização.
 
-## Estado atual
+## Regressões reproduzidas
 
-Infraestrutura Docker funcional com Django/DRF/Daphne, React/TypeScript/Vite, PostgreSQL, Redis, Celery, Nginx e Traefik. Os 19 apps têm modelos, migrações e registros no Admin. As seis telas funcionam com mocks locais ou endpoints reais, conforme `FRONTEND_DATA_MODE`.
+Os nomes abaixo se referem a métodos de teste dos módulos indicados.
 
-`backend/start.py` aplica migrações e executa `seed_demo` antes do servidor quando DEBUG=True. A carga preenche as entidades dos 19 apps com UUIDs estáveis, transação, lock PostgreSQL e marcador de auditoria. Reinicializações preservam alterações. DEBUG=False impede a carga, mas não apaga dados já criados. Celery e comandos de teste não executam automaticamente essa inicialização.
+| Módulo / testes | Resultado e diagnóstico |
+|---|---|
+| `api.test_mvp`: `test_transition_retries_do_not_duplicate_audit_or_notifications`, `test_celery_calls_same_service_and_observes_automatic_delay`, `test_audit_failure_rolls_back_domain_changes`, `test_early_closing_requires_confirmation_reason_and_session_challenge` | 4 erros: validação exige coordenadas de evento presencial antes das asserções. Revisar fixtures/modalidade. O teste de arquivamento não chega à asserção final. |
+| `api.test_mvp`: `test_progressive_configuration_and_authorization` | 400 em vez de 200; reconciliar configuração/fixture com validações atuais. |
+| `api.test_mvp_flows`: `test_create_online_event_with_auto_activation_and_reject_physical` | 400 em vez de 201; resposta exige responsável como membro ativo do cliente. |
+| `api.test_mvp_flows`: `test_activation_requires_outfit_three_public_photos_and_event_fields`, `test_profile_removal_preserves_history_requires_origin_and_allows_replacement` | 400 em vez de 200; investigar motivo final de cada rejeição, perfil/estado/requisitos. |
+| `api.test_mvp_flows`: `test_guided_client_draft_activation_is_atomic_and_idempotent` | 400 em vez de 200; revisar fluxo legado frente ao cadastro separado e validações atuais. |
+| `api.test_mvp_flows`: `test_payment_instructions_are_global_only_and_freeze_at_start` | 400 em vez de 200; investigar configuração/fixture. |
+| `api.test_mvp_flows`: `test_geolocation_presence_outside_and_technical_recovery` | `DISTANT` em vez de `OUTSIDE`; divergência entre limites e expectativa. |
+| `api.test_mvp_flows`: `test_likes_hidden_and_reveal_oldest_consumes_once` | Erro `KeyError: hidden`; consulta anterior retorna 403 e o teste usa payload de sucesso. |
+| `api.tests`: `test_profile_filters_and_event_isolation` | 403 em vez de 404; revisar pré-condições de acesso social e escopo. |
+| `api.tests`: `test_reciprocal_match_message_and_readonly_end` | 403 em vez de 200; revisar estado/ativação/localização antes da reciprocidade. |
 
-Fixtures incluem 12 pessoas, oito conversas, perfis/fotos, preferências, interações, matches, organizações, eventos, salas, passes, pagamentos fictícios e exemplos de governança. Moderação fica em um evento histórico separado. Os registros financeiros não executam cobranças.
+Não afrouxar regras de autorização, localização ou responsável para fazer testes antigos passarem. Corrigir fixtures quando a regra estiver comprovada; investigar defeitos reais onde a origem ainda não foi determinada.
 
-## Novos fluxos administrativos documentados
+## Cobertura atual
 
-O frontend também oferece demonstração administrativa em `FRONTEND_DATA_MODE=mock`: três estados de evento, participantes com situações distintas, ocorrências, evidências fictícias, notas/histórico, bloqueios, equipe e relatório. As ações operam em memória e não consultam a API. A verificação no navegador cobre suspensão/reativação, assumir/adicionar nota/resolver/reabrir, simulação de papéis, troca de evento, QR Code demonstrativo e todas as áreas em 320, 375, 768 e 1440 pixels, confirmando ausência de chamadas ao backend.
-
-Foram incorporados os três documentos de administração do evento e os mockups `screen1.png`, `screen2.png` e `screen3.png`, reunidos em [Telas administrativas](<Telas administrativas.md>). Eles especificam Dashboard, Evento/QR Code, lista/ficha de participantes, filtros, sanções e fila/investigação/decisões de moderação. As versões Markdown preservam os textos originais.
-
-O painel React administrativo, direcionamento por papel/vínculo após login, ingresso por convite assinado, permissões por evento e ciclo de moderação foram implementados. Há suspensão por participação, banimento, notas, resolução/reabertura, histórico de auditoria, indicadores de bloqueios e evidências autorizadas. Métricas são calculadas na consulta; atividade recente utiliza `last_seen_at`. Equipe e relatório são consultivos. Detalhes e limites: [Administração e ingresso](<Administracao e ingresso no evento.md>).
-
-## Cobertura por domínio
-
-| Domínio | Implementado | Pendente |
+| Área | Evidência | Limite |
 |---|---|---|
-| Identidade | Sessão Django, login/logout, CSRF, cadastro demo somente em DEBUG | Recuperação de senha, login social e autenticação de produção |
-| Administração | Django Admin e painel React; papéis ADMIN/MODERATOR/OPERATOR e escopo por evento na API administrativa | Isolamento completo no Django Admin, escopo por organização/sala e edição de equipe no React |
-| Perfil | Edição, idade calculada, validação de campos/bio, ativação pela API com três fotos e principal | Pré-preenchimento global, catálogo tipado e estados definitivos |
-| Fotos | Upload local até dez fotos JPEG/PNG/WebP de 10 MB, três públicas, adicionais após match, acesso autenticado | S3/MinIO e upload de outfit separado |
-| Descoberta | Filtros persistidos, exclusão de decisões anteriores e participantes indisponíveis; sem flexibilização automática | Catálogo e semântica completa das preferências |
-| Interações e matches | LIKE/PASS com histórico, reciprocidade, par canônico único, locks e conversa automática | Invariantes equivalentes nas operações administrativas e revelações comerciais |
-| Mensagens | Autorização das partes, envio com match ativo, encerramento somente leitura e restrição por bloqueio | WebSocket, anexos, recibos e notificações externas |
-| Frontend | Seis telas do participante e painel administrativo, QR Code, equipe consultiva e relatório agregado | Interfaces comerciais, equipe editável, gráficos e exportação de relatórios |
-| Bloqueios/moderação | API administrativa por evento/papel, casos, notas, decisões, suspensão/reativação, banimento, indicadores de bloqueios e download auditado de evidências | Fluxo de denúncia/bloqueio do participante, coleta de evidências, catálogo formal de motivos e alertas automáticos/entre eventos |
-| Passes/pagamentos | Modelos/Admin e exemplos persistidos | Consumo atômico, saldo, expiração, revelação, estados financeiros e confirmação idempotente |
-| Consentimento/retenção | Modelos/Admin e exemplos, incluindo legal hold | Concessão/revogação, política aprovada e eliminação/anonimização operacional |
-| Auditoria | Triggers append-only, ações administrativas da API e histórico de casos baseado em AuditLog | Cobertura das alterações pelo Django Admin e demais serviços |
-| Notificações/métricas | Notificações internas de ocorrência administrativa e totais/atividade calculados por evento | E-mail/push, métricas históricas por intervalo/sala e processamento assíncrono |
-| Celery | Worker e tarefa de ping | Tarefas de domínio e agendamento; Celery Beat não está instalado |
+| Clientes/equipe global | `api.test_global_clients` | Não substitui matriz de conta/Django Admin |
+| Solicitação/ciclo de evento | `api.test_event_requests`, `test_event_timeline`, `test_mvp` | Cenário de arquivamento de FoundationTests não passa atualmente |
+| Tópicos e mínimos | `api.test_profile_topics`, `test_global_clients` | Catálogo global e regras por evento são distintos |
+| Presente inicial | `api.test_initial_gifts` | Hooks, prazo, notificação e unicidade; não prova carga do worker |
+| Likes/passes | `api.test_auto_likes`, `test_mvp_flows` | Cenário legado de revelação falha por acesso |
+| Avisos/notificações | `api.test_notification_contexts`, `test_message_notifications`, `test_announcements` | Não implica e-mail/push de produção |
+| UF de residência | `api.test_profile_residence_state` | Cadastro/exibição, sem filtro por UF |
+| Perfil/fotos administrativos | `api.test_admin_participant_profile`, `test_event_admin` | Storage definitivo continua pendente |
+| Presença Online | `api.test_online_presence` | Sem GPS; presença física tem outro fluxo |
+| Relatório pós-evento | `api.test_discovery_report` | Consulta agregada, sem pacote offline |
+| Arquivamento/exportação | Lifecycle e revisão de endpoints | Leitura exclusiva parcial; sem job/ZIP/SPA/PDF |
 
-## Limites das garantias
+## Próximos passos de verificação
 
-Ativação, reciprocidade e autorização de mensagens são verificadas na API. Cadastros pelo Admin ou código não reutilizam automaticamente todas essas regras. `save()` e operações em lote não executam `full_clean()`. A presença de modelos e constraints não comprova conformidade com todo o escopo.
+1. Reconciliar migrações e fixtures com regras atuais.
+2. Investigar os 14 resultados não aprovados e reexecutar a suíte inteira.
+3. Cobrir escritas em Arquivado, incluindo suporte e retomada de delegação; distinguir exceções de conta/privacidade.
+4. Implementar/testar consulta geral de auditoria e exportação da etapa 10.
+5. Executar matrizes de papéis/estados e homologação ponta a ponta da etapa 11.
 
-`BaseModel.clean()` foi corrigido para aceitar campos globais com `event=None`. Relações indiretas, como consumo de passes e mensagens criadas fora da API, ainda precisam de invariantes explícitas. Querysets e autocomplete administrativos não implementam todo o isolamento por organização/evento/sala.
+## Evidência histórica
 
-Fotos fictícias são assets públicos; uploads reais exigem autorização. A finalidade do filtro é informativa. O diretório independe dos filtros de descoberta. Conversas usam HTTP a cada cinco segundos, sem consumers WebSocket. Personagens não enviam respostas automáticas.
-
-## Próximas implementações
-
-1. Reutilizar serviços no Admin e tarefas, completar invariantes indiretas e impedir atalhos que contornem ativação, reciprocidade ou autorização.
-2. Definir papéis e filtrar consultas, formulários, ações e autocomplete por contexto.
-3. Completar perfil global, campos personalizados, outfit, estados e elegibilidade.
-4. Implementar bloqueios/denúncias pelo participante, moderação, alertas entre eventos, consentimentos e notificações.
-5. Implementar benefícios e pagamentos com regras comerciais definidas, idempotência e controle de concorrência.
-6. Completar tempo real, métricas e tarefas operacionais; automatizar retenção apenas após definir a política e preservação legal.
-
-Não substituir vínculos `PROTECT` por exclusão em cascata sem política explícita. Prazos jurídicos, regras fiscais de repasse, anexos, versionamento da API e infraestrutura de produção continuam em aberto.
-
-## Validação concluída
-
-```powershell
-docker compose exec backend python manage.py check
-docker compose exec backend python manage.py makemigrations --check --dry-run
-docker compose exec backend python manage.py test tests api --noinput
-docker compose exec frontend npm run build
-```
-
-Última execução em 04/10/2026: 33 testes aprovados, sem migrações pendentes e compilação TypeScript/Vite aprovada. Além da cobertura anterior, foram verificados login administrativo sem participação, papéis e isolamento, suspensão/reativação por evento, banimento, atribuição/notas/resolução/reabertura, notificações internas, atividade recente real, evidências autorizadas e ingresso/cadastro por convite assinado, incluindo DEBUG desativado e CSRF.
-
-A verificação anterior com Playwright/Edge cobriu as seis telas do participante, persistência após reload/restart e modo mock. A verificação administrativa cobre login por vínculo, navegação, filtros, ficha, modal de suspensão sem executar sanção na base local, restauração de sessão, QR Code decodificado por leitor independente e ingresso de conta existente. As áreas administrativas foram verificadas em 320, 375, 768 e 1440 pixels. Não há cobertura completa de concorrência, governança ou produção.
-
-Instruções: [Demonstração e API](<Demonstracao e API.md>) e [Telas do frontend](<Telas do frontend.md>).
+[Implementação das etapas 1–8](<Implementacao - etapas 1 a 8.md>) registra 73 testes aprovados em 04/10/2026. Trabalhos posteriores aprovaram builds e conjuntos selecionados, incluindo cliente/equipe, tópicos e presente inicial. Esses números são históricos e não substituem o resultado completo de 12/10/2026.

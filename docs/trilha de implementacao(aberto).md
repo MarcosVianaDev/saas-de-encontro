@@ -1,6 +1,6 @@
 # Cards abertos
 
-Atualização em 04/10/2026: os 45 cards das etapas 1 a 8 foram implementados e transferidos integralmente para [cards concluídos](<trilha de implementacao(fechado).md>). Consulte [cobertura e validação](<Implementacao - etapas 1 a 8.md>). Permanecem abertos os cards das etapas 9 a 12 e as diretrizes gerais abaixo.
+Revisão em **12/10/2026**: os 45 cards das etapas 1–8 permanecem no [registro histórico de conclusão](<trilha de implementacao(fechado).md>). O [Estado atual](<Estado atual do sistema.md>) consolida as alterações posteriores, e a [Verificação da implementação](<Verificacao da implementacao.md>) registra os testes atuais. As etapas 9–12 continuam abertas; a etapa 10 foi confrontada com código e requisitos consolidados, sem marcar exportação como implementada.
 
 Nesse nível de detalhe, a trilha deixa de ser apenas um roadmap e passa a funcionar como **backlog funcional de implementação**, em que cada item abaixo pode virar um card/issue independente para outro programador.
 
@@ -16,7 +16,7 @@ As telas devem seguir três contextos visuais já definidos:
 
 - **Participante:** mobile-first, identidade roxa/lilás.
 - **Administração do Evento:** responsiva, identidade roxa/lilás.
-- **Administração Global:** responsiva, identidade vermelha.
+- **Administração Global:** responsiva, identidade azul no painel global e vermelha ao administrar um evento. Tema Claro/Escuro/Automático preserva essas cores.
 - **Django Admin:** somente ferramenta técnica/interna.
 
 Mensagens devem seguir um padrão:
@@ -153,7 +153,17 @@ Portanto, desenvolver mecanismo e configuração, mas não fixar arbitrariamente
 
 # ETAPA 10 — Arquivamento e exportação
 
+Revisão de 12/10/2026: **10.1 parcial; 10.2 e 10.3 não implementados; 10.4 com requisitos principais definidos e geração pendente**. Evidências, lacunas de leitura exclusiva, dependências de retenção/Legal Hold, critérios de aceite e sequência de entrega estão em [Etapa 10 — verificação e pendências](<Etapa 10 - verificacao e pendencias.md>). Todos os cards abaixo permanecem abertos.
+
 ## Card 10.1 — Evento arquivado
+
+**Status: parcial.** Estado/transição automática após quinze dias, consultas e vários bloqueios de escrita existem. Ainda falta:
+
+- [ ] Fechar lacunas de escrita em suporte administrativo e `team.reclaim`.
+- [ ] Consolidar apresentação de Evento arquivado e ações por permissão.
+- [ ] Criar consulta geral de auditoria do evento.
+- [ ] Oferecer a ação de exportação exclusivamente ao superuser, quando implementada.
+- [ ] Cobrir leitura exclusiva na API e frontend por endpoint/papel; revisar o teste de arquivamento que hoje falha antes da asserção final.
 
 Interface read-only.
 
@@ -175,7 +185,12 @@ Ações permitidas conforme papel:
 
 ## Card 10.2 — Solicitar exportação
 
-Somente usuário autorizado.
+**Status: não implementado.** Somente Administrador Global/superuser pode gerar, baixar e assinar; ADMIN de evento, Moderador, Operador e staff sem superuser não são autorizados. A seção final Exportação auditável do evento do Escopo Técnico prevalece sobre definições anteriores.
+
+- [ ] Registrar referência formal, responsável e escopo completo ou personalizado.
+- [ ] Selecionar módulos mantendo logs do evento obrigatórios.
+- [ ] Criar job/auditoria em transação e enfileirar após commit.
+- [ ] Validar autorização e isolamento no servidor, não somente na interface.
 
 Modal:
 
@@ -192,6 +207,14 @@ Não tentar produzir pacote pesado dentro da requisição HTTP.
 ---
 
 ## Card 10.3 — Celery de exportação
+
+**Status: não implementado.** Não há `ExportJob`, tarefa de exportação ou rota de download registrada.
+
+- [ ] Modelo/migração, estados e timestamps do job.
+- [ ] Serviço de domínio e tarefa Celery idempotente, com fotografia consistente e tratamento de falha/retry.
+- [ ] Consulta de progresso, retry e mensagens controladas.
+- [ ] Armazenamento privado e downloads autenticados/auditados de ZIP e PDF.
+- [ ] Testes de repetição, falha e acesso cruzado a artefatos.
 
 API cria `ExportJob`.
 
@@ -225,17 +248,18 @@ Botão:
 
 ## Card 10.4 — Estrutura do pacote
 
-A especificação definitiva ainda precisa ser fechada, mas a direção já definida é:
+**Status: requisitos principais definidos; geração não implementada.** A consolidação posterior em [Escopo Técnico — Exportação auditável do evento](<Escopo Técnico.md>) especifica:
 
-- conteúdo navegável offline;
-- HTML read-only;
-- dados auditáveis do evento;
-- evidências autorizadas;
-- manifesto;
-- integridade verificável;
-- escopo limitado ao evento.
+- ZIP limitado ao evento e ao escopo autorizado;
+- SQL restrito ao evento, incluindo todos os logs relacionados;
+- SPA administrativa estática navegável offline, somente leitura e sem chamadas a produção;
+- mídias/evidências autorizadas e disponíveis no escopo;
+- manifesto e hashes internos;
+- SHA-256 do ZIP final congelado;
+- Termo de Exportação e Integridade em PDF externo ao ZIP;
+- auditoria de geração, escopo, termo, assinatura, download e encaminhamento.
 
-Não implementar formato definitivo até fecharmos conteúdo, autenticidade e procedimento de entrega jurídica.
+Ainda falta fechar e implementar a matriz exata de dados/módulos, os contratos de snapshot/manifesto, a estratégia de SQL/restauração isolada, a integração de retenção/Legal Hold, a política de armazenamento/validade/custódia e o procedimento de assinatura/entrega. Não usar um ZIP genérico ou o mock mutável como evidência de conclusão. O detalhamento e os testes de aceite ficam na avaliação da etapa 10.
 
 ---
 

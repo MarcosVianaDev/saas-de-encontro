@@ -1,112 +1,55 @@
 # Administração e ingresso no evento
 
-> Este guia registra a implementação existente. As definições posteriores de permissões delegáveis, alertas por denúncias e ciclo completo do evento estão nos [requisitos consolidados](<Escopo Técnico.md>); consulte o [índice e análise](README.md) para as diferenças. A consolidação documental não altera os comportamentos descritos abaixo.
+Guia operacional de **12/10/2026**. A [versão anterior](<historico/Administracao e ingresso no evento - 04-10-2026.md>) foi preservada. Regras completas: [Estado atual](<Estado atual do sistema.md>); ambiente e comandos: [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
 
-Implementado em 04/10/2026, com base nos [fluxos e mockups administrativos](<Telas administrativas.md>).
+## Acesso, cliente e equipe
 
-## Executar e acessar
+Use o modo real para persistir operações. Superuser acessa a administração global; a equipe acessa eventos conforme vínculo/papel. Participantes ingressam por convite válido. Staff sozinho não equivale a gestor global.
 
-O ambiente está configurado com `FRONTEND_DATA_MODE=mock`, incluindo as telas administrativas. Abra http://192.168.1.32:8080/#admin-dashboard ou use **Explorar administração** na prévia do participante. Não é necessário fazer login.
+1. Use Novo cliente, com nome, e-mail e telefone.
+2. Complete organização, cargo e observações na ficha do cliente.
+3. Defina a senha pelo botão do Django Admin; não há envio de recuperação por e-mail nesse fluxo.
+4. Cadastre integrantes com conta e função: Responsável pelo evento, Moderador ou Operador.
+5. Clique no card para editar; Redefinir senha abre a operação técnica correspondente.
 
-A demonstração administrativa contém 12 participantes com situações distintas, quatro ocorrências com relato/notas/histórico/evidências fictícios, indicadores de bloqueios, quatro membros da equipe e métricas agregadas. O seletor apresenta eventos em andamento, agendados e encerrados; o controle de papel permite simular Administrador, Moderador e Operador. Suspensão, reativação, banimento, notas, resolução/reabertura e criação de ocorrências alteram apenas dados em memória. **Restaurar demonstração** ou recarregar a página restaura os exemplos.
+A seção Acesso ao sistema foi removida. Criar integrante rejeita colisão com conta existente; não vincula genericamente qualquer conta por e-mail. Alterar equipe de cliente não sincroniza a equipe de eventos anteriores.
 
-No modo mock, o QR Code aponta para `/?demoEvent=<identificador>#login`, abrindo a prévia do participante com o nome do evento. Não cria contas nem participações no banco. As telas administrativas não consultam a API neste modo. O modo definido no `.env` vale também para URLs com convite; o ingresso real exige `FRONTEND_DATA_MODE=django`.
+## Cadastro de evento
 
-Para conectar o frontend ao Django, altere para `FRONTEND_DATA_MODE=django` e recrie o frontend. As instruções seguintes de login, autorização, cadastro e API referem-se ao modo conectado. Após atualizar o código:
+Novo evento fica nas ações rápidas, lista de eventos e ficha do cliente. Cliente/Modalidade formam a primeira linha; depois Nome e Descrição; Início/Término ficam lado a lado abaixo da descrição. Presencial/Híbrido exigem Latitude/Longitude e Raio/Limite adicional. Selecione o responsável entre membros ativos do cliente.
 
-```powershell
-docker compose up -d --build --wait
-```
+O cadastro global cria Agendado. A solicitação feita pela gestão local cria Rascunho e aguarda aprovação global. A ativação automática ao completar o perfil é uma opção exclusiva de Online, validada no servidor.
 
-O backend aplica as migrações ao iniciar. O frontend agora utiliza `qrcode`, instalado a partir do `package-lock.json`. Acesse http://localhost:8080 e entre com uma conta vinculada a `EventAdministrator`. A conta local `admin-demo@eventconnect.local` já possui vínculo com o evento principal; sua senha está em `.tools/demo-credentials.json`, ignorado pelo Git. Contas de participantes continuam usando a navegação de perfil, filtros, descoberta, mensagens e participantes.
+### Tópicos
 
-No Django Admin, cadastre o vínculo em **Events → Event administrators** e escolha o papel:
+O catálogo é mantido em Mais → Participantes global: nome, opções separadas por vírgula e múltipla escolha. Interesses e Finalidade no evento são criados pela migração sem Outros; o mock mantém os catálogos antigos.
 
-| Papel | Participantes | Moderação e suspensão | Banimento e reabertura |
-|---|---|---|---|
-| `ADMIN` — Administrador | Sim | Sim | Sim |
-| `MODERATOR` — Moderador | Sim | Sim | Não |
-| `OPERATOR` — Operador | Sim | Não | Não |
+Expanda Tópicos do participante no cadastro global. Usar no evento fica à esquerda; Obrigatório à direita; labels acima dos toggles. Clicar no card mostra opções. Mínimo obrigatório aparece apenas em múltipla escolha obrigatória e com card aberto; fica à direita das opções que quebram em linhas. Aceita de 1 a 5, limitado pelo número de opções. Escolha única obrigatória exige uma resposta.
 
-Vínculos administrativos existentes recebem `ADMIN` na migração. O papel depende do evento, não de um tipo global fixo de conta. `is_staff` e `is_superuser` continuam controlando o Django Admin; não substituem o vínculo necessário para acessar o painel React de um evento.
+Desabilitar o tópico desmarca a obrigatoriedade. Recolher preserva o valor. A API aplica os requisitos ao salvar perfil e ativar participação.
 
-## Login e seleção de navegação
+### Presente inicial
 
-Login e restauração de sessão retornam `navigation: administration|participant`. Sem convite, uma conta com vínculos administrativos entra no painel do primeiro vínculo cadastrado. O seletor permite trocar entre seus eventos autorizados. Contas sem vínculo administrativo seguem para sua participação no evento demo, quando existente, ou para sua primeira participação.
+Habilite Presente inicial e informe nome do passe, quantidade de revelações **ou** duração, além do atraso de entrega.
 
-Com convite válido, login prioriza o evento do convite e a navegação do participante, inclusive para contas que também tenham vínculos administrativos. O token nunca concede papel administrativo. A participação é criada uma única vez e começa com cadastro incompleto; o participante precisa completar os requisitos de perfil e fotos para ativá-la. Contas existentes reutilizam sua identidade, sem criar uma segunda conta.
+- 0: passe concedido e ativado ao ativar o perfil.
+- Maior que 0: prazo desde o início previsto, com entrega aos perfis ativos quando o evento está Em andamento.
+- Perfil ativado após o prazo: entrega na ativação, se ainda elegível.
 
-Consultas e ações verificam vínculo, evento e papel no backend. Conhecer um UUID ou alterar o hash do navegador não concede acesso. O painel não dá acesso irrestrito a mensagens, likes, matches individuais, passes nem fotos posteriores ao match.
+Vale para todas as modalidades. A entrega deve ser anterior ao término; igualdade ou prazo além do término é rejeitado no formulário e servidor. A concessão gera notificação e ocorre uma vez por participação, mesmo com repetição da tarefa/reativação. Revogação não gera novo presente automático. Duração do passe temporal conta da concessão. Entrega agendada depende do worker/Beat e da próxima execução elegível, hoje a cada 30 segundos.
 
-## Telas e endereços
+## Equipe do evento e Mais
 
-| Área | Hash | Operação |
-|---|---|---|
-| Dashboard | `#admin-dashboard` | Totais, atividade recente, pendências e atalho para QR Code |
-| Participantes | `#admin-participants` | Busca nome/e-mail, filtros, ordenação, ficha, ocorrências e sanções |
-| Moderação | `#admin-moderation` | Busca, filtros por tipo/status/motivo/período, prioridade, investigação, notas e decisões |
-| Evento | `#admin-event` | Dados somente leitura, responsáveis, status e acesso ao QR Code |
-| QR Code | `#admin-qr` | Exibição, tela cheia, cópia, compartilhamento e download PNG |
-| Mais | `#admin-more` | Equipe, relatório e saída da conta |
-| Equipe | `#admin-team` | Consulta dos vínculos e papéis |
-| Relatório | `#admin-report` | Resultados agregados parciais ou consolidados |
+Adicionar integrante fica à direita do cabeçalho. Editar oculta os demais cards e vira Cancelar; Cancelar descarta rascunho e restaura a lista; Salvar fica à direita. Permissões usam toggles. Não participa deste evento no seletor de Papel salva o vínculo inativo; outro papel o reativa. A gestão global controla ADMIN; a gestão local pode delegar temporariamente.
 
-A navegação inferior aparece no mobile, com menu lateral no desktop. Fichas e ocorrências são estados internos dessas áreas. Equipe é consultiva no React; alterações de vínculos e papéis ficam no Django Admin. Os relatórios apresentam totais, sem gráficos nem exportação de resultados nesta etapa.
+Mais do evento contém Avisos do Evento, Suporte e Passes em acordeon inicialmente fechado, com uma seção expandida por vez. Mais global tem abas Eventos, Participantes e Conta; Conta reúne sair e acesso ao Django Admin. Claro/Escuro/Automático compartilham preferência local e preservam a identidade de acesso.
 
-Ativos agora significa participação ativa, sem banimento/suspensão no evento, com acesso autenticado à API nos últimos cinco minutos. `last_seen_at` registra essa atividade, no máximo uma atualização por minuto. A ausência de atividade recente é independente de cadastro incompleto, suspensão e banimento. Novos significa cadastro na última hora. O painel consulta a API a cada 15 segundos quando visível; não utiliza WebSocket.
+## Ingresso e operação
 
-## Participantes e moderação
+O convite/QR Code permite ingresso conforme estado/validade. A ativação exige perfil válido, três fotos públicas e uma principal, requisitos do evento e, no fluxo convencional, outfit capturado pela equipe e localização aplicável. Online pode ativar automaticamente, sem outfit, mantendo fotos, bio e requisitos.
 
-A ficha identifica `EventParticipant` e apresenta apenas informações operacionais permitidas. Operadores não recebem relatos, contagens de denúncias/bloqueios, justificativas sensíveis nem detalhes de evidências. Fotografias reais exibidas no painel usam uma rota autenticada limitada à foto principal anterior ao match no evento autorizado.
+A operação inclui ativação, moderação, suporte, intervenções, avisos, passes e relatórios conforme permissão. Revelação de likes é cronológica e respeita quantidade/duração. Concessão manual cabe ao Operador autorizado; presente inicial é um fluxo automático específico. Concessão declarada não confirma recebimento financeiro externo.
 
-Suspender cria `EventSuspension`, com autor e justificativa, restringindo apenas aquele evento. Nesta versão a suspensão permanece até reativação explícita; `ends_at` também permite prazo quando configurado no Admin. Reativação registra `revoked_at`, preservando o registro anterior. Banimento cria `EventBan` e exige confirmação explícita. Essas restrições são verificadas na API do participante e na elegibilidade de descoberta.
+## Arquivamento
 
-Ocorrências administrativas podem ser abertas pela ficha. O registro separa motivo de descrição, cria `Report`/`ModerationCase` e registra notificações internas para administradores/moderadores do evento e superusuários globais ativos. A autoria usa `Report.created_by`, sem criar uma participação fictícia para o funcionário. Não envia e-mail ou push. Denúncias e ocorrências administrativas são diferenciadas na fila; prioridade é configurável no Django Admin.
-
-É possível assumir um caso sem responsável, adicionar notas internas, aplicar sanções, resolver e reabrir. Uma atribuição existente não pode ser tomada por outro moderador. Casos resolvidos exigem reabertura antes de novas alterações. Reabertura é restrita ao administrador. Sanções mantêm o caso em acompanhamento; a resolução é uma ação separada, com justificativa. O histórico apresentado é derivado de `AuditLog` append-only. Registros antigos de `ModerationAction` permanecem no Admin e não são retroativamente convertidos em auditoria.
-
-Bloqueios são consultados como indicadores agregados e linha do tempo. A consulta não gera caso, denúncia nem punição automaticamente; não há limiar de alerta definido. Evidências cadastradas podem ser consultadas/baixadas somente por moderadores e administradores no evento correto, com auditoria de download. Tipos permitidos, coleta/upload de novas evidências e catálogo formal de motivos continuam dependendo de especificação. O motivo é informado em texto livre, sem catálogo rígido na interface.
-
-## QR Code e cadastro vinculado
-
-Evento e Dashboard oferecem QR Code enquanto o evento estiver aberto para ingresso. A imagem é gerada no navegador com [node-qrcode](https://github.com/soldair/node-qrcode), sem enviar a URL a um serviço externo.
-
-A URL tem o formato `/?invite=<token-assinado>`. O evento e seu nome na tela de login são identificados pelo convite assinado, sem exigir o parâmetro `event`. O backend valida a assinatura com salt exclusivo de ingresso, validade de 30 dias e término do evento. O encerramento recusa novos ingressos mesmo que o token ainda esteja dentro do prazo. O QR Code representa um convite compartilhável, não uma credencial administrativa.
-
-Ao abrir o link, o usuário vê o evento de destino e pode entrar ou criar uma conta. O cadastro de participantes exige convite válido, inclusive em DEBUG. O acesso direto à página inicial mostra apenas o login; contas de gestão devem ser criadas no Django Admin, em `/admin/`. Usuários já autenticados são associados pelo endpoint de ingresso com CSRF. O token é retirado da URL após a associação; o evento escolhido fica na sessão.
-
-As opções de criar conta e continuar com Google/Apple aparecem somente após validar o convite do evento no modo `django`. Google/Apple permanecem desabilitados com “Em breve” até a integração dos provedores. O UUID da URL é enviado como `event` no login, cadastro e ingresso; divergência entre UUID e convite recusa a operação sem criar conta ou participação. O cadastro cria uma conta de participante sem privilégios administrativos e uma participação inicialmente inativa no evento validado.
-
-A URL utiliza a origem pela qual o painel foi aberto. Para leitura em outro dispositivo, abra o painel em **http://192.168.1.32:8080** neste ambiente; o QR Code utilizará esse endereço. O Compose publica a porta em `0.0.0.0` e o Django aceita todos os hosts, mantendo CSRF para login e escritas. A regra `EventConnect-HTTP-8080` libera a porta para a sub-rede local no Firewall do Windows. O endereço `localhost:8080` continua funcionando no próprio computador, mas não representa este servidor em outro dispositivo.
-
-## Endpoints adicionados
-
-Todos usam `/api/`. Escritas autenticadas exigem sessão e CSRF. Login e cadastro também mantêm proteção CSRF.
-
-| Caminho | Método | Comportamento |
-|---|---|---|
-| `event-admin/` | GET | Dados do painel restritos ao evento/papel da sessão |
-| `event-admin/` | POST | Selecionar outro vínculo administrativo, enviando `event` |
-| `event-admin/participants/<uuid>/action/` | POST | `report`, `suspend`, `reactivate`, `ban`; `reason`, `category` para ocorrência e `confirmed` para banimento |
-| `event-admin/cases/<uuid>/action/` | POST | `assume`, `note`, `resolve`, `suspend`, `ban`, `reopen`; justificativa e confirmação conforme ação |
-| `event-admin/evidence/<uuid>/content/` | GET | Download autorizado e auditado de evidência |
-| `event-admin/photos/<uuid>/content/` | GET | Foto principal anterior ao match, restrita ao evento |
-| `join/<token>/` | GET | Validação pública do convite e informações do evento |
-| `join/<token>/` | POST | Associação idempotente da conta autenticada ao evento |
-
-`auth/login/` aceita `invite` opcional; `auth/register/` exige um convite válido. `bootstrap/` retorna o estado do participante ou o discriminador da navegação administrativa. O frontend carrega o painel em `event-admin/` após identificar a navegação.
-
-## Validação
-
-Testes Django cobrem login sem participação para administradores, restauração de sessão, papéis, isolamento entre eventos, privacidade, suspensão/reativação, banimento, notas, resolução/reabertura, atribuição, indicadores de bloqueio, evidências e convite/cadastro com DEBUG desativado. Também verificam CSRF, validade, expiração e recusa de ingresso após encerramento.
-
-Playwright/Edge verifica login administrativo, filtros, fichas, navegação, restauração, ingresso de conta existente e layouts de 320, 375, 768 e 1440 pixels. O teste decodifica a imagem do QR Code com um leitor independente e compara o resultado com a URL de convite.
-
-```powershell
-docker compose exec backend python manage.py check
-docker compose exec backend python manage.py makemigrations --check --dry-run
-docker compose exec backend python manage.py test tests api --noinput
-docker compose exec frontend npm run build
-```
-
-Retenção automatizada, critérios de alertas, WebSocket, upload de evidências, equipe editável no React e relatório avançado permanecem fora desta implementação. Não foram estabelecidos prazos legais nem regras de eliminação de dados.
+Arquivamento automático ocorre quinze dias após encerramento e mantém consultas autorizadas. Existem lacunas de leitura exclusiva, consulta geral de auditoria e exportação; consulte [a etapa 10](<Etapa 10 - verificacao e pendencias.md>). Não há exportação funcional em ZIP nesta versão.
