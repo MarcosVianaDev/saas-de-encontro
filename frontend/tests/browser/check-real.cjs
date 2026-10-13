@@ -1,0 +1,45 @@
+const { BASE_URL, MOCK_URL, launch, testCredentials, login } = require('./helpers.cjs');
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+(async () => {
+  const creds = testCredentials();
+  const browser = await launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('console', e => {if(e.type()==='error') console.log('CONSOLE',e.text())});
+  page.on('response', r => {if(r.status()>=400) console.log('HTTP',r.status(),r.url())});
+  await login(page,creds.email);
+  await page.waitForURL('**/#perfil');
+  await page.getByRole('button', {name:'Continuar',exact:true}).click();
+  await page.waitForURL('**/#descobrir');
+  await page.evaluate(()=>{location.hash='filtros';});
+  await page.getByRole('button', {name:'Aplicar filtros',exact:true}).click();
+  await page.waitForURL('**/#descobrir');
+  await page.waitForTimeout(500);
+  const data = await page.evaluate(async () => (await fetch('/api/bootstrap/')).json());
+  assert.equal(data.people.length, 12);
+  assert.equal(data.photos.length, 3);
+  assert(data.discovery.length > 0);
+  const peer = data.people.find(p => p.name === 'Mariana');
+  await page.evaluate(() => {location.hash='mensagens';});
+  await page.locator('.conversation-row').filter({hasText:'Mariana'}).click();
+  const text = 'Conexão real validada no navegador.';
+  await page.getByLabel('Mensagem', {exact:true}).fill(text);
+  await page.getByRole('button', {name:'Enviar mensagem',exact:true}).click();
+  await page.getByText(text,{exact:true}).last().waitFor();
+  await page.reload({waitUntil:'networkidle'});
+  await page.locator('.conversation-row').filter({hasText:'Mariana'}).click();
+  await page.getByText(text,{exact:true}).last().waitFor();
+  for (const route of ['perfil','filtros','descobrir','mensagens','participantes']) {
+    await page.evaluate(r => {location.hash=r;},route);
+    await page.waitForTimeout(200);
+    assert.equal(await page.locator('.app-screen img').evaluateAll(imgs => imgs.filter(i=>i.complete && !i.naturalWidth).length),0,route);
+    await page.screenshot({path:'.tools/ui-check/screenshots/real-'+route+'.png'});
+  }
+  assert.deepEqual(errors,[]);
+  fs.writeFileSync('.tools/ui-check/persisted-message.json',JSON.stringify({peer:peer.id,text}));
+  console.log('PASS: real login, profile, filters, discovery, participants, message and reload persistence.');
+  await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

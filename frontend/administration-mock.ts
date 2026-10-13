@@ -1,96 +1,15 @@
 import type { AdminData, Case, Participant } from "./Administration";
+import { mockPeople, mockFullName, initialChats } from "./participant-mock";
 
 let sequence = 0;
 const mockId = () => `demo-action-${Date.now()}-${++sequence}`;
 const time = (minutes = 0) =>
   new Date(Date.now() + minutes * 60000).toISOString();
 const image = (file: string) => `/images/${file}.jpg`;
-const profiles = [
-  [
-    "Camila Souza",
-    28,
-    "Designer de Produto",
-    "photo-1544005313-94ddf0286df2",
-    "Ativo",
-  ],
-  [
-    "Lucas Oliveira",
-    32,
-    "Desenvolvedor",
-    "photo-1500648767791-00dcc994a43e",
-    "Ativo",
-  ],
-  [
-    "Mariana Lima",
-    26,
-    "Marketing",
-    "photo-1524504388940-b1c1722653e1",
-    "Ativo",
-  ],
-  [
-    "Rafael Costa",
-    30,
-    "Empresário",
-    "photo-1519085360753-af0119f7cbe7",
-    "Ativo",
-  ],
-  [
-    "Aline Martins",
-    27,
-    "Consultora",
-    "photo-1534528741775-53994a69daeb",
-    "Banido",
-  ],
-  [
-    "Thiago Almeida",
-    29,
-    "Analista de Dados",
-    "photo-1506794778202-cad84cf45f1d",
-    "Ativo",
-  ],
-  [
-    "João Pedro",
-    31,
-    "Desenvolvedor",
-    "photo-1535713875002-d1d0cf377fde",
-    "Ativo",
-  ],
-  [
-    "Ana Carolina",
-    26,
-    "Marketing",
-    "photo-1531123897727-8f129e1688ce",
-    "Ativo",
-  ],
-  [
-    "Bruno Santos",
-    28,
-    "Analista",
-    "photo-1463453091185-61582044d556",
-    "Cadastro incompleto",
-  ],
-  [
-    "Beatriz Lima",
-    31,
-    "Jornalista",
-    "photo-1524250502761-1ac6f2e30d43",
-    "Ativo",
-  ],
-  [
-    "Carlos Menezes",
-    29,
-    "Arquiteto",
-    "photo-1507591064344-4c6ce005b128",
-    "Suspenso",
-  ],
-  [
-    "Júlia Ferreira",
-    28,
-    "Advogada",
-    "photo-1526510747491-58f928ec870f",
-    "Ativo",
-  ],
-] as const;
+const profiles = mockPeople.map((person, index) => [
+  mockFullName(person), person.age, person.job, person.image,
+  index === 4 ? "Banido" : index === 8 ? "Cadastro incompleto" : index === 10 ? "Suspenso" : "Ativo",
+] as const);
 
 function fixture(id: string, status: string, name: string): AdminData {
   const participants: Participant[] = profiles.map(
@@ -100,7 +19,7 @@ function fixture(id: string, status: string, name: string): AdminData {
       age,
       job,
       email: `pessoa${i + 1}@example.test`,
-      image: image(file),
+      image: file,
       status: situation,
       reason:
         situation === "Suspenso"
@@ -111,8 +30,8 @@ function fixture(id: string, status: string, name: string): AdminData {
       created: time(-i * 42 - 8),
       updated: time(-i * 7),
       lastSeen:
-        i === 8 ? null : time([0, 2, 5, 7, 11].includes(i) ? -(i % 5) : -i * 7),
-      online: [0, 2, 5, 7, 11].includes(i),
+        i === 8 ? null : time(mockPeople[i].online ? -(i % 5) : -i * 7),
+      online: mockPeople[i].online,
       reports: 0,
       blocks: 0,
     }),
@@ -242,7 +161,7 @@ function fixture(id: string, status: string, name: string): AdminData {
         status === "Encerrado" ? -2880 : status === "Agendado" ? 3180 : 180,
       ),
       status,
-      joinPath: status === "Encerrado" ? null : `/?demoEvent=${id}#login`,
+      joinPath: status === "Encerrado" ? null : `/?demoEvent=${id}&demo=1#login`,
       responsible: ["Marcos Viana"],
     },
     participants,
@@ -262,8 +181,8 @@ function fixture(id: string, status: string, name: string): AdminData {
       new: participants.filter(
         (p) => new Date(p.created).getTime() >= Date.now() - 3600000,
       ).length,
-      matches: status === "Agendado" ? 0 : 8,
-      conversations: status === "Agendado" ? 0 : 6,
+      matches: status === "Agendado" ? 0 : Object.keys(initialChats).length,
+      conversations: status === "Agendado" ? 0 : Object.keys(initialChats).length,
       blocks: participants.reduce((sum, p) => sum + (p.blocks || 0), 0),
     },
     team: [

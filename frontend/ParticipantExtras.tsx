@@ -5,6 +5,7 @@ import type { Person } from "./types";
 import { FormattedText } from "./FormattedText";
 import { createPortal } from "react-dom";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
+import { participantMock } from "./participant-mock";
 
 export type Notice = {
   id: string;
@@ -127,11 +128,14 @@ export function NotificationCenter({
   visible,
   onUnread,
   onOpen,
+  mock = false,
 }: {
   visible: boolean;
   onUnread: (count: number) => void;
   onOpen?: (notice: Notice) => void;
+  mock?: boolean;
 }) {
+  const fetchData = mock ? participantMock.request : request;
   const seen = useRef<Set<string> | null>(null);
   if (seen.current === null) seen.current = shownToastIds();
   const [toasts, setToasts] = useState<Notice[]>([]);
@@ -140,7 +144,7 @@ export function NotificationCenter({
   const [items, setItems] = useState<Notice[]>([]),
     [error, setError] = useState("");
   const load = () =>
-    request<{ unread: number; items: Notice[] }>("notifications/")
+    fetchData<{ unread: number; items: Notice[] }>("notifications/")
       .then((d) => {
         setItems(d.items);
         onUnread(d.unread);
@@ -164,7 +168,7 @@ export function NotificationCenter({
       .catch((e) => setError(e.message));
   const activate = async (notice: Notice) => {
     try {
-      await request("notifications/", "POST", { id: notice.id });
+      await fetchData("notifications/", "POST", { id: notice.id });
       setItems((old) =>
         old.map((item) =>
           item.id === notice.id ? { ...item, read: true } : item,
@@ -252,14 +256,15 @@ type Thread = {
   participant: string;
   messages: { id: string; body: string; author: string; created: string }[];
 };
-export function SupportPanel({ admin = false }: { admin?: boolean }) {
+export function SupportPanel({ admin = false, mock = false }: { admin?: boolean; mock?: boolean }) {
+  const fetchData = mock ? participantMock.request : request;
   const [threads, setThreads] = useState<Thread[]>([]),
     [thread, setThread] = useState(""),
     [body, setBody] = useState(""),
     [error, setError] = useState("");
   const endpoint = admin ? "event-admin/support/" : "support/";
   const load = () =>
-    request<Thread[]>(endpoint)
+    fetchData<Thread[]>(endpoint)
       .then(setThreads)
       .catch((e) => setError(e.message));
   useEffect(() => {
@@ -272,7 +277,7 @@ export function SupportPanel({ admin = false }: { admin?: boolean }) {
   async function send(e: FormEvent) {
     e.preventDefault();
     try {
-      const d = await request<Thread>(endpoint, "POST", {
+      const d = await fetchData<Thread>(endpoint, "POST", {
         thread: thread || undefined,
         body,
       });
@@ -331,13 +336,14 @@ type Likes = {
     durationMinutes: number | null;
   }[];
 };
-export function LikesReceived({ onPerson }: { onPerson: (p: Person) => void }) {
+export function LikesReceived({ onPerson, mock = false }: { onPerson: (p: Person) => void; mock?: boolean }) {
+  const fetchData = mock ? participantMock.request : request;
   const dialog = useRef<HTMLDialogElement>(null);
   const [data, setData] = useState<Likes | null>(null),
     [offers, setOffers] = useState(false),
     [message, setMessage] = useState("");
   const load = () =>
-    request<Likes>("likes-received/")
+    fetchData<Likes>("likes-received/")
       .then(setData)
       .catch((e) => setMessage(e.message));
   useEffect(() => {

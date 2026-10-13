@@ -12,6 +12,7 @@ Atualização de implementação: [Exportação de eventos](<Exportacao de event
 | [Operação e desenvolvimento](<Operacao e desenvolvimento.md>) | Ambiente, comandos, automações, mapa de código e contratos recentes |
 | [Administração e ingresso no evento](<Administracao e ingresso no evento.md>) | Roteiro atual de cliente, equipe, evento, tópicos, passes e ingresso |
 | [Verificação da implementação](<Verificacao da implementacao.md>) | Testes/checks atuais, limitações e regressões |
+| [Demonstração do frontend](<Demonstracao do frontend.md>) | Entrada pelo acesso global, login/cadastro simulado e 50 perfis, sem mudar o `.env` |
 | [Etapa 10 — verificação e pendências](<Etapa 10 - verificacao e pendencias.md>) | Cobertura dos cards 10.1–10.4, lacunas, dependências e aceite |
 
 ## Requisitos e andamento
@@ -57,6 +58,6 @@ Exportação ZIP, `ExportJob`, worker, consulta offline, manifesto/hashes e term
 
 ## Validação e manutenção
 
-Em 12/10/2026: build e `manage.py check` aprovados; **171 testes com 9 falhas e 5 erros**. O check de migrações detecta mudanças pendentes em `Event.mode` e `Event.radius_m`. Detalhes em Verificação da implementação. Os 73 testes do relatório anterior não são aprovação da versão atual.
+Última validação em 12/10/2026: **19 scripts de navegador aprovados** na entrega da [demonstração do frontend](<Demonstracao do frontend.md>), com build aprovado e 3 auxiliares concluídos. A última execução de backend, da etapa anterior, aprovou **181 testes**, `manage.py check` e check de migrações, sem migrações pendentes. Mudanças, execução isolada e limites no [relatório de correção dos testes](<Correcao dos testes - 12-10-2026.md>). O diagnóstico anterior foi preservado como histórico.
 
 Atualize o Estado atual e o contrato operacional ao mudar comportamento. Registre comando/data/resultado em Verificação. Atualize o card correspondente sem fechar entregas parciais. Preserve requisitos e histórico; mantenha explícitas as decisões pendentes.

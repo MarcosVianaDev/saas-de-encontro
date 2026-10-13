@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from apps.events.models import Event,EventAdministrator
 from apps.events.services import transition
+from apps.organizations.models import Organization, OrganizationMember
 from apps.participants.models import EventParticipant,LocationReading,LocationAnomaly
 from apps.participants.location import reading,failed,exception
 from apps.profiles.models import ParticipantPhoto,EventOutfitPhoto,ProfileField,ParticipantFieldValue
@@ -30,6 +31,8 @@ class MvpFlowTests(TestCase):
     def setUpTestData(cls):
         call_command('seed_demo',stdout=io.StringIO())
         cls.event=Event.objects.get(pk=demo_id('event.current'))
+        Event.objects.filter(pk=cls.event.pk).update(latitude=Decimal('-23.550000'), longitude=Decimal('-46.630000'))
+        cls.event.refresh_from_db()
         cls.actor=EventParticipant.objects.get(pk=demo_id('actor'))
         cls.peer=EventParticipant.objects.get(pk=demo_id('person.1'))
         cls.global_user=get_user_model().objects.get(email='admin-demo@eventconnect.local')
@@ -39,8 +42,10 @@ class MvpFlowTests(TestCase):
         EventAdministrator.objects.create(event=cls.event,user=cls.manager,role='ADMIN')
         EventAdministrator.objects.create(event=cls.event,user=cls.moderator,role='MODERATOR')
         EventAdministrator.objects.create(event=cls.event,user=cls.operator,role='OPERATOR',permissions=['passes'])
+        OrganizationMember.objects.create(organization=cls.event.organization, user=cls.manager)
 
     def setUp(self):
+        reading(self.actor, {'latitude': '-23.550000', 'longitude': '-46.630000'})
         self.client=APIClient();self.as_user(self.actor.user)
 
     def as_user(self,user):
@@ -68,16 +73,26 @@ class MvpFlowTests(TestCase):
         self.assertEqual(r.status_code,200)
         self.assertEqual(r.json()['event']['id'],str(self.event.pk))
 
-    def test_guided_client_draft_activation_is_atomic_and_idempotent(self):
+    def test_client_update_is_idempotent_and_event_creation_is_separate(self):
         self.as_user(self.global_user)
-        payload={'contact':'Contato fictício','email':'contact@example.com','organization':'Cliente novo',
-            'event':'Evento novo','starts':(timezone.now()+timedelta(days=1)).isoformat(),
-            'ends':(timezone.now()+timedelta(days=2)).isoformat(),'responsible':self.manager.email}
-        r=self.client.post('/api/global/',payload,format='json');self.assertEqual(r.status_code,200)
-        org_id=r.json()['id'];payload.update(id=org_id,activate=True)
-        for _ in range(2):self.assertEqual(self.client.post('/api/global/',payload,format='json').status_code,200)
+        r=self.client.post('/api/global/', {'action':'create_client', 'contact':'Contato fictício',
+            'email':'contact@example.com', 'phone':'11999990000'}, format='json')
+        self.assertEqual(r.status_code,201,r.content)
+        org_id=r.json()['id']
+        payload={'action':'update_client','id':org_id,'contact':'Contato fictício',
+            'email':'contact@example.com','phone':'11999990000','organization':'Cliente novo'}
+        for _ in range(2):
+            response=self.client.post('/api/global/',payload,format='json')
+            self.assertEqual(response.status_code,200,response.content)
+        self.assertEqual(Organization.objects.filter(pk=org_id).count(),1)
+        self.assertFalse(Event.objects.filter(organization_id=org_id).exists())
+        OrganizationMember.objects.create(organization_id=org_id,user=self.manager)
+        response=self.client.post('/api/global/',{'action':'create_event','client':org_id,
+            'event':'Evento novo','mode':'ONLINE','starts':(timezone.now()+timedelta(days=1)).isoformat(),
+            'ends':(timezone.now()+timedelta(days=2)).isoformat(),'responsible':self.manager.email},format='json')
+        self.assertEqual(response.status_code,201,response.content)
         event=Event.objects.get(organization_id=org_id);self.assertEqual(event.state,'SCHEDULED')
-        self.assertEqual(event.administrators.get().user,self.manager)
+        self.assertEqual(event.administrators.get(user=self.manager).role,'ADMIN')
 
     def test_delegation_reclaim_and_permission_boundaries(self):
         self.as_user(self.manager)
@@ -238,6 +253,7 @@ class MvpFlowTests(TestCase):
         self.addCleanup(default_storage.delete, photo.storage_key)
 
     def test_activation_requires_outfit_three_public_photos_and_event_fields(self):
+        reading(self.peer, {'latitude': '-23.550000', 'longitude': '-46.630000'})
         self.as_user(self.operator)
         endpoint=f'/api/event-admin/participants/{self.peer.pk}/activate/'
         self.assertEqual(self.client.post(endpoint,{},format='json').status_code,200)
@@ -322,7 +338,8 @@ class MvpFlowTests(TestCase):
         p=self.physical();now=timezone.now()
         p=reading(p,{'latitude':-23.55,'longitude':-46.63,'accuracy':20},now)
         self.assertEqual(p.presence,'PRESENT')
-        p=reading(p,{'latitude':-23.5365,'longitude':-46.63},now+timedelta(minutes=15))
+        # ~500m: outside the 100m radius, inside the additional 1000m tolerance.
+        p=reading(p,{'latitude':-23.5455,'longitude':-46.63},now+timedelta(minutes=15))
         self.assertEqual(p.presence,'OUTSIDE');self.assertTrue(p.is_active)
         p=failed(p,now=now+timedelta(minutes=16))
         for i in range(5):p=failed(p,'retry',now+timedelta(minutes=17+i))
@@ -421,6 +438,7 @@ class MvpFlowTests(TestCase):
         self.assertEqual(self.client.get(f'/api/outfits/{peer.pk}/content/').status_code,403)
 
     def test_profile_removal_preserves_history_requires_origin_and_allows_replacement(self):
+        reading(self.peer, {'latitude': '-23.550000', 'longitude': '-46.630000'})
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.core.files.storage import default_storage
         from PIL import Image

@@ -1,0 +1,92 @@
+const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const fs = require('node:fs');
+
+(async () => {
+  const browser = await launch();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-BR', reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const output = path.resolve('.tools/ui-check/screenshots');
+  fs.mkdirSync(output, { recursive: true });
+  const screen = page.locator('.app-screen');
+  const route = async name => { await page.evaluate(value => { location.hash = value; }, name); await page.waitForFunction(value => location.hash === '#' + value && document.querySelector('.app-screen'), name); await page.waitForTimeout(150); };
+  await page.goto(MOCK_URL, { waitUntil: 'networkidle' });
+  for (const name of ['login', 'perfil', 'filtros', 'descobrir', 'mensagens', 'participantes']) {
+    await route(name);
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile overflow: ' + name);
+    await page.screenshot({ path: path.join(output, name + '-mobile.png') });
+    const broken = await screen.locator('img').evaluateAll(images => images.filter(image => image.complete && image.naturalWidth === 0).map(image => image.src));
+    assert.equal(broken.length, 0, 'Broken images: ' + broken.join(', '));
+  }
+  await route('login');
+  await screen.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await screen.getByLabel('E-mail').fill('demo@example.com');
+  await screen.getByLabel('Senha', { exact: true }).fill('example-only');
+  await screen.getByRole('button', { name: 'Entrar na demonstração' }).click();
+  await page.waitForURL('**/#perfil');
+  await screen.getByLabel('Nome', { exact: true }).fill('Teste');
+  await screen.getByRole('button', { name: 'Remover foto 3' }).click();
+  await screen.getByRole('button', { name: 'Continuar' }).click();
+  await page.getByRole('status').filter({ hasText: 'pelo menos 3 fotos' }).waitFor();
+  assert.equal(new URL(page.url()).hash, '#perfil');
+  await screen.locator('input[type=file]').setInputFiles(path.resolve('frontend/public/images/photo-1476514525535-07fb3b4ae5f1.jpg'));
+  assert.equal(await screen.locator('.photo-tile').count(), 3);
+  await screen.getByRole('button', { name: 'Continuar' }).click();
+  await page.waitForURL('**/#filtros');
+  await screen.getByRole('button', { name: 'Mulheres', exact: true }).click();
+  await screen.getByRole('button', { name: 'Música', exact: true }).click();
+  await screen.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await page.waitForURL('**/#descobrir');
+  await screen.getByRole('button', { name: 'Curtir Camila', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Novo match' }).waitFor();
+  await page.getByRole('button', { name: 'Começar conversa' }).click();
+  await page.waitForURL('**/#mensagens');
+  await screen.getByLabel('Mensagem', { exact: true }).fill('Oi! Vamos conversar no evento?');
+  await screen.getByRole('button', { name: 'Enviar mensagem', exact: true }).click();
+  await screen.getByText('Oi! Vamos conversar no evento?', { exact: true }).waitFor();
+  await page.screenshot({ path: path.join(output, 'conversa-mobile.png') });
+  await screen.getByRole('button', { name: 'Voltar às conversas' }).click();
+  await screen.getByLabel('Buscar conversas').fill('zzzzz');
+  await screen.getByText('Nenhuma conversa encontrada').waitFor();
+  await route('participantes');
+  assert.equal(await screen.locator('.participant-tile').count(), 50, 'Participant list must ignore discovery filters');
+  await screen.getByLabel('Buscar participantes').fill('Lucas');
+  assert.equal(await screen.locator('.participant-tile').count(), 1);
+  await screen.getByLabel('Buscar participantes').fill('');
+  await screen.getByRole('button', { name: 'Online', exact: true }).click();
+  assert.equal(await screen.locator('.participant-tile').count(), 20);
+  await screen.getByRole('button', { name: 'Matches', exact: true }).click();
+  assert.equal(await screen.locator('.participant-tile').count(), 15);
+  await screen.getByRole('button', { name: 'Todos', exact: true }).click();
+  await screen.getByRole('button', { name: 'Diminuir miniaturas' }).click();
+  assert(await screen.locator('.participants-grid').evaluate(el => el.classList.contains('compact')));
+  await screen.locator('.participant-tile').first().click();
+  await page.getByRole('dialog', { name: 'Perfil de Camila' }).waitFor();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  await route('filtros');
+  await screen.getByLabel('Idade máxima').focus(); await page.keyboard.press('End');
+  await screen.getByLabel('Idade mínima').focus(); await page.keyboard.press('End');
+  await screen.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await screen.getByText('Você chegou ao fim por aqui.').waitFor();
+  await route('perfil'); assert.equal(await screen.getByLabel('Nome', { exact: true }).inputValue(), 'Teste');
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ['login', 'perfil', 'filtros', 'descobrir', 'mensagens', 'participantes']) {
+      await route(name);
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Overflow: ' + width + ' / ' + name);
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto(MOCK_URL + '/#descobrir', { waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.screenshot({ path: path.join(output, 'descobrir-desktop.png') });
+  assert.deepEqual(errors, []);
+  console.log('PASS: six screens, demo login, profile/photo validation, filters, mutual match, messaging, participant search/tabs/density, modal close, empty state and 5 responsive widths.');
+  console.log('Screenshots: ' + output);
+  await browser.close();
+})().catch(error => { console.error(error); process.exit(1); });

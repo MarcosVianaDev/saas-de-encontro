@@ -31,6 +31,7 @@ import {
 } from "./ParticipantExtras";
 import { LocationControl } from "./LocationControl";
 import { mockEventInfo } from "./administration-mock";
+import { mockPeople, initialChats, participantMock, mockCredentials } from "./participant-mock";
 import type {
   Person,
   PersonId,
@@ -147,141 +148,6 @@ function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
     </svg>
   );
 }
-const photo = (id: string) => `/images/${id}.jpg`;
-const mockPeople: Person[] = [
-  {
-    id: 1,
-    name: "Camila",
-    age: 28,
-    gender: "Mulheres",
-    job: "Designer de produto",
-    image: photo("photo-1544005313-94ddf0286df2"),
-    interests: ["Música", "Viagens", "Gastronomia"],
-    online: true,
-    mutual: true,
-  },
-  {
-    id: 2,
-    name: "Lucas",
-    age: 32,
-    gender: "Homens",
-    job: "Arquiteto",
-    image: photo("photo-1500648767791-00dcc994a43e"),
-    interests: ["Arte", "Gastronomia", "Networking"],
-    online: true,
-    mutual: true,
-  },
-  {
-    id: 3,
-    name: "Mariana",
-    age: 26,
-    gender: "Mulheres",
-    job: "Fotógrafa",
-    image: photo("photo-1524504388940-b1c1722653e1"),
-    interests: ["Música", "Viagens", "Arte"],
-    online: true,
-    mutual: true,
-  },
-  {
-    id: 4,
-    name: "Rafael",
-    age: 30,
-    gender: "Homens",
-    job: "Empreendedor",
-    image: photo("photo-1519085360753-af0119f7cbe7"),
-    interests: ["Tecnologia", "Esportes"],
-    online: true,
-    mutual: false,
-  },
-  {
-    id: 5,
-    name: "Aline",
-    age: 27,
-    gender: "Mulheres",
-    job: "Publicitária",
-    image: photo("photo-1524250502761-1ac6f2e30d43"),
-    interests: ["Arte", "Música"],
-    online: false,
-    mutual: false,
-  },
-  {
-    id: 6,
-    name: "Thiago",
-    age: 29,
-    gender: "Homens",
-    job: "Desenvolvedor",
-    image: photo("photo-1506794778202-cad84cf45f1d"),
-    interests: ["Tecnologia", "Viagens"],
-    online: false,
-    mutual: false,
-  },
-  {
-    id: 7,
-    name: "Beatriz",
-    age: 24,
-    gender: "Mulheres",
-    job: "Produtora cultural",
-    image: photo("photo-1531123897727-8f129e1688ce"),
-    interests: ["Música", "Arte"],
-    online: true,
-    mutual: false,
-  },
-  {
-    id: 8,
-    name: "Carlos",
-    age: 31,
-    gender: "Homens",
-    job: "Chef de cozinha",
-    image: photo("photo-1535713875002-d1d0cf377fde"),
-    interests: ["Gastronomia", "Networking"],
-    online: false,
-    mutual: false,
-  },
-  {
-    id: 9,
-    name: "Juliana",
-    age: 28,
-    gender: "Mulheres",
-    job: "Jornalista",
-    image: photo("photo-1534528741775-53994a69daeb"),
-    interests: ["Viagens", "Gastronomia"],
-    online: true,
-    mutual: false,
-  },
-  {
-    id: 10,
-    name: "Pedro",
-    age: 33,
-    gender: "Homens",
-    job: "Engenheiro",
-    image: photo("photo-1507591064344-4c6ce005b128"),
-    interests: ["Esportes", "Tecnologia"],
-    online: false,
-    mutual: false,
-  },
-  {
-    id: 11,
-    name: "Fernanda",
-    age: 25,
-    gender: "Mulheres",
-    job: "Ilustradora",
-    image: photo("photo-1526510747491-58f928ec870f"),
-    interests: ["Arte", "Viagens"],
-    online: false,
-    mutual: false,
-  },
-  {
-    id: 12,
-    name: "Bruno",
-    age: 28,
-    gender: "Homens",
-    job: "Músico",
-    image: photo("photo-1463453091185-61582044d556"),
-    interests: ["Música", "Gastronomia"],
-    online: true,
-    mutual: false,
-  },
-];
 const stages: { page: Page; title: string; description: string }[] = [
   {
     page: "login",
@@ -332,21 +198,6 @@ const mockPurposes = [
   "Troca de ideias",
   "Outros",
 ];
-const initialChats: Record<string, Message[]> = {
-  3: [
-    { text: "Oi! Adorei nosso papo no evento! 😊", mine: false, time: "14:30" },
-  ],
-  2: [
-    { text: "Oi, Lucas! Está gostando do evento?", mine: true, time: "12:08" },
-    { text: "Muito! Vamos no próximo painel?", mine: false, time: "12:10" },
-  ],
-  5: [{ text: "Também achei incrível!", mine: false, time: "Ontem" }],
-  4: [{ text: "Conecta nos próximos workshops?", mine: false, time: "Ontem" }],
-  7: [{ text: "Topo! Vamos sim! 🚀", mine: false, time: "Seg" }],
-  6: [{ text: "Valeu pela indicação!", mine: false, time: "Seg" }],
-  9: [{ text: "Foi muito bom te conhecer!", mine: false, time: "Dom" }],
-  8: [{ text: "Até mais! 👋", mine: false, time: "Dom" }],
-};
 const readPage = (): Page =>
   stages.some((s) => s.page === location.hash.slice(1))
     ? (location.hash.slice(1) as Page)
@@ -367,6 +218,7 @@ function Avatar({
 }
 function App() {
   const [serverData, setServerData] = useState<Bootstrap | null>(null);
+  const [demoData, setDemoData] = useState<Bootstrap | null>(() => frontendConfig.isDemonstration ? participantMock.profileData() : null);
   const interests = !frontendConfig.useMocks ? serverData?.profileTopics?.find((topic) => topic.key === "interests")?.options || [] : mockInterests;
   const purposes = !frontendConfig.useMocks ? serverData?.profileTopics?.find((topic) => topic.key === "purpose")?.options || [] : mockPurposes;
   const [mailbox, setMailbox] = useState("messages");
@@ -379,16 +231,17 @@ function App() {
       location.hash.startsWith("#admin-"),
   );
   const invite = new URLSearchParams(location.search).get("invite");
-  const invitePath = invite ? `join/${encodeURIComponent(invite)}/` : "";
+  const invitedEvent = new URLSearchParams(location.search).get("event");
+  const invitePath = invite ? `join/${encodeURIComponent(invite)}/${invitedEvent ? `?event=${encodeURIComponent(invitedEvent)}` : ""}` : "";
   const [real] = useState(!frontendConfig.useMocks);
   const mockEvent = frontendConfig.useMocks
     ? mockEventInfo(new URLSearchParams(location.search).get("demoEvent"))
     : undefined;
   const [inviteName, setInviteName] = useState(mockEvent?.name || "");
-  const canRegister = !real || Boolean(invite && inviteName);
+  const canRegister = real ? Boolean(invite && inviteName) : !frontendConfig.isDemonstration;
   const [people, setPeople] = useState<Person[]>(real ? [] : mockPeople);
   const [remoteDiscovery, setRemoteDiscovery] = useState<Person[]>([]);
-  const [authenticated, setAuthenticated] = useState(!real);
+  const [authenticated, setAuthenticated] = useState(!real && !frontendConfig.isDemonstration);
   const authenticatedRef = useRef(authenticated);
   authenticatedRef.current = authenticated;
   const [ready, setReady] = useState(!real);
@@ -397,13 +250,13 @@ function App() {
   const [serverActive, setServerActive] = useState(false);
   const [chatStates, setChatStates] = useState<Bootstrap["chatStates"]>({});
   const [registering, setRegistering] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(frontendConfig.isDemonstration ? mockCredentials.email : "");
+  const [password, setPassword] = useState(frontendConfig.isDemonstration ? mockCredentials.password : "");
   const [eventName, setEventName] = useState(
     real ? "" : mockEvent?.name || "Conecta São Paulo",
   );
 
-  const [page, setPage] = useState<Page>(readPage);
+  const [page, setPage] = useState<Page>(frontendConfig.isDemonstration ? "login" : readPage);
   const [profile, setProfile] = useState<Profile>(
     real
       ? {
@@ -433,12 +286,12 @@ function App() {
       : [
           mockPeople[0].image,
           mockPeople[2].image,
-          photo("photo-1476514525535-07fb3b4ae5f1"),
+          "/images/photo-1476514525535-07fb3b4ae5f1.jpg",
         ],
   );
   const [filters, setFilters] = useState<Filters>({
     min: 18,
-    max: 35,
+    max: real ? 35 : 70,
     gender: "Todos",
     interests: [],
     purpose: "Networking",
@@ -466,8 +319,8 @@ function App() {
   }, [thumbnailPhoto]);
   const [match, setMatch] = useState<Person | null>(null);
   const [toast, setToast] = useState("");
-  const [loginForm, setLoginForm] = useState(real);
-  const [unread, setUnread] = useState<PersonId[]>(real ? [] : [3]);
+  const [loginForm, setLoginForm] = useState(real || frontendConfig.isDemonstration);
+  const [unread, setUnread] = useState<PersonId[]>(real ? [] : [3, 15, 31]);
   const [saved, setSaved] = useState<PersonId[]>([]);
   const uploadRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -492,7 +345,7 @@ function App() {
   }, [imageScope, Boolean(serverData)]);
   const notify = (text: string) => setToast(text);
   const navigate = (next: Page) => {
-    if (real && next !== "login" && !authenticated) {
+    if ((real || frontendConfig.isDemonstration) && next !== "login" && !authenticated) {
       next = "login";
       setLoginForm(true);
     }
@@ -711,7 +564,10 @@ function App() {
   const loginSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!real) {
-      navigate("perfil");
+      authenticatedRef.current = true;
+      setAuthenticated(true);
+      location.hash = "perfil";
+      setPage("perfil");
       notify("Você entrou na demonstração. Explore seu perfil!");
       return;
     }
@@ -903,10 +759,10 @@ function App() {
     setDetails(null);
     setMatch(null);
     setMessage("");
-    setEmail("");
-    setPassword("");
+    setEmail(frontendConfig.isDemonstration ? mockCredentials.email : "");
+    setPassword(frontendConfig.isDemonstration ? mockCredentials.password : "");
     setRegistering(false);
-    setLoginForm(real);
+    setLoginForm(real || frontendConfig.isDemonstration);
     location.hash = "login";
     setPage("login");
   };
@@ -938,6 +794,7 @@ function App() {
       if (person.mutual) {
         setChats((old) => ({ ...old, [person.id]: old[person.id] || [] }));
         setMatch(person);
+        participantMock.addMatch(person);
       } else notify(`Seu like para ${person.name} foi enviado 💜`);
     }
   };
@@ -948,6 +805,18 @@ function App() {
     navigate("mensagens");
   };
   const openNotification = (notice: Notice) => {
+    if (!real) {
+      const person = people.find((person) => String(person.id) === notice.participant);
+      if (person && ["match", "message"].includes(notice.kind || "") && String(person.id) in chats) {
+        openChat(person.id);
+      } else if (person && notice.kind === "like") {
+        setDetails(person);
+      } else {
+        navigate("mensagens");
+        setMailbox(notice.kind === "support" ? "support" : "notifications");
+      }
+      return;
+    }
     void run(async () => {
       setActiveChat(null);
       if (notice.kind === "like") {
@@ -1037,6 +906,18 @@ function App() {
     );
   if (authenticated && globalMode)
     return <GlobalAdministration onSelect={applyData} onLogout={leave} />;
+  if (frontendConfig.isDemonstration && authenticated && !adminMode && demoData && !demoData.onboardingComplete)
+    return (
+      <>
+        <div className="backend-ribbon demo-onboarding-ribbon" role="status">
+          <span>Demonstração · Complete seu perfil</span>
+          <a href={location.pathname}>Voltar à Administração Global</a>
+        </div>
+        <ParticipantOnboarding mock data={demoData}
+          onComplete={(data) => {setDemoData(data); applyData(data); navigate("filtros");}}
+          onLogout={() => void run(leave)} />
+      </>
+    );
   if (
     real &&
     authenticated &&
@@ -1074,7 +955,7 @@ function App() {
     );
   return (
     <div
-      className={`workspace ${real ? "django-workspace" : "mock-workspace"} ${page === "login" ? "login-workspace" : "participant-workspace"} ${busy ? "is-busy" : ""}`}
+      className={`workspace ${real ? "django-workspace" : "mock-workspace"} ${frontendConfig.isDemonstration ? "runtime-demonstration" : ""} ${page === "login" ? "login-workspace" : "participant-workspace"} ${busy ? "is-busy" : ""}`}
       aria-busy={busy || !ready}
     >
       {!real && (
@@ -1083,7 +964,10 @@ function App() {
             Demonstração ·{" "}
             {mockEvent ? `Ingresso em ${mockEvent.name}` : "Participante"}
           </span>
-          <button
+          {frontendConfig.isDemonstration && (
+            <a href={location.pathname}>Voltar à Administração Global</a>
+          )}
+          {(!frontendConfig.isDemonstration || authenticated) && <button
             onClick={() => {
               setAdminMode(true);
               setAuthenticated(true);
@@ -1091,7 +975,7 @@ function App() {
             }}
           >
             Explorar administração
-          </button>
+          </button>}
         </div>
       )}
       {real && (!ready || busy) && (
@@ -1542,6 +1426,10 @@ function App() {
                           setRemoteDiscovery(d.discovery);
                         }}
                       />
+                    </>
+                  )}
+                  {authenticated && (serverData || !real) && (
+                    <>
                       {page === "mensagens" && (
                         <nav
                           className="mailbox-tabs nav nav-tabs"
@@ -1578,6 +1466,7 @@ function App() {
                         </nav>
                       )}
                       <NotificationCenter
+                        mock={!real}
                         visible={
                           page === "mensagens" && mailbox === "notifications"
                         }
@@ -1585,7 +1474,7 @@ function App() {
                         onOpen={openNotification}
                       />
                       {page === "mensagens" && mailbox === "support" && (
-                        <SupportPanel />
+                        <SupportPanel mock={!real} />
                       )}
                     </>
                   )}
@@ -1864,10 +1753,9 @@ function App() {
                           }
                         >
                           <h2>Miniatura do perfil</h2>
-                          <CachedImage
-                            src={thumbnailPhoto || undefined}
-                            alt="Foto pública selecionada"
-                          />
+                          {thumbnailPhoto && (
+                            <CachedImage src={thumbnailPhoto} alt="Foto pública selecionada" />
+                          )}
                           <div className="onboarding-actions">
                             <button
                               type="button"
@@ -2249,7 +2137,7 @@ function App() {
                       </>
                     )}
                   {page === "mensagens" &&
-                    (!real || mailbox === "messages") &&
+                    mailbox === "messages" &&
                     (activeChat === null ? (
                       <>
                         <div className="screen-title">
@@ -2482,11 +2370,10 @@ function App() {
                       <>
                         <div className="screen-title">
                           <h2>Participantes</h2>
-                          {real && (
-                            <LikesReceived
-                              onPerson={(p) => void showDetails(p)}
-                            />
-                          )}
+                          <LikesReceived
+                            mock={!real}
+                            onPerson={(p) => void showDetails(p)}
+                          />
                           <button
                             className="icon-button purple"
                             aria-label={
@@ -2713,7 +2600,7 @@ function App() {
         )}
       </main>
       {toast && (
-        <div className="toast" role="status">
+        <div className="toast show" role="status">
           <Icon name="check" size={19} />
           {toast}
           <button aria-label="Fechar aviso" onClick={() => setToast("")}>

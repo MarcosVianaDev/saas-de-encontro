@@ -4,16 +4,20 @@ import { api, request } from "./backend-client";
 import type { Bootstrap, Profile } from "./types";
 import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
 import { ProfileTopics } from "./ProfileTopics";
+import { participantMock } from "./participant-mock";
 
 export function ParticipantOnboarding({
   data,
   onComplete,
   onLogout,
+  mock = false,
 }: {
   data: Bootstrap;
   onComplete: (d: Bootstrap) => void;
   onLogout: () => void;
+  mock?: boolean;
 }) {
+  const client = mock ? participantMock : api;
   const [step, setStep] = useState(0),
     [profile, setProfile] = useState<Profile>({
       ...data.profile,
@@ -56,7 +60,7 @@ export function ParticipantOnboarding({
       }
       if (photos.length < 3) throw new Error("Adicione três fotos públicas.");
       if (fields.length) await request("profile/fields/", "PUT", { values });
-      onComplete(await api.saveProfile(profile));
+      onComplete(await client.saveProfile(profile));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível concluir.");
     } finally {
@@ -162,7 +166,7 @@ export function ParticipantOnboarding({
                       <button
                         type="button"
                         onClick={() =>
-                          void api
+                          void client
                             .removePhoto(photos[i])
                             .then((d) => setPhotos(d.photos))
                             .catch((e) => setError(e.message))
@@ -186,7 +190,7 @@ export function ParticipantOnboarding({
                   setBusy(true);
                   try {
                     for (const file of Array.from(e.target.files || [])) {
-                      const result = await api.upload(file);
+                      const result = await client.upload(file);
                       setPhotos(result.photos);
                     }
                   } catch (e) {

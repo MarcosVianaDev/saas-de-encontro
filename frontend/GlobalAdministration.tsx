@@ -416,7 +416,7 @@ export function GlobalAdministration({
                     )}
                     <label>
                       E-mail da conta responsável
-                      <select required value={draft.responsible || ""} onChange={(e) => {
+                      <select aria-label="E-mail da conta responsável" required value={draft.responsible || ""} onChange={(e) => {
                         setDraft({ ...draft, responsible: e.target.value });
                         setDirty(true);
                       }}>
@@ -519,6 +519,17 @@ export function GlobalAdministration({
                       onClick={() => begin("event-create")}
                     >
                       + Novo evento
+                    </button>
+                    <button
+                      className="adm-primary"
+                      onClick={() => {
+                        const url = new URL(location.href);
+                        url.search = "?demo=1&demoEvent=demo-current";
+                        url.hash = "login";
+                        window.open(url.href, "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      Demonstração
                     </button>
                     </div>
                   </section>

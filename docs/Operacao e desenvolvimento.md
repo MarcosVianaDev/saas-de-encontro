@@ -14,7 +14,7 @@ docker compose exec -T backend python manage.py check
 
 O endereço local padrão é `http://localhost:8080/`; o Django Admin fica em `/admin/`. Portas e origens CSRF devem acompanhar a configuração efetiva do ambiente.
 
-`backend/start.py` aplica migrações e coleta estáticos. A carga demonstrativa depende de DEBUG e `DJANGO_SEED_DEMO`; não deve ser usada como carga de dados reais. `FRONTEND_DATA_MODE=mock` é simulação no navegador, enquanto `django` usa a API. Recrie o serviço frontend após mudar variáveis de ambiente do Compose.
+`backend/start.py` aplica migrações e coleta estáticos. A carga demonstrativa depende de DEBUG e `DJANGO_SEED_DEMO`; não deve ser usada como carga de dados reais. `FRONTEND_DATA_MODE=mock` é simulação no navegador, enquanto `django` usa a API. Recrie o serviço frontend após mudar variáveis de ambiente do Compose. Para abrir o mock a partir do acesso global, use **Ações rápidas → Demonstração**: `?demo=1` seleciona a simulação somente nessa aba, sem alterar o `.env`. O fluxo e os 50 perfis estão descritos em [Demonstração do frontend](<Demonstracao do frontend.md>).
 
 ```powershell
 docker compose exec -T backend python manage.py migrate
@@ -39,9 +39,12 @@ docker compose exec -T backend python manage.py check
 docker compose exec -T backend python manage.py makemigrations --check --dry-run
 docker compose exec -T backend python manage.py test tests api --noinput
 npm --prefix frontend run build
+npm --prefix frontend run test:browser
 ```
 
 Execute testes no PostgreSQL: a auditoria possui migrações de triggers específicas desse banco. SQLite não reproduz essa proteção e não executa integralmente as migrações atuais.
+
+Os testes de navegador estão versionados em `frontend/tests/browser`; `test:browser` usa banco, mídia e backups temporários, com cleanup automático. Pré-requisitos, execução de cenários individuais e limites em [Testes de navegador](<../frontend/tests/README.md>). Os auxiliares estão em `scripts/`; o diagnóstico de `full_clean` não substitui testes de regras dos serviços/API.
 
 A aprovação do build não comprova autorização nem regras de domínio; a aprovação de testes selecionados não equivale à suíte inteira. Consulte [o registro de verificação](<Verificacao da implementacao.md>) antes de usar números antigos.
 

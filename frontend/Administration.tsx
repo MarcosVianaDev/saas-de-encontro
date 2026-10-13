@@ -7,6 +7,7 @@ import Accordion from "react-bootstrap/Accordion";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
 import { adminMock } from "./administration-mock";
+import { mockAnnouncements } from "./participant-mock";
 import "./administration.css";
 import { AdminNavigation, type AdminNavItem } from "./AdminNavigation";
 import { EventOperations } from "./EventOperations";
@@ -1070,7 +1071,7 @@ export function Administration({
                     </section>
                   </div>
                 )}
-                {!mock && <NotificationCenter visible onUnread={() => {}} />}
+                <NotificationCenter mock={mock} visible onUnread={() => {}} />
                 {joinUrl && (
                   <button
                     className="adm-primary adm-wide"
@@ -1536,18 +1537,21 @@ export function Administration({
                     Sair da conta
                   </button>
                 </section>
-                {!mock && (
                   <Accordion className="adm-more-accordion">
-                    {data.permissions?.includes("announcements") && (
+                    {(mock || data.permissions?.includes("announcements")) && (
                       <Accordion.Item eventKey="announcements">
                         <Accordion.Header>Avisos do Evento</Accordion.Header>
                         <Accordion.Body>
-                          <Announcements
+                          {mock ? mockAnnouncements.map((notice) => (
+                            <article className="adm-card" key={notice.id}>
+                              <h3>{notice.title}</h3><p>{notice.body}</p>
+                            </article>
+                          )) : <Announcements
                             readOnly={readOnly}
                             eventState={data.event.state}
                             starts={data.event.starts}
                             ends={data.event.ends}
-                          />
+                          />}
                         </Accordion.Body>
                       </Accordion.Item>
                     )}
@@ -1555,7 +1559,7 @@ export function Administration({
                       <Accordion.Item eventKey="support">
                         <Accordion.Header>Suporte</Accordion.Header>
                         <Accordion.Body>
-                          <SupportPanel admin />
+                          <SupportPanel admin mock={mock} />
                         </Accordion.Body>
                       </Accordion.Item>
                     )}
@@ -1568,7 +1572,6 @@ export function Administration({
                       </Accordion.Item>
                     )}
                   </Accordion>
-                )}
               </>
             )}
             {page === "team" && data.role === "ADMIN" && (

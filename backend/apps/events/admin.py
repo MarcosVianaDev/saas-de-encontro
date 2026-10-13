@@ -12,3 +12,17 @@ class EventAdmin(BaseAdmin):
         configure(obj,request.user,{key:getattr(obj,obj._meta.get_field(key).attname) for key in form.changed_data},confirmed=True)
 
 admin.site.register(models.EventAdministrator, BaseAdmin)
+
+
+@admin.register(models.ExportJob)
+class ExportJobAdmin(BaseAdmin):
+    """Inspect task status without modifying the worker's files or state."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

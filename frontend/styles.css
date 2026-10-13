@@ -2170,6 +2170,8 @@ dialog.profile-photo-viewer[open] {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 24px);
   padding: 6px 12px;
   border-radius: 20px;
   background: #fff;
@@ -2183,6 +2185,12 @@ dialog.profile-photo-viewer[open] {
   border: 0;
   background: none;
   cursor: pointer;
+}
+.backend-ribbon a {
+  color: inherit;
+}
+.demo-onboarding-ribbon + .participant-onboarding {
+  padding-top: 64px;
 }
 .chat-heading .end-match {
   margin-left: auto;
@@ -2369,6 +2377,12 @@ dialog.profile-photo-viewer[open] {
   min-height: 40px;
   justify-content: center;
   border-radius: 0;
+  max-width: none;
+}
+@media (max-width: 600px) {
+  .runtime-demonstration {
+    padding-top: 80px;
+  }
 }
 .mock-workspace.participant-workspace .app-screen {
   height: calc(100dvh - 88px);

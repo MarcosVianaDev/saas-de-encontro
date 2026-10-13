@@ -6,7 +6,7 @@ from django.db import DatabaseError, transaction
 from django.test import TestCase
 from apps.audit.models import AuditLog
 from apps.organizations.models import Organization
-from apps.events.models import Event
+from apps.events.models import Event, ExportJob
 from apps.participants.models import EventParticipant
 from apps.rooms.models import Room, RoomParticipant
 
@@ -36,6 +36,17 @@ class AdminTests(TestCase):
         get_user_model().objects.create_user("ordinary", password="Test-only-password-321!")
         self.client.login(username="ordinary", password="Test-only-password-321!")
         self.assertEqual(self.client.get("/admin/").status_code, 302)
+
+    def test_export_jobs_are_inspectable_but_not_editable(self):
+        self.client.force_login(self.superuser)
+        job = ExportJob.objects.create(event=self.event, requested_by=self.superuser)
+        url = f'/admin/events/exportjob/{job.pk}/'
+        self.assertEqual(self.client.get(url+'change/').status_code,200)
+        self.assertEqual(self.client.post('/admin/events/exportjob/add/',{}).status_code,403)
+        self.assertEqual(self.client.post(url+'change/',{'state':'COMPLETED'}).status_code,403)
+        self.assertEqual(self.client.post(url+'delete/',{'post':'yes'}).status_code,403)
+        job.refresh_from_db()
+        self.assertEqual(job.state,'PENDING')
 
     def test_participant_cannot_be_added_to_room_of_other_event(self):
         other = Event.objects.create(name="Outro", organization=self.organization)

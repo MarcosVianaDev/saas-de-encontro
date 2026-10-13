@@ -17,7 +17,7 @@ Backend Django/DRF, autenticação por sessão e CSRF, PostgreSQL, Daphne, Redis
 
 `is_staff` sozinho não concede administração global. A sessão identifica o contexto e o evento; os endpoints administrativos validam o escopo. Login e seleção de contexto são tratados por `backend/api/contexts.py` e `event_admin.py`.
 
-O frontend oferece modos `mock` e `django`. O mock simula interações locais e conserva seus catálogos estáticos. O modo real recebe catálogos, perfis, estados e permissões da API. Uma demonstração visual não comprova persistência nem autorização real.
+O frontend oferece modos `mock` e `django`. O mock simula interações locais e conserva seus catálogos estáticos. O modo real recebe catálogos, perfis, estados e permissões da API. O botão **Demonstração**, após **Novo evento** em Ações rápidas do acesso global, abre o mock em nova aba sem mudar o `.env`: login com credenciais fictícias preenchidas, cadastro do perfil/fotos, 50 perfis variados, likes, matches, mensagens, notificações e avisos. Veja [Demonstração do frontend](<Demonstracao do frontend.md>). Uma demonstração visual não comprova persistência nem autorização real.
 
 O tema cobre os três acessos, formulários, navegação, cards, modais e componentes Bootstrap. `ThemeSelector` permite Claro, Escuro e Automático; a preferência é persistida localmente em `eventconnect-theme`, e Automático segue o sistema operacional. A identidade de acesso é preservada. A aplicação do tema usa `frontend/theme.ts` e `dark-theme.css`. Controles booleanos são apresentados como toggles com label à esquerda e controle à direita, salvo a organização específica dos toggles dos cards de tópico, com labels acima.
 

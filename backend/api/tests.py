@@ -7,6 +7,8 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from apps.participants.models import EventParticipant
+from apps.participants.location import reading
+from apps.events.models import Event, ExportJob
 from apps.matches.models import Match
 from apps.messaging.models import Message
 from demo.data import demo_id
@@ -21,6 +23,8 @@ class DemoFlowTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.actor = EventParticipant.objects.get(pk=demo_id("actor"))
+        Event.objects.filter(pk=self.actor.event_id).update(latitude='-23.550000',longitude='-46.630000')
+        reading(self.actor, {'latitude':'-23.550000','longitude':'-46.630000'})
         self.client.force_login(self.actor.user)
         session = self.client.session
         session["event_id"] = str(self.actor.event_id)
@@ -62,6 +66,10 @@ class DemoFlowTests(TestCase):
         for config in apps.get_app_configs():
             if config.name.startswith("apps."):
                 for model in config.get_models():
+                    if model is ExportJob:
+                        # Export tasks are created on request; seeding must not enqueue work.
+                        self.assertFalse(model.objects.exists())
+                        continue
                     self.assertTrue(model.objects.exists(), model._meta.label)
 
     def test_profile_filters_and_event_isolation(self):

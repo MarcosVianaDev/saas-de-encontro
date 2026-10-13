@@ -22,6 +22,7 @@ class FoundationTests(TestCase):
         self.owner = get_user_model().objects.create_user(username='global', is_superuser=True)
         self.org = Organization.objects.create(name='Cliente fictício')
         self.event = Event.objects.create(organization=self.org, name='Evento fictício', responsible=self.owner,
+            latitude='-23.550000', longitude='-46.630000',
             starts_at=self.now+timedelta(minutes=30), ends_at=self.now+timedelta(hours=2))
         self.client = APIClient(); self.client.force_login(self.owner)
         session = self.client.session; session['event_id'] = str(self.event.pk); session.save()

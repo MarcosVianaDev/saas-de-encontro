@@ -1,0 +1,22 @@
+const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const {chromium}=require('playwright');const assert=require('assert/strict');
+(async()=>{const browser=await launch();try{
+const context=await browser.newContext({viewport:{width:390,height:844},colorScheme:'light'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const data={navigation:'participant',onboardingComplete:true,active:true,profile:{first:'Pessoa',last:'Teste',month:'1',year:'1990',gender:'Mulheres',bio:'Uma descrição de perfil com mais de cinquenta caracteres para completar o cadastro.',interests:[],purpose:''},photos:[],filters:{min:18,max:35,gender:'Todos',interests:[],purpose:''},people:[],discovery:[],chats:{},chatStates:{},seen:[],liked:[],saved:[],event:{id:'test',name:'Evento',state:'RUNNING',mode:'ONLINE'}};
+await page.route('**/api/**',async route=>{let body={};const path=new URL(route.request().url()).pathname;if(path==='/api/session/')body={authenticated:true,csrfToken:'test'};else if(path==='/api/bootstrap/')body=data;else if(path==='/api/notifications/')body={items:[],unread:0};else if(path==='/api/health/')body={status:'ok'};else if(path==='/api/support/')body=[];await route.fulfill({json:body});});
+await page.goto(BASE_URL + '/#perfil');await page.locator('.profile-theme-selector').waitFor();
+const current=()=>page.evaluate(()=>document.documentElement.dataset.bsTheme);
+const choose=async label=>{await page.locator('.profile-theme-toggle').click();await page.locator('.profile-theme-selector .dropdown-menu').getByRole('button',{name:label,exact:true}).click();};
+assert.equal(await current(),'light');const light=await page.locator('.app-screen').evaluate(el=>getComputedStyle(el).background);
+await choose('Escuro');assert.equal(await current(),'dark');const dark=await page.locator('.app-screen').evaluate(el=>getComputedStyle(el).background);assert.notEqual(light,dark);
+await page.emulateMedia({colorScheme:'light'});assert.equal(await current(),'dark');
+await page.reload();await page.locator('.profile-theme-selector').waitFor();assert.equal(await current(),'dark');
+await choose('Claro');assert.equal(await current(),'light');await page.emulateMedia({colorScheme:'dark'});assert.equal(await current(),'light');
+await choose('Automático');await page.waitForFunction(()=>document.documentElement.dataset.bsTheme==='dark');
+await page.emulateMedia({colorScheme:'light'});await page.waitForFunction(()=>document.documentElement.dataset.bsTheme==='light');
+await page.reload();await page.locator('.profile-theme-selector').waitFor();assert.equal(await page.locator('.profile-theme-toggle').getAttribute('aria-label'),'Tema: Automático');
+const box=await page.locator('.profile-theme-selector').boundingBox();const form=await page.locator('#profile-form').boundingBox();assert(box.x>form.x+form.width/2);assert(box.y<=form.y+15);
+await page.locator('.profile-theme-toggle').click();await page.keyboard.press('Escape');assert.equal(await page.locator('.profile-theme-selector .dropdown-menu.show').count(),0);
+assert.deepEqual(errors,[]);console.log('PASS: three theme icons/options, palette change, persistence, automatic system updates, top-right position and Escape dismissal');
+await context.close();
+}finally{await browser.close();}})().catch(e=>{console.error(e.message);process.exit(1)});
