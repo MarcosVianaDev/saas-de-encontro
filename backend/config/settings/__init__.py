@@ -69,10 +69,16 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer"
 }}}
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
 # Keep the existing default queue so pending operational tasks remain consumable.
-# Export workers consume only exports; operational workers never reserve them.
+# Export/gift workers consume dedicated queues; operational workers never reserve them.
 CELERY_TASK_DEFAULT_QUEUE = 'celery'
-CELERY_TASK_QUEUES = (Queue('celery'), Queue('exports'))
-CELERY_TASK_ROUTES = {'apps.events.export_tasks.generate': {'queue': 'exports'}}
+CELERY_TASK_QUEUES = (Queue('celery'), Queue('exports'), Queue('gifts'))
+CELERY_TASK_ROUTES = {
+    'apps.events.export_tasks.generate': {'queue': 'exports'},
+    'apps.passes.tasks.initial_gift_batch': {'queue': 'gifts'},
+}
+INITIAL_GIFT_BATCH_SIZE = int(os.getenv('INITIAL_GIFT_BATCH_SIZE', '25'))
+if not 1 <= INITIAL_GIFT_BATCH_SIZE <= 100:
+    raise ImproperlyConfigured('INITIAL_GIFT_BATCH_SIZE deve estar entre 1 e 100.')
 CELERY_BEAT_SCHEDULE = {
     'initial-gifts': {'task': 'apps.passes.tasks.initial_gifts', 'schedule': 30.0},
     'event-lifecycle': {'task': 'apps.events.tasks.synchronize_events', 'schedule': 30.0},

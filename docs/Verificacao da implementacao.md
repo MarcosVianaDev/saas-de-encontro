@@ -1,5 +1,22 @@
 # Verificação da implementação
 
+## Presente inicial em lotes em 16/10/2026
+
+A distribuição periódica foi separada da fila operacional. O Beat despacha uma varredura com concessão exclusiva no PostgreSQL; `celery_gifts` entrega em lotes de até 25 participantes, com cursor e uma continuação por lote. A migração `passes.0006_initialgiftsweep` mantém a concessão renovável por 120 segundos. Tarefas antigas, ciclos sobrepostos e continuações repetidas são rejeitados; a unicidade do passe continua protegida por lock e constraint. Dev/prod, modelos de ambiente, scripts `full-clean` e verificador dos ambientes incluem o novo worker. [Contrato e implantação](<Operacao e desenvolvimento.md#processamento-assíncrono>).
+
+| Verificação | Resultado |
+|---|---|
+| Suíte completa `manage.py test tests api --noinput --verbosity 1` | **304 testes aprovados**, sem falhas, erros ou skips |
+| Seleção/continuação com 5.000 participantes no PostgreSQL de teste | **200 lotes de 25**, consulta limitada a 26 IDs, sem repetição/perda de IDs; entrega pesada substituída para verificar o loteamento |
+| Entregas reais em múltiplos lotes | Passes, ativações, notificações e auditoria criados uma única vez; elegibilidade e horário revalidados |
+| Falha individual e publicação interrompida | Rollback da entrega, avanço dos demais e recuperação por nova varredura |
+| Concorrência e perda de worker | Dois dispatchers simultâneos publicam uma varredura; duas entregas concorrentes geram um presente; concessão expirada permite recuperação e rejeita token antigo |
+| `scripts/verify_celery_queues.py` | **Aprovado com Redis e três workers prefork reais**: fila operacional responde enquanto `exports` e `gifts` estão ocupadas |
+| Composes padrão/dev/prod | Dez serviços, três filas exclusivas, concorrência/prefetch 1 e healthchecks do worker de presentes |
+| Migrações, scripts e revisão do diff | `makemigrations --check --dry-run` sem alterações adicionais; verificador dos dois `full-clean` aprovado em diretórios temporários; `git diff --check` aprovado |
+
+O cenário de 5.000 participantes verifica limites e paginação; não mede o tempo de gerar 5.000 presentes com likes, arquivos e notificações reais. O orçamento de cinco segundos é verificado entre participantes, sem interromper uma entrega individual. A distribuição preserva a regra de não conceder após o término do evento, mesmo se ainda houver participantes na fila. Logs: `.tools/gift-batches-backend.log` e `.tools/gift-batches-queues.log`. Os testes usam banco descartável e namespace Redis próprio; os serviços em uso foram preservados.
+
 ## Docker de desenvolvimento e produção em 16/10/2026
 
 `frontend/Dockerfile` passou a ter estágios de dependências, desenvolvimento, build e produção. A imagem final contém somente Nginx/assets compilados. `docker-compose.dev.yml` preserva o ambiente padrão e `docker-compose.prod.yml` separa imagens, ambientes e persistência, com DEBUG/carga automática desativados, HTTPS no Traefik e workers em filas próprias. As rotas sensíveis do gateway foram consolidadas em `infra/app-routes.conf`. Guia: [Docker: desenvolvimento e produção](<Docker - desenvolvimento e producao.md>).
@@ -224,7 +241,7 @@ Não afrouxar regras de autorização, localização ou responsável para fazer 
 | Clientes/equipe global | `api.test_global_clients` | Não substitui matriz de conta/Django Admin |
 | Solicitação/ciclo de evento | `api.test_event_requests`, `test_event_timeline`, `test_mvp` | Cenário de arquivamento de FoundationTests não passa atualmente |
 | Tópicos e mínimos | `api.test_profile_topics`, `test_global_clients` | Catálogo global e regras por evento são distintos |
-| Presente inicial | `api.test_initial_gifts` | Hooks, prazo, notificação e unicidade; não prova carga do worker |
+| Presente inicial | `api.test_initial_gifts`, `api.test_initial_gift_batches` | Hooks, prazo, unicidade, concorrência, recuperação e paginação de 5.000 participantes; não mede throughput de 5.000 entregas reais |
 | Likes/passes | `api.test_auto_likes`, `test_mvp_flows` | Cenário legado de revelação falha por acesso |
 | Avisos/notificações | `api.test_notification_contexts`, `test_message_notifications`, `test_announcements` | Não implica e-mail/push de produção |
 | UF de residência | `api.test_profile_residence_state` | Cadastro/exibição, sem filtro por UF |

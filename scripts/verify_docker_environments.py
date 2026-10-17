@@ -65,7 +65,7 @@ def main():
         assert frontend['build']['target'] == 'production'
         assert frontend['build']['args']['VITE_FRONTEND_DATA_MODE'] == 'django'
         assert not frontend.get('volumes') and not frontend.get('environment')
-        for service in ['backend', 'celery_worker', 'celery_exports', 'celery_beat']:
+        for service in ['backend', 'celery_worker', 'celery_exports', 'celery_gifts', 'celery_beat']:
             assert config['services'][service]['environment']['DJANGO_DEBUG'] == '0'
             assert config['services'][service]['environment']['DJANGO_SEED_DEMO'] == '0'
             assert all(m['target'] != '/app' for m in config['services'][service]['volumes'])
@@ -79,7 +79,7 @@ def main():
                                             stdout=output, stderr=subprocess.STDOUT)
                 if result.returncode:
                     raise RuntimeError(f'Image build failed: {image}. Inspect build-{index}.log')
-        for service in ['backend', 'celery_worker', 'celery_exports', 'celery_beat', 'frontend']:
+        for service in ['backend', 'celery_worker', 'celery_exports', 'celery_gifts', 'celery_beat', 'frontend']:
             config['services'][service].pop('build', None)
             config['services'][service]['image'] = IMAGES['frontend' if service == 'frontend' else 'backend']
         for service in config['services'].values():

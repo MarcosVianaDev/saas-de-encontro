@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 from kombu import Connection, Producer
 
 from apps.events.export_tasks import generate
+from apps.passes.tasks import initial_gift_batch
 from config.celery import app
 
 
@@ -27,6 +28,19 @@ class CeleryQueueRoutingTests(SimpleTestCase):
                 route = app.amqp.router.route({}, schedule['task'])
                 self.assertEqual(route['queue'].name, 'celery')
         self.assertEqual(app.conf.task_default_queue, 'celery')
+
+    def test_gift_batches_and_retries_use_the_dedicated_queue(self):
+        with Connection('memory://') as connection, Producer(connection) as producer:
+            with patch.object(producer, 'publish') as publish:
+                initial_gift_batch.apply_async(args=['token'], producer=producer)
+                self.assertEqual(publish.call_args.kwargs['routing_key'], 'gifts')
+                app.send_task(initial_gift_batch.name, args=['token'], producer=producer)
+                self.assertEqual(publish.call_args.kwargs['routing_key'], 'gifts')
+        request = Context(id='gift-retry', args=['token'], kwargs={}, retries=1,
+                          delivery_info={'exchange': '', 'routing_key': 'gifts'})
+        self.assertEqual(initial_gift_batch.signature_from_request(request=request).options['queue'], 'gifts')
+        self.assertTrue(initial_gift_batch.acks_late)
+        self.assertTrue(initial_gift_batch.reject_on_worker_lost)
 
     def test_export_retry_preserves_its_delivery_queue(self):
         request = Context(id='retry-id', args=['export-id'], kwargs={}, retries=1,

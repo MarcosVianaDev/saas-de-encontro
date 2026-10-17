@@ -106,33 +106,42 @@ Referências: [configurações do Django](https://docs.djangoproject.com/en/5.2/
 
 ## Processamento assíncrono
 
-`celery_worker` e Beat devem estar disponíveis para ciclo do evento, avisos, expiração de passes e entrega agendada do presente inicial. `celery_exports` é o worker dedicado à geração de ZIP/PDF.
+`celery_worker` e Beat devem estar disponíveis para ciclo do evento, avisos, expiração de passes e despacho do presente inicial. `celery_exports` gera ZIP/PDF e `celery_gifts` entrega os presentes em lotes.
 
 | Serviço | Fila consumida | Concorrência / prefetch |
 |---|---|---|
 | `celery_worker` | `celery` (nome padrão anterior, preservado) | 1 / 1 |
 | `celery_exports` | `exports` | 1 / 1 |
+| `celery_gifts` | `gifts` | 1 / 1 |
 | `celery_beat` | Publica as quatro rotinas periódicas em `celery` | Uma instância por aplicação |
 
-`CELERY_TASK_ROUTES` envia `apps.events.export_tasks.generate` para `exports`. A tarefa também declara a fila e os retries conservam o destino. Os dois workers compartilham banco, mídia e `backend/backups` pelo volume existente. Os healthchecks usam nomes distintos (`default@<hostname>` e `exports@<hostname>`). O worker de exportação tem até 10 minutos para encerrar no Compose antes de uma parada forçada. Filas separadas impedem que uma exportação reserve o único processo das rotinas; não constituem isolamento físico de CPU, disco ou PostgreSQL.
+`CELERY_TASK_ROUTES` envia `apps.events.export_tasks.generate` para `exports` e `apps.passes.tasks.initial_gift_batch` para `gifts`. As tarefas também declaram suas filas e os retries conservam o destino. Os três workers compartilham banco, mídia e backups pelos volumes existentes. Os healthchecks usam nomes distintos (`default@<hostname>`, `exports@<hostname>` e `gifts@<hostname>`). O worker de exportação tem até 10 minutos para encerrar no Compose antes de uma parada forçada. Filas separadas impedem que exportações ou entregas em massa reservem o processo das rotinas; CPU, disco e PostgreSQL continuam compartilhados.
 
 Ao atualizar um ambiente existente, recrie os produtores, os workers e o Beat:
 
 ```powershell
-docker compose up -d --build backend celery_worker celery_exports celery_beat
+docker compose up -d --build --force-recreate --wait backend celery_worker celery_exports celery_gifts celery_beat nginx traefik
 ```
 
-Tarefas publicadas antes da atualização permanecem na fila original; o roteamento vale para novas publicações e retries. O worker operacional ainda consome `celery` para drenar mensagens antigas. Uma exportação antiga já publicada ali pode ocupar esse worker uma última vez. Não há purge ou transferência automática de mensagens. Evite manter produtores antigos publicando durante a atualização. Os scripts `full-clean` agora param e recriam também `celery_exports` antes/depois da limpeza destrutiva.
+Tarefas publicadas antes da atualização permanecem na fila original; o roteamento vale para novas publicações e retries. O worker operacional ainda consome `celery` para drenar mensagens antigas. Uma exportação antiga já publicada ali pode ocupar esse worker uma última vez. Não há purge ou transferência automática de mensagens. Evite manter produtores antigos publicando durante a atualização. Os scripts `full-clean` param e recriam os três workers antes/depois da limpeza destrutiva.
 
 ```powershell
 docker compose exec -T celery_worker celery -A config inspect registered --timeout 5
 docker compose exec -T celery_worker celery -A config inspect active_queues --timeout 5
-docker compose logs --tail 80 celery_worker celery_exports celery_beat
+docker compose logs --tail 80 celery_worker celery_exports celery_gifts celery_beat
 ```
 
 Alterações em tarefas ou agendamento exigem recarregar os processos correspondentes. Frequências atuais: 30 segundos. O prazo zero do presente inicial também possui execução direta ao ativar o perfil; prazos positivos dependem da execução elegível com o evento Em andamento.
 
-`scripts/verify_celery_queues.py` verifica o isolamento com Redis e dois workers prefork reais. Substitui temporariamente apenas o gerador da tarefa de exportação por uma espera limitada; confirma que uma tarefa operacional termina antes de liberar a exportação. Usa prefixo Redis aleatório, remove somente suas chaves e encerra seus workers; não cria `ExportJob` nem arquivos de exportação e não altera dados da aplicação. Execute em um processo separado:
+### Presente inicial em grandes eventos
+
+O Beat adquire uma concessão exclusiva no PostgreSQL (`InitialGiftSweep`, migração `passes.0006`) e publica somente o primeiro lote. Cada tarefa em `gifts` seleciona até `INITIAL_GIFT_BATCH_SIZE + 1` identificadores por cursor, entrega no máximo `INITIAL_GIFT_BATCH_SIZE` presentes e publica uma única continuação. O padrão é **25 participantes**; a configuração aceita **1 a 100** nos dois ambientes. A seleção filtra eventos em andamento, prazo vencido, evento ainda válido, conta/participação ativas e ausência de presente anterior antes das transações de entrega.
+
+Após aproximadamente cinco segundos, o lote pode ceder antes do limite de participantes. O limite de tempo é verificado entre entregas: uma entrega individual demorada não é interrompida. O próximo lote continua imediatamente pela fila, sem esperar os 30 segundos do Beat. A concessão é renovada a cada lote e impede que ciclos sobrepostos acumulem distribuições. Tokens e cursor rejeitam tarefas antigas e continuações repetidas. Se o worker desaparecer, o Beat pode reiniciar a varredura após a concessão expirar em **120 segundos**; os presentes já entregues são excluídos.
+
+Cada entrega continua atômica, verifica novamente elegibilidade e horário após adquirir o lock e mantém a constraint de um presente por participação. Falhas individuais são registradas com o identificador do participante, não impedem a continuação e são tentadas novamente na próxima varredura. Falhas de banco/publicação têm retries limitados; falha ao publicar libera a concessão para recuperação pelo Beat. Não existe uma transação que englobe o lote inteiro. O helper síncrono `grant_due_initial_gifts()` também se limita a um lote; não é mais responsável por uma distribuição completa.
+
+`scripts/verify_celery_queues.py` verifica o isolamento com Redis e três workers prefork reais. Substitui temporariamente o trabalho de exportação e do lote por esperas limitadas; confirma que uma tarefa operacional termina com ambos ocupados. Usa prefixo Redis aleatório, remove somente suas chaves e encerra seus workers; não cria passes, `ExportJob` ou arquivos de exportação e não altera dados da aplicação. Execute em um processo separado:
 
 ```powershell
 Get-Content -Raw scripts/verify_celery_queues.py | docker compose run --rm --no-deps -T backend python manage.py shell

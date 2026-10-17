@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 from apps.participants.models import EventParticipant
 from apps.participants.location import reading
 from apps.events.models import Event, ExportJob
+from apps.passes.models import InitialGiftSweep
 from apps.matches.models import Match
 from apps.messaging.models import Message
 from demo.data import demo_id
@@ -67,8 +68,8 @@ class DemoFlowTests(TestCase):
         for config in apps.get_app_configs():
             if config.name.startswith("apps."):
                 for model in config.get_models():
-                    if model is ExportJob:
-                        # Export tasks are created on request; seeding must not enqueue work.
+                    if model in (ExportJob, InitialGiftSweep):
+                        # Operational jobs/leases are created on demand, not by demo seeding.
                         self.assertFalse(model.objects.exists())
                         continue
                     self.assertTrue(model.objects.exists(), model._meta.label)

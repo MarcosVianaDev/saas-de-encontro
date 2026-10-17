@@ -1,6 +1,9 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
+from django.db.models import DateTimeField, ExpressionWrapper, F, IntegerField, Q, Value
+from django.db.models.functions import Cast, Coalesce
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -42,8 +45,8 @@ def configure_initial_gift(event, values, actor):
 
 @transaction.atomic
 def grant_initial_gift(participant, now=None):
-    now = now or timezone.now()
     p = EventParticipant.objects.select_for_update().select_related('event', 'user').get(pk=participant.pk)
+    now = now or timezone.now()
     config = p.event.settings.get('initial_gift', {})
     if not config.get('enabled') or not p.is_active or not p.activated_at or not p.user.is_active:
         return False
@@ -71,8 +74,25 @@ def grant_initial_gift(participant, now=None):
     return True
 
 
-def grant_due_initial_gifts(now=None):
+def due_initial_gift_participants(now=None, *, after=None):
     now = now or timezone.now()
     participants = EventParticipant.objects.filter(is_active=True, activated_at__isnull=False,
-        event__state='RUNNING', event__settings__initial_gift__enabled=True).exclude(passes__origin='INITIAL_GIFT')
-    return sum(grant_initial_gift(p, now) for p in participants.iterator())
+        user__is_active=True, event__state='RUNNING', event__settings__initial_gift__enabled=True,
+    ).exclude(passes__origin='INITIAL_GIFT').filter(
+        Q(event__ends_at__isnull=True) | Q(event__ends_at__gt=now),
+    ).alias(
+        gift_delay=Coalesce(Cast('event__settings__initial_gift__delay_minutes', IntegerField()), Value(0)),
+    ).alias(gift_due_at=ExpressionWrapper(
+        F('event__starts_at') + F('gift_delay') * Value(timedelta(minutes=1)),
+        output_field=DateTimeField(),
+    )).filter(Q(gift_delay=0) | Q(gift_due_at__lte=now))
+    if after:
+        participants = participants.filter(pk__gt=after)
+    return participants.order_by('pk')
+
+
+def grant_due_initial_gifts(now=None):
+    """Synchronous maintenance helper: never grant more than one small batch."""
+    now = now or timezone.now()
+    participants = due_initial_gift_participants(now)[:settings.INITIAL_GIFT_BATCH_SIZE]
+    return sum(grant_initial_gift(p, now) for p in participants)

@@ -6,7 +6,7 @@
 
 As etapas 1 a 8 estão implementadas, com 45 cards em [concluídos](<docs/trilha de implementacao(fechado).md>). Consulte [cobertura, operação e validação](<docs/Implementacao - etapas 1 a 8.md>): 73 testes Django aprovados, build TypeScript/Vite e fluxos verificados no navegador. As etapas 9 a 12 permanecem no [backlog aberto](<docs/trilha de implementacao(aberto).md>).
 
-Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=django` no `.env` e execute `docker compose up -d --build`. `celery_beat` agenda as automações do ciclo do evento, avisos e passes; `celery_worker` executa a fila operacional `celery`. `celery_exports` processa somente a fila `exports`, isolando a geração de ZIP/PDF das automações. O modo `mock` mantém a demonstração local.
+Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=django` no `.env` e execute `docker compose up -d --build`. `celery_beat` agenda as automações do ciclo do evento, avisos e passes; `celery_worker` executa a fila operacional `celery`. `celery_exports` processa somente `exports` e `celery_gifts` entrega presentes em lotes na fila `gifts`, isolando ambos das automações. O modo `mock` mantém a demonstração local.
 
 ## Documentação consolidada
 
@@ -184,6 +184,7 @@ O ambiente local deverá possuir, no mínimo, os seguintes serviços no `docker-
 | `redis` | Broker do Celery, cache e infraestrutura necessária ao tempo real quando aplicável |
 | `celery_worker` | Tarefas operacionais na fila `celery` |
 | `celery_exports` | Exportações ZIP/PDF na fila `exports`, com worker dedicado |
+| `celery_gifts` | Presentes iniciais em lotes na fila `gifts`, com worker dedicado |
 | `minio` | Storage S3-compatible para desenvolvimento, quando esta opção for adotada |
 
 ### Serviço adicional recomendado para rotinas agendadas

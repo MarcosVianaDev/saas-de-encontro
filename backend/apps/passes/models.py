@@ -1,6 +1,16 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from common.models import BaseModel
+
+
+class InitialGiftSweep(models.Model):
+    """One renewable lease coordinates the periodic, resumable gift sweep."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    token = models.UUIDField(null=True, editable=False)
+    cursor = models.UUIDField(null=True, editable=False)
+    expires_at = models.DateTimeField(default=timezone.now)
 
 
 class PassType(BaseModel):

@@ -1,6 +1,6 @@
 """Execute through `manage.py shell` in a Compose backend container.
 
-Uses two real workers, an isolated Redis namespace and a temporary export stub.
+Uses three real workers, an isolated Redis namespace and temporary task stubs.
 Does not create jobs, export files or change application data.
 """
 import os
@@ -33,6 +33,7 @@ import django
 django.setup()
 from config.celery import app
 from apps.events import export_tasks
+from apps.passes import tasks as gift_tasks
 
 prefix = os.environ['QUEUE_CHECK_PREFIX']
 root = Path(os.environ['QUEUE_CHECK_DIR'])
@@ -54,6 +55,19 @@ def blocked_export(identifier):
     return 'COMPLETED'
 
 export_tasks.generate_export = blocked_export
+
+def blocked_gifts(token, after=None):
+    assert token == 'queue-isolation-probe'
+    assert gift_tasks.initial_gift_batch.request.delivery_info['routing_key'] == 'gifts'
+    (root / 'gifts-started').touch()
+    deadline = time.monotonic() + 30
+    while not (root / 'release').exists():
+        if time.monotonic() > deadline:
+            raise TimeoutError('Gift probe was not released')
+        time.sleep(0.05)
+    return 'GIFTS-COMPLETED'
+
+gift_tasks.initial_gift_batch.run = blocked_gifts
 ''', encoding='utf-8')
         env = {**os.environ, 'QUEUE_CHECK_PREFIX': prefix, 'QUEUE_CHECK_DIR': str(root),
                'PYTHONPATH': str(root) + os.pathsep + os.environ.get('PYTHONPATH', '')}
@@ -66,7 +80,7 @@ export_tasks.generate_export = blocked_export
             import queue_probe
             app = queue_probe.app
             nodes = []
-            for queue in ('celery', 'exports'):
+            for queue in ('celery', 'exports', 'gifts'):
                 name = f'queue-{queue}-{tag}'
                 nodes.append(f'{name}@{socket.gethostname()}')
                 log = (root / f'{queue}.log').open('w', encoding='utf-8')
@@ -85,16 +99,19 @@ export_tasks.generate_export = blocked_export
                     break
                 assert time.monotonic() < deadline, 'Probe workers did not start'
             export = queue_probe.export_tasks.generate.delay('queue-isolation-probe')
+            gift = queue_probe.gift_tasks.initial_gift_batch.delay('queue-isolation-probe')
             deadline = time.monotonic() + 10
-            while not (root / 'started').exists():
-                assert time.monotonic() < deadline, 'Export did not reach its dedicated worker'
+            while not ((root / 'started').exists() and (root / 'gifts-started').exists()):
+                assert time.monotonic() < deadline, 'Export/gift did not reach its dedicated worker'
                 time.sleep(0.05)
             from config.celery import ping
             assert ping.delay().get(timeout=8) == 'pong', 'Operational queue was blocked'
             assert not export.ready(), 'Export finished before the isolation check'
+            assert not gift.ready(), 'Gift batch finished before the isolation check'
             (root / 'release').touch()
             assert export.get(timeout=10) == 'COMPLETED'
-            print('PASS: real Redis/prefork workers; default task completed while the exports worker was occupied.')
+            assert gift.get(timeout=10) == 'GIFTS-COMPLETED'
+            print('PASS: three real Redis/prefork workers; default task completed while exports and gifts workers were occupied.')
         finally:
             (root / 'release').touch()
             for process in processes:

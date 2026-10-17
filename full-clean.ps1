@@ -44,7 +44,7 @@ try {
     [System.IO.File]::WriteAllText($envPath, $envText, [System.Text.UTF8Encoding]::new($false))
 
     # Impede escritas e tarefas enquanto o schema e recriado.
-    Invoke-Compose -ComposeArgs @('stop', 'backend', 'celery_worker', 'celery_exports', 'celery_beat')
+    Invoke-Compose -ComposeArgs @('stop', 'backend', 'celery_worker', 'celery_exports', 'celery_gifts', 'celery_beat')
     Invoke-Compose -ComposeArgs @('up', '-d', '--wait', 'db', 'redis')
     Invoke-Compose -ComposeArgs @('exec', '-T', 'redis', 'redis-cli', 'FLUSHALL')
 
@@ -97,7 +97,7 @@ print("Banco recriado, migracoes aplicadas e nenhum usuario cadastrado.")
         throw 'Falha ao recriar o banco. Os servicos continuam parados; corrija o erro e execute novamente.'
     }
 
-    Invoke-Compose -ComposeArgs @('up', '-d', '--force-recreate', '--wait', 'backend', 'celery_worker', 'celery_exports', 'celery_beat', 'frontend', 'nginx', 'traefik')
+    Invoke-Compose -ComposeArgs @('up', '-d', '--force-recreate', '--wait', 'backend', 'celery_worker', 'celery_exports', 'celery_gifts', 'celery_beat', 'frontend', 'nginx', 'traefik')
     Write-Host ''
     Write-Host 'Pronto! Crie seu primeiro administrador:' -ForegroundColor Green
     Write-Host 'docker compose exec backend python manage.py createsuperuser'

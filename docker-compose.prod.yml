@@ -60,6 +60,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+  celery_gifts:
+    <<: *backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: [celery, -A, config, worker, --loglevel=info, --concurrency=1, --queues=gifts, --hostname=gifts@%h, --prefetch-multiplier=1]
+    healthcheck:
+      test: [CMD-SHELL, "celery -A config inspect ping --destination gifts@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   celery_beat:
     <<: *backend
     depends_on:

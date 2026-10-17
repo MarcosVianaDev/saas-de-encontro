@@ -70,7 +70,7 @@ O Nginx da imagem frontend serve `dist` na porta interna 80. `index.html` exige 
 
 Os estáticos coletados do Django são servidos pelo gateway em `/static/`, com montagem somente para leitura. Mídia privada continua exigindo autorização no Django e `X-Accel-Redirect`, com acesso direto bloqueado. WebSocket usa `wss://` por HTTPS e mantém o encaminhamento de Upgrade. Veja [Mídia protegida](<Midia protegida.md>) e [WebSocket e tempo real](<WebSocket e tempo real.md>).
 
-Dentro do backend, exportações permanecem em **`/app/backups`**; no host de produção, ficam em **`data/production/backups`** por padrão. Essa separação preserva os arquivos locais de desenvolvimento. Os workers operacionais e de exportação continuam nas filas distintas `celery` e `exports`.
+Dentro do backend, exportações permanecem em **`/app/backups`**; no host de produção, ficam em **`data/production/backups`** por padrão. Essa separação preserva os arquivos locais de desenvolvimento. Os workers operacionais, de exportação e de presentes usam respectivamente `celery`, `exports` e `gifts`. `celery_gifts` entrega presentes em lotes configurados por `INITIAL_GIFT_BATCH_SIZE` (padrão 25), nos dois ambientes.
 
 ## Verificação reproduzível
 
@@ -78,7 +78,7 @@ Dentro do backend, exportações permanecem em **`/app/backups`**; no host de pr
 python scripts/verify_docker_environments.py
 ```
 
-O verificador constrói as imagens, compara o Compose explícito de desenvolvimento com o padrão e inicia os nove serviços da configuração de produção em um projeto descartável. Usa bancos, Redis, dados e portas próprios, domínio localhost e certificado local do Traefik; desativa ACME no teste, sem contatar o Let's Encrypt. Confere ausência de Node/npm na imagem final, ausência de carga automática, login HTTPS/cookies Secure, assets compilados/cache/404, Admin CSS, WebSocket com aviso entre processos, demonstração e HMR no desenvolvimento. Depois remove o projeto, seus volumes e credenciais. Não altera os serviços em uso.
+O verificador constrói as imagens, compara o Compose explícito de desenvolvimento com o padrão e inicia os dez serviços da configuração de produção em um projeto descartável. Usa bancos, Redis, dados e portas próprios, domínio localhost e certificado local do Traefik; desativa ACME no teste, sem contatar o Let's Encrypt. Confere ausência de Node/npm na imagem final, ausência de carga automática, login HTTPS/cookies Secure, assets compilados/cache/404, Admin CSS, WebSocket com aviso entre processos, demonstração e HMR no desenvolvimento. Depois remove o projeto, seus volumes e credenciais. Não altera os serviços em uso.
 
 `--skip-build` reutiliza as imagens de uma execução anterior. O verificador exige as dependências de testes do frontend instaladas e o navegador usado pelos demais testes. A emissão pública do certificado depende do domínio/DNS do ambiente de implantação.
 

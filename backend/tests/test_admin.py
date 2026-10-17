@@ -9,6 +9,7 @@ from apps.organizations.models import Organization
 from apps.events.models import Event, ExportJob
 from apps.participants.models import EventParticipant
 from apps.rooms.models import Room, RoomParticipant
+from apps.passes.models import InitialGiftSweep
 
 
 class AdminTests(TestCase):
@@ -47,6 +48,16 @@ class AdminTests(TestCase):
         self.assertEqual(self.client.post(url+'delete/',{'post':'yes'}).status_code,403)
         job.refresh_from_db()
         self.assertEqual(job.state,'PENDING')
+
+    def test_gift_sweep_lease_is_inspectable_but_not_editable(self):
+        self.client.force_login(self.superuser)
+        sweep = InitialGiftSweep.objects.create()
+        url = f'/admin/passes/initialgiftsweep/{sweep.pk}/'
+        self.assertEqual(self.client.get(url + 'change/').status_code, 200)
+        self.assertEqual(self.client.post('/admin/passes/initialgiftsweep/add/', {}).status_code, 403)
+        self.assertEqual(self.client.post(url + 'change/', {'cursor': ''}).status_code, 403)
+        self.assertEqual(self.client.post(url + 'delete/', {'post': 'yes'}).status_code, 403)
+        self.assertTrue(InitialGiftSweep.objects.filter(pk=sweep.pk).exists())
 
     def test_participant_cannot_be_added_to_room_of_other_event(self):
         other = Event.objects.create(name="Outro", organization=self.organization)

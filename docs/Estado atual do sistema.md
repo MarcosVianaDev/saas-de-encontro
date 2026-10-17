@@ -128,7 +128,9 @@ O serviço não entrega a perfil inativo/sem ativação, conta inativa, particip
 
 Uma configuração habilitada cria `PassType` e `EventPassOffer` de preço zero; `Event.settings.initial_gift` referencia a oferta e o atraso. A concessão cria `ParticipantPass`, `PassActivation`, registro de auditoria e notificação “Seu presente inicial foi ativado”. Locks e a constraint `participant_initial_gift_unique` limitam a um presente por participação; revogação não libera uma segunda entrega automática.
 
-Fontes: `frontend/InitialGiftFields.tsx`, `backend/apps/passes/gifts.py`, `tasks.py`, `backend/api/test_initial_gifts.py`, migração `passes.0005_participantpass_participant_initial_gift_unique`.
+Desde **16/10/2026**, o Beat apenas despacha a distribuição. O worker `celery_gifts` processa a fila `gifts` em lotes de 25 participantes (configuráveis entre 1 e 100), com cursor e concessão exclusiva renovável no banco. Cada lote publica uma continuação, sem bloquear o worker operacional. Falhas individuais são tentadas novamente na próxima varredura; perda de worker é recuperável após 120 segundos. A elegibilidade e o horário são verificados novamente em cada entrega. [Operação dos lotes](<Operacao e desenvolvimento.md#presente-inicial-em-grandes-eventos>).
+
+Fontes: `frontend/InitialGiftFields.tsx`, `backend/apps/passes/gifts.py`, `tasks.py`, `backend/api/test_initial_gifts.py`, `backend/api/test_initial_gift_batches.py`, migrações `passes.0005_participantpass_participant_initial_gift_unique` e `passes.0006_initialgiftsweep`.
 
 ## Ciclo de vida, auditoria e limites
 
@@ -147,9 +149,9 @@ As etapas 1–8 têm registros históricos de conclusão; melhorias posteriores 
 | `apps.events.tasks.synchronize_events` | 30 s | Transições e arquivamento |
 | `apps.notifications.tasks.dispatch_announcements` | 30 s | Avisos agendados |
 | `apps.passes.tasks.expire` | 30 s | Expiração de passes |
-| `apps.passes.tasks.initial_gifts` | 30 s | Presente inicial |
+| `apps.passes.tasks.initial_gifts` | 30 s | Despacha os lotes do presente inicial para `gifts` |
 
-Exportação usa a tarefa sob demanda `apps.events.export_tasks.generate`, não Beat. Desde **16/10/2026**, ela é roteada para `exports`, consumida exclusivamente por `celery_exports`. `celery_worker` consome somente a fila operacional `celery`; ambos têm concorrência 1 e prefetch 1. Uma exportação longa não ocupa o processo que executa as automações. Retenção ainda não possui tarefa periódica registrada. Configuração, atualização e teste real de isolamento em [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
+Exportação usa a tarefa sob demanda `apps.events.export_tasks.generate`, não Beat. Desde **16/10/2026**, ela é roteada para `exports`, consumida exclusivamente por `celery_exports`. Os lotes de presentes usam `apps.passes.tasks.initial_gift_batch` em `gifts`, consumida por `celery_gifts`. `celery_worker` consome somente a fila operacional `celery`; os três workers têm concorrência 1 e prefetch 1. Exportação e entrega em massa não ocupam o processo das automações. Retenção ainda não possui tarefa periódica registrada. Configuração, atualização e teste real de isolamento em [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
 
 O bootstrap administrativo também carrega cards, suspensões, fotos, contagens de denúncias/bloqueios, sinais de bloqueio e dados das ocorrências em lote. `operational_status` aproveita os dados pré-carregados, mantendo as regras anteriores. Testes com 100 participantes e 99 ocorrências verificam quantidade constante de consultas SQL, incluindo notas, histórico e evidências. A resposta continua contendo a lista integral; esta correção não adiciona paginação.
 
