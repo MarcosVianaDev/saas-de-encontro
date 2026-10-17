@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:production": "tsc --noEmit && node build-production.mjs",
     "test:browser": "python ../scripts/run-browser-tests.py"
   },
   "dependencies": {

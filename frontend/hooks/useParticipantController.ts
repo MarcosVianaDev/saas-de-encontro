@@ -5,6 +5,7 @@ import { useParticipantRouter } from "./useParticipantRouter";
 import { useParticipantSync } from "./useParticipantSync";
 import { useEffect, useRef, useState } from "react";
 import { frontendConfig } from "../config";
+import { routeOutsideSpa, returnToLogin } from "../spa-routing";
 import { api, ApiError, request } from "../backend-client";
 
 import type { Context } from "../types";
@@ -186,6 +187,7 @@ export function useParticipantController() {
     return () => clearTimeout(timer);
   }, [toast]);
   const applyData = (data: SessionData) => {
+    if (routeOutsideSpa(data)) return;
     setGlobalMode(data.navigation === "global");
     setContexts(data.navigation === "selection" ? data.contexts : null);
     if (data.navigation === "global" || data.navigation === "selection") {
@@ -243,6 +245,7 @@ export function useParticipantController() {
           : "Não foi possível conectar ao backend.",
       );
       if (error instanceof ApiError && error.status === 401) {
+        if (returnToLogin()) return;
         setAuthenticated(false);
         location.hash = "login";
         setPage("login");
@@ -287,11 +290,17 @@ export function useParticipantController() {
           location.hash = next;
           setPage(next);
         } else {
+          if (returnToLogin()) return;
           location.hash = "login";
           setPage("login");
         }
       } catch (error) {
         if (active) {
+          if (
+            error instanceof ApiError &&
+            error.status === 401 &&
+            returnToLogin()
+          ) return;
           notify(
             error instanceof Error ? error.message : "Backend indisponível.",
           );
@@ -363,6 +372,7 @@ export function useParticipantController() {
     if (real) {
       await api.logout();
       clearImageCache();
+      if (returnToLogin()) return;
       setPeople([]);
       setPhotos([]);
       setChats({});

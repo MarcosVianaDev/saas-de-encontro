@@ -42,7 +42,10 @@ def main():
     password = 'Fixture!' + secrets.token_hex(16)
     env_file = work / 'production.env'
     credentials = work / 'credentials.json'
-    credentials.write_text(json.dumps({'adminEmail': 'admin@example.invalid', 'password': password}), encoding='utf-8')
+    credentials.write_text(json.dumps({'adminEmail': 'admin@example.invalid',
+                                      'managerEmail': 'manager@example.invalid',
+                                      'participantEmail': 'participant@example.invalid',
+                                      'password': password}), encoding='utf-8')
     env_file.write_text('\n'.join([
         'APP_DOMAIN=localhost', 'ACME_EMAIL=fixture@example.invalid', 'APP_VERSION=check',
         'PROD_DATA_DIR=' + str(work / 'data').replace('\\', '/'),
@@ -104,12 +107,32 @@ def main():
         assert run(['docker', 'exec', frontend_container, 'sh', '-c',
                     'test ! -d /app/node_modules && ! command -v node && ! command -v npm']) == ''
         assert 'nginx' in run(['docker', 'top', frontend_container])
+        with (work / 'backend-tests.log').open('w', encoding='utf-8') as output:
+            # Test clients use HTTP internally; only this test process disables
+            # the production HTTPS redirect. Browser checks still exercise TLS.
+            result = subprocess.run([*compose, 'exec', '-T', '-e', 'DJANGO_DEBUG=1', 'backend', 'python', 'manage.py', 'test',
+                                     'api.test_frontend_delivery', 'api.test_event_scope',
+                                     'api.test_event_requests', '--noinput'], cwd=ROOT,
+                                    stdout=output, stderr=subprocess.STDOUT)
+        if result.returncode:
+            raise RuntimeError('Backend permission tests failed. Inspect backend-tests.log')
         fixture = f"""
 from django.conf import settings
 from django.contrib.auth import get_user_model
 assert settings.DEBUG is False
 assert get_user_model().objects.count() == 0
 get_user_model().objects.create_superuser(username='admin@example.invalid', email='admin@example.invalid', password={password!r})
+from datetime import timedelta
+from django.utils import timezone
+from apps.organizations.models import Organization
+from apps.events.models import Event, EventAdministrator
+from api.event_admin import join_event
+org = Organization.objects.create(name='Production check')
+event = Event.objects.create(organization=org, name='Production check event', mode='ONLINE', state='RUNNING', starts_at=timezone.now()-timedelta(hours=1), ends_at=timezone.now()+timedelta(days=1))
+manager = get_user_model().objects.create_user(username='manager@example.invalid', email='manager@example.invalid', password={password!r})
+EventAdministrator.objects.create(user=manager, event=event)
+person = get_user_model().objects.create_user(username='participant@example.invalid', email='participant@example.invalid', password={password!r})
+join_event(person, event)
 """
         run(['docker', 'exec', '-i', backend, 'python', 'manage.py', 'shell'], input=fixture)
         network = next(iter(json.loads(run(['docker', 'inspect', '--format', '{{json .NetworkSettings.Networks}}', backend]))))

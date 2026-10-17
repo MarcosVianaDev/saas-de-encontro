@@ -10,10 +10,10 @@ Requisito: Docker Compose **2.20 ou mais recente**, por causa do `include` da en
 | Projeto/recursos | `saas-de-encontro` | `saas-de-encontro-prod` |
 | Ambiente | `.env`, baseado em `.env.example` | `.env.prod`, baseado em `.env.prod.example` |
 | Frontend | Target `development`: Vite, HMR, código montado e dependências em volume | Target `production`: somente Nginx e `dist`, sem Node/npm/watchers |
-| Build | Dependências pelo lockfile | `npm ci`, validação do compilador e `npm run build` em estágio descartado |
+| Build | Dependências pelo lockfile | `npm ci`, validação do compilador e `npm run build:production` em estágio descartado |
 | Backend | Código local montado em `/app` | Código copiado para a imagem, sem montagem do código-fonte |
 | Django | DEBUG/carga de exemplo configuráveis | DEBUG e carga automática de demonstração desativados |
-| Fonte de dados | `FRONTEND_DATA_MODE=mock|django` | `django` fixado no build; demonstração disponível por `?demo=1` |
+| Fonte de dados | `FRONTEND_DATA_MODE=mock|django` | `django` fixado no build; demonstração restrita ao pacote global autenticado |
 | Entrada | HTTP, porta 8080 por padrão | HTTP 80 redirecionado para HTTPS 443; Traefik/Let's Encrypt |
 | Persistência | Volumes locais existentes, `backend/media`, `backend/backups`, `backend/staticfiles` | Volumes PostgreSQL/Redis/ACME próprios e `data/production/{media,backups,staticfiles}` |
 
@@ -66,7 +66,7 @@ Na atualização, `--force-recreate` também recarrega os gateways e suas rotas 
 
 O fluxo de produção é navegador → Traefik HTTPS → Nginx gateway → frontend estático ou Daphne. O gateway de desenvolvimento usa `infra/nginx.conf`; o de produção usa `infra/nginx.prod.conf`. Ambos incluem `infra/app-routes.conf`, preservando exatamente as mesmas rotas de API, Admin, WebSocket e mídia autorizada.
 
-O Nginx da imagem frontend serve `dist` na porta interna 80. `index.html` exige revalidação; chunks com hash em `/assets/` usam cache imutável. Assets ausentes retornam 404. Rotas da SPA têm fallback para `index.html`; a navegação por hash continua funcionando.
+O Nginx da imagem frontend serve quatro builds independentes na porta interna 80: login público e SPAs autenticados de participante, gestor de evento e gestor global. Cada arquivo de `/spa/.../` exige autorização da sessão no Django e usa cache privado sem armazenamento. Apenas os chunks públicos do login em `/assets/` usam cache imutável. Assets ausentes retornam 404. Veja [Entrega dos SPAs](<Entrega dos SPAs.md>) para o fluxo, permissões e limites da separação.
 
 Os estáticos coletados do Django são servidos pelo gateway em `/static/`, com montagem somente para leitura. Mídia privada continua exigindo autorização no Django e `X-Accel-Redirect`, com acesso direto bloqueado. WebSocket usa `wss://` por HTTPS e mantém o encaminhamento de Upgrade. Veja [Mídia protegida](<Midia protegida.md>) e [WebSocket e tempo real](<WebSocket e tempo real.md>).
 

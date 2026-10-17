@@ -1,6 +1,7 @@
 from functools import wraps
 from django.urls import include, path
 from . import views
+from . import frontend
 from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView, AdminParticipantProfileView
 from .event_operations import EventTransitionView, EventConfigurationView
 from .global_admin import GlobalView
@@ -17,6 +18,8 @@ from .exports import EventExportsView, ExportStatusView, ExportDownloadView
 from .sync import ParticipantSyncView, ParticipantCatalogView, MessageReadView
 
 urlpatterns = [
+    path('frontend/authorize/', frontend.authorize),
+    path('frontend/route/', frontend.route),
     path('sync/', ParticipantSyncView.as_view()),
     path('catalog/', ParticipantCatalogView.as_view()),
     path('conversations/<uuid:peer_id>/read/', MessageReadView.as_view()),

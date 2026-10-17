@@ -1,7 +1,7 @@
 FROM node:24.22.0-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --include=optional --no-audit --no-fund \
+RUN --mount=type=cache,target=/root/.npm npm ci --include=optional --no-audit --no-fund \
     && ./node_modules/.bin/tsc --version
 
 FROM dependencies AS development
@@ -13,10 +13,11 @@ FROM dependencies AS build
 ARG VITE_FRONTEND_DATA_MODE=django
 ENV VITE_FRONTEND_DATA_MODE=$VITE_FRONTEND_DATA_MODE
 COPY . .
-RUN npm run build
+RUN npm run build:production
 
 FROM nginx:stable-alpine AS production
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY spa-auth-proxy.conf /etc/nginx/spa-auth-proxy.conf
 COPY --from=build /app/dist/ /usr/share/nginx/html/
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=5s --retries=12 CMD wget -q -O /dev/null http://127.0.0.1/index.html || exit 1

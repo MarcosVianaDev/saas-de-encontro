@@ -1,8 +1,12 @@
 import { frontendConfig } from "./config";
+import { separatedSpa } from "./spa-routing";
 import { request } from "./backend-client";
 
-import { Administration } from "./Administration";
-import { GlobalAdministration } from "./GlobalAdministration";
+import {
+  Administration,
+  GlobalAdministration,
+  LoginPage,
+} from "./access-components";
 import { Contexts } from "./Contexts";
 
 import { ParticipantOnboarding } from "./ParticipantOnboarding";
@@ -14,7 +18,6 @@ import type { SessionData } from "./types";
 import { useParticipantController } from "./hooks/useParticipantController";
 import { Icon } from "./components/Icon";
 import { stages } from "./participant-pages";
-import { LoginPage } from "./views/LoginPage";
 import { ProfilePage } from "./views/ProfilePage";
 import { FiltersPage } from "./views/FiltersPage";
 import { DiscoveryPage } from "./views/DiscoveryPage";
@@ -101,6 +104,12 @@ export function App() {
     unread,
     uploadPhotos,
   } = useParticipantController();
+  if (separatedSpa && real && !ready)
+    return (
+      <main className="adm-loading">
+        <p role="status">Carregando acesso…</p>
+      </main>
+    );
   if (authenticated && contexts)
     return (
       <Contexts

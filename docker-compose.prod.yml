@@ -85,6 +85,9 @@ services:
       args:
         VITE_FRONTEND_DATA_MODE: django
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
   db:
     image: postgres:18-bookworm
     env_file: ${PROD_ENV_FILE:-.env.prod}
