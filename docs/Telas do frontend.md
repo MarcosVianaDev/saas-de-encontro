@@ -47,7 +47,7 @@ Verificação no navegador realizada com Playwright e Microsoft Edge, cobrindo a
 
 ## Integração com backend
 
-O Django Admin continua em `/admin/`. No modo `django`, autenticação, perfil/fotos, filtros, descoberta, decisões/matches, favoritos, mensagens e participantes usam endpoints autenticados. Encerrar match preserva o histórico em modo somente leitura. Conversas são atualizadas por HTTP a cada cinco segundos. WebSocket, pagamentos e processos completos de governança permanecem para etapas posteriores.
+O Django Admin continua em `/mcx/`. No modo `django`, autenticação, perfil/fotos, filtros, descoberta, decisões/matches, favoritos, mensagens e participantes usam endpoints autenticados. Encerrar match preserva o histórico em modo somente leitura. Conversas são atualizadas por HTTP a cada cinco segundos. WebSocket, pagamentos e processos completos de governança permanecem para etapas posteriores.
 
 No modo conectado, é necessário entrar antes de acessar as etapas. Uma conta nova precisa enviar três fotos e completar o perfil para ativar a participação. A conta demo já tem fotos e conversas iniciais. Atualizar a página recupera o estado do PostgreSQL; erros do backend são apresentados na interface sem usar mocks como alternativa. Login social continua desabilitado.
 

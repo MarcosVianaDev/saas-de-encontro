@@ -30,6 +30,8 @@ const { launch, testCredentials } = require('../browser/helpers.cjs');
     const index = await context.request.get(base + '/index.html');
     assert(index.headers()['cache-control'].includes('no-cache'));
     assert.equal((await context.request.get(base + '/images/profile-placeholder.svg')).status(), 200);
+    for (const oldPath of ['/admin', '/admin/', '/admin/login/'])
+      assert.equal((await context.request.get(base + oldPath, { maxRedirects: 0 })).status(), 404, oldPath);
     await page.getByLabel('E-mail', { exact: true }).fill(testCredentials().adminEmail);
     await page.getByLabel('Senha', { exact: true }).fill(testCredentials().password);
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
@@ -61,7 +63,7 @@ const { launch, testCredentials } = require('../browser/helpers.cjs');
     await page.getByText(title, { exact: true }).waitFor({ timeout: 6000 });
     const cookies = await context.cookies();
     for (const name of ['sessionid', 'csrftoken']) assert(cookies.find(cookie => cookie.name === name)?.secure, name);
-    const admin = await page.goto(base + '/admin/login/');
+    const admin = await page.goto(base + '/mcx/login/');
     assert.equal(admin.status(), 200);
     const css = await context.request.get(base + '/static/admin/css/base.css');
     assert.equal(css.status(), 200);

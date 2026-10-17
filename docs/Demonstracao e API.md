@@ -15,7 +15,7 @@ DEMO_USER_EMAIL=demo@eventconnect.local
 DEMO_USER_PASSWORD=substitua-por-uma-senha-local
 ```
 
-Execute `docker compose up -d --build --wait`. Acesse http://localhost:8080. O frontend mostra o formulário de login e usa a senha configurada no backend. Neste workspace as credenciais locais estão no arquivo ignorado `.tools/demo-credentials.json`. O usuário `admin-demo@eventconnect.local` usa a mesma senha e acessa http://localhost:8080/admin/.
+Execute `docker compose up -d --build --wait`. Acesse http://localhost:8080. O frontend mostra o formulário de login e usa a senha configurada no backend. Neste workspace as credenciais locais estão no arquivo ignorado `.tools/demo-credentials.json`. O usuário `admin-demo@eventconnect.local` usa a mesma senha e acessa http://localhost:8080/mcx/.
 
 O `.env` deste workspace já está em modo `django`. `.env.example` mantém `mock` como padrão. Para trocar somente o modo do frontend, altere `FRONTEND_DATA_MODE` e execute `docker compose up -d --no-deps --force-recreate frontend`. Para alterar variáveis do Django, recrie também o backend com `docker compose up -d backend celery_worker`. Um build estático precisa ser recompilado para incorporar a variável Vite.
 
@@ -25,7 +25,7 @@ O `.env` deste workspace já está em modo `django`. `.env.example` mantém `moc
 
 As fixtures reproduzem os 12 perfis e oito conversas do frontend. Incluem fotos, interesses, preferências, interações, matches, salas, passes, compras/pagamentos fictícios, consentimento e métricas. Moderação, bloqueios, retenção e solicitações de privacidade recebem exemplos em um evento histórico separado, preservando o fluxo principal. Nenhuma cobrança é executada.
 
-O login demo começa com perfil ativo e três fotos. É possível editar o perfil, salvar filtros, descobrir candidatos restantes, curtir Camila para gerar um novo match recíproco e conversar. Para testar um novo cadastro de participante, abra um convite válido do evento: envie três fotos, preencha os campos e aguarde a ativação. O acesso direto à página inicial oferece apenas login; contas de gestão são criadas em `/admin/`. Uma conta nova só tem match após curtidas recíprocas reais; não há respostas automáticas dos personagens.
+O login demo começa com perfil ativo e três fotos. É possível editar o perfil, salvar filtros, descobrir candidatos restantes, curtir Camila para gerar um novo match recíproco e conversar. Para testar um novo cadastro de participante, abra um convite válido do evento: envie três fotos, preencha os campos e aguarde a ativação. O acesso direto à página inicial oferece apenas login; contas de gestão são criadas em `/mcx/`. Uma conta nova só tem match após curtidas recíprocas reais; não há respostas automáticas dos personagens.
 
 ## Endpoints
 

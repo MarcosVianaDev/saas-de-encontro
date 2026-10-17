@@ -33,6 +33,7 @@ def origin(container, port, https=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--skip-build', action='store_true', help='Use images built by a previous verification.')
+    parser.add_argument('--security', action='store_true', help='Run the complete backend suite and security probes in the disposable stack.')
     options = parser.parse_args()
     tag = secrets.token_hex(6)
     project = 'test-environments-' + tag
@@ -110,9 +111,10 @@ def main():
         with (work / 'backend-tests.log').open('w', encoding='utf-8') as output:
             # Test clients use HTTP internally; only this test process disables
             # the production HTTPS redirect. Browser checks still exercise TLS.
+            labels = ['api', 'tests', 'security_review'] if options.security else [
+                'api.test_frontend_delivery', 'api.test_event_scope', 'api.test_event_requests']
             result = subprocess.run([*compose, 'exec', '-T', '-e', 'DJANGO_DEBUG=1', 'backend', 'python', 'manage.py', 'test',
-                                     'api.test_frontend_delivery', 'api.test_event_scope',
-                                     'api.test_event_requests', '--noinput'], cwd=ROOT,
+                                     *labels, '--noinput'], cwd=ROOT,
                                     stdout=output, stderr=subprocess.STDOUT)
         if result.returncode:
             raise RuntimeError('Backend permission tests failed. Inspect backend-tests.log')
@@ -148,6 +150,16 @@ join_event(person, event)
                                     stdout=output, stderr=subprocess.STDOUT, timeout=120)
         if result.returncode:
             raise RuntimeError('Browser verification failed. Inspect browser.log')
+        if options.security:
+            with (work / 'security-browser.log').open('w', encoding='utf-8') as output:
+                result = subprocess.run(['node', 'frontend/tests/security/check-security.cjs'], cwd=ROOT, env=browser_env,
+                                        stdout=output, stderr=subprocess.STDOUT, timeout=120)
+            if result.returncode:
+                raise RuntimeError('Security browser probes failed. Inspect security-browser.log')
+            with (work / 'deploy-check.log').open('w', encoding='utf-8') as output:
+                subprocess.run([*compose, 'exec', '-T', 'backend', 'python', 'manage.py', 'check', '--deploy'],
+                               cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
+            print('Security probes completed. Review SECURITY_OBSERVATION findings; successful execution does not mean no vulnerabilities were found.', flush=True)
         print('PASS: production Compose, immutable backend, no seed, HTTPS, static React, cookies, WebSocket, demo and development HMR.', flush=True)
         print(f'Verification logs: {work}', flush=True)
     finally:

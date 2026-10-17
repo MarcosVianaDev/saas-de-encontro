@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.audit.services import record
 from .models import ExportJob
 from .export_snapshot import collect, digest, dump, sql_snapshot
+from common.security import account_allowed
 
 
 def backup_root():
@@ -94,7 +95,7 @@ def _generate_export(identifier):
         job = ExportJob.objects.select_for_update().select_related('event__organization', 'requested_by').get(pk=identifier)
         if job.state != 'PENDING':
             return job.state
-        if not job.requested_by.is_active or not job.requested_by.is_superuser:
+        if not account_allowed(job.requested_by) or not job.requested_by.is_superuser:
             job.state, job.error = 'FAILED', 'O solicitante não possui mais autorização para exportar.'
             job.save()
             record(None, 'export.failed', job, job.event)

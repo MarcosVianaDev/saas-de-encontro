@@ -1,4 +1,5 @@
-from django.db import models
+from django.db import models, transaction
+from django.utils import timezone
 from datetime import timedelta
 from django.core.validators import MinValueValidator, MaxValueValidator
 from common.models import BaseModel
@@ -74,6 +75,14 @@ class EventAdministrator(BaseModel):
     role = models.CharField(max_length=20, choices=[('ADMIN', 'Administrador'), ('MODERATOR', 'Moderador'), ('OPERATOR', 'Operador')], default='ADMIN')
     event = models.ForeignKey("events.Event", on_delete=models.PROTECT, related_name="administrators")
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="event_administrations")
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.is_active or self.role != 'MODERATOR':
+            type(self).objects.filter(event_id=self.event_id, delegated_to_id=self.user_id).exclude(pk=self.pk).update(
+                delegated_to=None, updated_at=timezone.now(),
+            )
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=('event', 'user'), name="events_eventadministrator_unique")]

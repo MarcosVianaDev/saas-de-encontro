@@ -28,6 +28,7 @@ from apps.events.permissions import effective_role
 from apps.events.permissions import DEFAULTS,permits
 from .event_scope import event_id, navigation_context
 from .protected_media import protected_media_response
+from common.security import account_allowed, request_account_allowed
 
 
 def event_open(event):
@@ -50,6 +51,8 @@ def invite_event(token, event_id=None):
 
 
 def join_event(user, event):
+    if not account_allowed(user):
+        raise PermissionDenied('Sua conta está suspensa.')
     event_open(event)
     with transaction.atomic():
         event = Event.objects.select_for_update().get(pk=event.pk)
@@ -75,7 +78,7 @@ def join_event(user, event):
 
 
 def access(request, moderate=False, admin=False):
-    if UserSuspension.objects.filter(user=request.user).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists():
+    if not request_account_allowed(request):
         raise PermissionDenied('Sua conta está suspensa.')
     identifier = event_id(request)
     if request.user.is_superuser:

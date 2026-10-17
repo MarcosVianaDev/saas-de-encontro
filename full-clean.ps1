@@ -101,7 +101,7 @@ print("Banco recriado, migracoes aplicadas e nenhum usuario cadastrado.")
     Write-Host ''
     Write-Host 'Pronto! Crie seu primeiro administrador:' -ForegroundColor Green
     Write-Host 'docker compose exec backend python manage.py createsuperuser'
-    Write-Host 'Depois, acesse http://localhost:8080/admin/ (ou a porta configurada no .env).'
+    Write-Host 'Depois, acesse http://localhost:8080/mcx/ (ou a porta configurada no .env).'
     Write-Host 'Recarregue o navegador para descartar a sessao anterior.'
 } finally {
     Pop-Location

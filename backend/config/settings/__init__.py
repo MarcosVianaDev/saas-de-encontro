@@ -15,7 +15,7 @@ CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv(
     "DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080" if DEBUG else "",
 ).split(",") if origin.strip()]
 INSTALLED_APPS = [
-    "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
+    "config.apps.SecureAdminConfig", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "rest_framework", "channels", "realtime.apps.RealtimeConfig",
     *[f"apps.{name}" for name in (
@@ -34,6 +34,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ROOT_URLCONF = "config.urls"
+LOGIN_URL = '/mcx/login/'
+LOGIN_REDIRECT_URL = '/mcx/'
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [], "APP_DIRS": True,
     "OPTIONS": {"context_processors": [
@@ -109,7 +111,7 @@ EXPORT_DOWNLOAD_TTL_HOURS = int(os.getenv('EXPORT_DOWNLOAD_TTL_HOURS', '168'))
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER':'api.exceptions.exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": ["api.authentication.SessionAuthentication"],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_PERMISSION_CLASSES": ["api.permissions.AccountAccess"],
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -130,3 +132,8 @@ REST_FRAMEWORK = {
 }
 DEMO_USER_EMAIL = os.getenv("DEMO_USER_EMAIL", "demo@eventconnect.local")
 DEMO_USER_PASSWORD = os.getenv("DEMO_USER_PASSWORD", "")
+ADMIN_LOGIN_IP_LIMIT = int(os.getenv('DJANGO_ADMIN_LOGIN_IP_LIMIT', '5'))
+ADMIN_LOGIN_ACCOUNT_LIMIT = int(os.getenv('DJANGO_ADMIN_LOGIN_ACCOUNT_LIMIT', '10'))
+ADMIN_LOGIN_WINDOW_SECONDS = int(os.getenv('DJANGO_ADMIN_LOGIN_WINDOW_SECONDS', '300'))
+if min(ADMIN_LOGIN_IP_LIMIT, ADMIN_LOGIN_ACCOUNT_LIMIT, ADMIN_LOGIN_WINDOW_SECONDS) < 1:
+    raise ImproperlyConfigured('Os limites de login administrativo devem ser positivos.')

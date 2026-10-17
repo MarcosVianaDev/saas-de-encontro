@@ -92,9 +92,9 @@ def main():
         proxy = origin(nginx, 80)
         wait_ready(proxy)
         assert fetch(upstream, '/static/admin/css/base.css')[0] == 404
-        status, headers, _ = fetch(proxy, '/admin/login/', https=False)
+        status, headers, _ = fetch(proxy, '/mcx/login/', https=False)
         assert status == 301 and headers['Location'].startswith('https://static-check.example/')
-        status, _, body = fetch(proxy, '/admin/login/')
+        status, _, body = fetch(proxy, '/mcx/login/')
         assert status == 200
         assets = set(html.unescape(path) for path in re.findall(r'(?:src|href)="(/static/[^"]+)"', body.decode()))
         assets.add('/static/admin/img/icon-yes.svg')

@@ -7,6 +7,7 @@ from apps.audit.services import record
 from apps.notifications.models import Notification, EventAnnouncement
 from .models import Event, EventAdministrator
 from django.core.exceptions import ValidationError as ModelValidationError
+from common.security import account_allowed
 
 
 TRANSITIONS = {
@@ -28,13 +29,13 @@ def notify_managers(event, title, body):
 
 
 def is_manager(user, event):
-    if user and user.is_active and user.is_superuser:
-        return True
-    if not user:
+    if not account_allowed(user):
         return False
+    if user.is_superuser:
+        return True
     member = EventAdministrator.objects.filter(user=user, event=event, is_active=True).first()
-    return bool(member and member.role == 'ADMIN' and not member.delegated_to_id) or EventAdministrator.objects.filter(
-        event=event, is_active=True, delegated_to=user).exists()
+    from .permissions import effective_role
+    return bool(member and effective_role(member) == 'ADMIN')
 
 
 @transaction.atomic

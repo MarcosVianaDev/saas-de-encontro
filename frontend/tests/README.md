@@ -1,5 +1,13 @@
 # Testes de navegador
 
+Para executar a revisão dirigida de segurança no stack descartável de produção:
+
+```sh
+python scripts/verify_docker_environments.py --security
+```
+
+Esse modo inclui a suíte completa do backend, entradas de ataque, diagnóstico de suspensão/delegação, armazenamento e EXIF, além de provas de navegador e cabeçalhos. As linhas `SECURITY_OBSERVATION` registram achados: terminar sem erro não significa ausência de vulnerabilidades. Veja o [relatório de 17/10/2026](<../../docs/Analise de seguranca - 17-10-2026.md>).
+
 O verificador `python scripts/verify_docker_environments.py` constrói as imagens e testa o Compose de produção completo em projeto descartável com HTTPS local: frontend compilado sem Node/npm, autenticação/cookies Secure, WebSocket, Admin CSS, cache/404, demonstração e HMR na imagem de desenvolvimento. O teste específico fica em `tests/docker/check-environments.cjs`, fora da suíte Vite, pois usa assets compilados e containers próprios. Guia: [Docker: desenvolvimento e produção](<../../docs/Docker - desenvolvimento e producao.md>).
 
 Os estáticos coletados do Django também usam pasta exclusiva da rodada, montada no Nginx somente para leitura. A entrega com DEBUG desativado tem verificador próprio: `python scripts/verify_production_static.py`, com banco e containers descartáveis. Consulte [Verificação das prioridades](../../docs/Verificacao%20das%20prioridades.md).

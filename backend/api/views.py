@@ -13,7 +13,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from PIL import Image, UnidentifiedImageError
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from common.security import account_allowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .protected_media import protected_media_response
@@ -66,6 +67,8 @@ class LoginView(APIView):
         user = authenticate(request, username=data["email"].lower(), password=data["password"])
         if user is None:
             raise ValidationError("E-mail ou senha inválidos.")
+        if not account_allowed(user):
+            raise PermissionDenied('Sua conta está suspensa.')
         token = request.data.get('invite')
         member = user.event_administrations.filter(is_active=True).order_by('created_at').first()
         if request.data.get('event') is not None and not token:
@@ -122,6 +125,7 @@ class RegisterView(APIView):
 
 
 class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         logout(request)
         return Response({"csrfToken": get_token(request)})

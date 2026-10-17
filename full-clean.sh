@@ -117,5 +117,5 @@ docker compose up -d --force-recreate --wait backend celery_worker celery_export
 printf '\n%s\n' \
     'Pronto! Crie seu primeiro administrador:' \
     'docker compose exec backend python manage.py createsuperuser' \
-    'Depois, acesse /admin/ no endereco da sua VPS (na porta configurada no .env).' \
+    'Depois, acesse /mcx/ no endereco da sua VPS (na porta configurada no .env).' \
     'Recarregue o navegador para descartar a sessao anterior.'

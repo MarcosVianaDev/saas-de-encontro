@@ -16,7 +16,7 @@ docker compose ps
 docker compose exec -T backend python manage.py check
 ```
 
-O endereço local padrão é `http://localhost:8080/`; o Django Admin fica em `/admin/`. Portas e origens CSRF devem acompanhar a configuração efetiva do ambiente.
+O endereço local padrão é `http://localhost:8080/`; o Django Admin fica em `/mcx/`. Portas e origens CSRF devem acompanhar a configuração efetiva do ambiente.
 
 `backend/start.py` aplica migrações e coleta estáticos. A carga demonstrativa depende de DEBUG e `DJANGO_SEED_DEMO`; não deve ser usada como carga de dados reais. `FRONTEND_DATA_MODE=mock` é simulação no navegador, enquanto `django` usa a API. Recrie o serviço frontend após mudar variáveis de ambiente do Compose. Para abrir o mock a partir do acesso global, use **Ações rápidas → Demonstração**: `?demo=1` seleciona a simulação somente nessa aba, sem alterar o `.env`. O fluxo e os 50 perfis estão descritos em [Demonstração do frontend](<Demonstracao do frontend.md>).
 

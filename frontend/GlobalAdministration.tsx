@@ -611,7 +611,7 @@ export function GlobalAdministration({
                       Completar / editar cadastro
                     </button>
                     {selectedClient.accessUser && (
-                      <a className="client-password-button" href={`/admin/accounts/user/${selectedClient.accessUser.id}/password/`} target="_blank" rel="noreferrer">
+                      <a className="client-password-button" href={`/mcx/accounts/user/${selectedClient.accessUser.id}/password/`} target="_blank" rel="noreferrer">
                         {selectedClient.accessUser.passwordConfigured ? "Alterar senha" : "Definir senha"}
                       </a>
                     )}
@@ -636,7 +636,7 @@ export function GlobalAdministration({
                           <strong>{member.firstName.toLocaleUpperCase("pt-BR")}</strong>
                           <span>{member.role === "ADMIN" ? "Responsável pelo evento" : member.role === "MODERATOR" ? "Moderador" : "Operador"}{!member.active && " ? Inativo"}</span>
                         </button>
-                        <a className="client-password-button" href={`/admin/accounts/user/${member.id}/password/`} target="_blank" rel="noreferrer" aria-label={`Redefinir senha de ${member.firstName} ${member.lastName}`}>
+                        <a className="client-password-button" href={`/mcx/accounts/user/${member.id}/password/`} target="_blank" rel="noreferrer" aria-label={`Redefinir senha de ${member.firstName} ${member.lastName}`}>
                           Redefinir senha
                         </a>
                       </div>
@@ -897,7 +897,7 @@ export function GlobalAdministration({
                       Sair da conta
                     </button>
                     {data?.staff && (
-                      <button type="button" className="adm-primary" onClick={() => window.open("/admin/", "_blank", "noopener,noreferrer")}>
+                      <button type="button" className="adm-primary" onClick={() => window.open("/mcx/", "_blank", "noopener,noreferrer")}>
                         Acessar Django Admin
                       </button>
                     )}

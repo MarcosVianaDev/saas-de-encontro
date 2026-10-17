@@ -15,6 +15,7 @@ from apps.participants.models import EventParticipant
 from apps.profiles.models import ParticipantProfile, ParticipantPreference
 from apps.reports.models import Block
 from .event_scope import event_id
+from common.security import request_account_allowed
 
 
 DEFAULT_FILTERS = {"min": 18, "max": 35, "gender": "Todos", "interests": [], "purpose": "Networking", "minHeight": None, "maxHeight": None}
@@ -26,8 +27,7 @@ def audit(actor, action, obj):
 
 
 def current(request, active=False):
-    suspended = UserSuspension.objects.filter(user=request.user).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists()
-    if suspended:
+    if not request_account_allowed(request):
         raise PermissionDenied("Sua conta está suspensa.")
     participant = get_object_or_404(EventParticipant.objects.select_related("event", "user"),
         user=request.user, event_id=event_id(request, required=False))

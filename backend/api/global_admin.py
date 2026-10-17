@@ -22,6 +22,7 @@ from django.db.models import Q
 from .event_requests import EventDetailsSerializer, event_details
 from apps.passes.gifts import configure_initial_gift
 from apps.profiles.models import ProfileTopic
+from common.security import request_account_allowed
 import uuid
 
 
@@ -50,7 +51,7 @@ def save_topic(request):
 
 
 def authorize(request):
-    if not request.user.is_active or not request.user.is_superuser:
+    if not request_account_allowed(request) or not request.user.is_superuser:
         raise PermissionDenied('Acesso exclusivo da Administração Global.')
 
 

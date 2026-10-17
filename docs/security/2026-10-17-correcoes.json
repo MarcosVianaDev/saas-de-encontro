@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-17",
+  "backend_tests": 353,
+  "backend_result": "OK",
+  "production_browser_checks": "PASS",
+  "admin_path": "/mcx/",
+  "old_admin_path_status": 404,
+  "admin_login_defaults": {
+    "ip_submissions": 5,
+    "account_submissions": 10,
+    "fixed_window_seconds": 300
+  },
+  "observations": [
+    {
+      "attempts": 12,
+      "id": "ADMIN_LOGIN_THROTTLE",
+      "limited": true,
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        429,
+        429,
+        429,
+        429,
+        429,
+        429,
+        429
+      ]
+    },
+    {
+      "bootstrap": 404,
+      "changed": false,
+      "configuration_read": 403,
+      "configuration_write": 403,
+      "id": "REVOKED_DELEGATE_MANAGEMENT"
+    },
+    {
+      "bootstrap": 403,
+      "changed": false,
+      "configuration_read": 403,
+      "configuration_write": 403,
+      "id": "GLOBAL_SUSPENSION_MANAGEMENT"
+    },
+    {
+      "id": "PRODUCTION_ADMIN_LOGIN_THROTTLE",
+      "attempts": 12,
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        429,
+        429,
+        429,
+        429,
+        429,
+        429,
+        429,
+        429
+      ],
+      "limited": true
+    }
+  ]
+}

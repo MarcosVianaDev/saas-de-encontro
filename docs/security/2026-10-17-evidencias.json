@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-17",
+  "baseline_commit": "ab475f2eec9450ed0e13340ee052a55e79f98977",
+  "scope": "disposable_local_production_stack_and_source_review",
+  "tests": {
+    "full_suite": 334,
+    "supplemental_authorization_probes": 2,
+    "functional_failures": 0
+  },
+  "observations": [
+    {
+      "attempts": 12,
+      "id": "ADMIN_LOGIN_THROTTLE",
+      "limited": false,
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "different_ips": [
+        400,
+        400,
+        400,
+        400,
+        400
+      ],
+      "fixed_ip": [
+        400,
+        400,
+        400,
+        429
+      ],
+      "id": "LOGIN_ACCOUNT_BUDGET"
+    },
+    {
+      "gps_retained": true,
+      "gps_tags": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "id": "PROFILE_PHOTO_GPS_METADATA",
+      "other_participant_downloaded": true
+    },
+    {
+      "accepted": 12,
+      "active": 0,
+      "id": "PHOTO_RETAINED_STORAGE",
+      "retained_bytes": 816,
+      "retained_files": 12
+    },
+    {
+      "id": "PUBLIC_SECURITY_HEADERS",
+      "csp": null,
+      "frameOptions": null,
+      "hsts": null,
+      "nosniff": "nosniff"
+    },
+    {
+      "id": "GLOBAL_SECURITY_HEADERS",
+      "csp": null,
+      "frameOptions": null,
+      "hsts": null,
+      "cache": "private, no-store"
+    },
+    {
+      "id": "STORED_XSS_EVENT_NAME",
+      "literalVisible": true,
+      "executed": false
+    },
+    {
+      "id": "AUTHENTICATED_CROSS_ORIGIN_IFRAME",
+      "embedded": false,
+      "sameSite": true,
+      "crossOrigin": true,
+      "frameStates": [
+        {
+          "url": "chrome-error://chromewebdata/",
+          "body": "Microsoft Edge"
+        }
+      ],
+      "pageErrors": [],
+      "result": "inconclusive_browser_load_error"
+    },
+    {
+      "id": "PRODUCTION_ADMIN_LOGIN_THROTTLE",
+      "attempts": 12,
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "limited": false
+    },
+    {
+      "bootstrap": 404,
+      "changed": true,
+      "configuration_read": 200,
+      "configuration_write": 200,
+      "id": "REVOKED_DELEGATE_MANAGEMENT"
+    },
+    {
+      "bootstrap": 403,
+      "changed": true,
+      "configuration_read": 200,
+      "configuration_write": 200,
+      "id": "GLOBAL_SUSPENSION_MANAGEMENT"
+    }
+  ],
+  "npm_audit": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 72,
+      "dev": 68,
+      "optional": 47,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 139
+    }
+  },
+  "python_audit": {
+    "dependencies": 46,
+    "advisories": [
+      {
+        "package": "twisted",
+        "version": "26.4.0",
+        "id": "CVE-2026-106454",
+        "fix_versions": [],
+        "aliases": [
+          "GHSA-8pqf-f4m5-798g"
+        ],
+        "description": "### Summary `wildcardToRegexp()` in `twisted/mail/imap4.py` converts IMAP LIST/LSUB wildcard patterns to Python regular expressions.  It substitutes the two IMAP wildcards (`*` → `(?:.*?)` and `%` → `(?:(?:[^\\\\/])*?)`) but passes every other character through unchanged to `re.compile()`.  This means that an authenticated IMAP client can send a quoted pattern string containing arbitrary regex syntax - including catastrophic-backtracking constructs such as `(a+)+z`.  Because Twisted runs a cooperative, single-threaded reactor, a blocking regex match freezes **all** I/O on the server for the duration of the match.  ---  ## Vulnerable Code  ### `twisted/mail/imap4.py`  ```python # line 4595 def wildcardToRegexp(wildcard, delim=None):     wildcard = wildcard.replace(\"*\", \"(?:.*?)\")     if delim is None:         wildcard = wildcard.replace(\"%\", \"(?:.*?)\")     else:         wildcard = wildcard.replace(\"%\", \"(?:(?:[^%s])*?)\" % re.escape(delim))     return re.compile(wildcard, re.I)   # ← user input compiled verbatim ```  ```python # line 4993 class MemoryAccountWithoutNamespaces:     def listMailboxes(self, ref, wildcard):         ref = self._inferiorNames(_parseMbox(ref.upper()))         wildcard = wildcardToRegexp(wildcard, \"/\")   # ← user-supplied wildcard         return [(i, self.mailboxes[i]) for i in ref if wildcard.match(i)] ``` ---  ### Proof of Concept  ```python from twisted.mail.imap4 import wildcardToRegexp import time  rx = wildcardToRegexp(\"(a+)+z\", \"/\") for n in [20, 22, 24, 26, 28]:     victim = \"a\" * n     t0 = time.perf_counter()     rx.match(victim)     print(f\"n={n}: {time.perf_counter() - t0:.3f}s\") ```  **Output on Twisted 25.5.0:**  ``` [*] Compiled regex: '(a+)+z' [*] Note: metacharacters ( ) + ? are NOT escaped - they go straight to re.compile()      n        time   ---  ----------    20       0.153s    22       0.651s    24       2.941s    26      14.545s    28      55.019s ```  Timing doubles roughly every two characters (exponential growth), confirming catastrophic backtracking.  ---  ## Impact  Twisted's reactor is single-threaded and cooperative.  A blocking `re.match()` call suspends the entire event loop - no other connection can be accepted, read, or written while the match runs.  A single authenticated LIST command with a 28-character target mailbox name can stall the server for ~55 seconds.  An attacker who can register an account (or obtain credentials through other means) can:  1. `CREATE` a mailbox whose name is an exponential-blowup trigger string. 2. Issue `LIST \"\" \"(a+)+z\"` (or equivalent ReDoS pattern). 3. Repeat at ~1-minute intervals to keep the server permanently unavailable.  No exploit code or special privileges beyond an IMAP login are required.  ---  ## Fix  Escape non-wildcard characters before compiling:  ```python def wildcardToRegexp(wildcard, delim=None):     # Split on the two IMAP wildcards, escape everything else     parts = re.split(r'([*%])', wildcard)     result = []     for p in parts:         if p == '*':             result.append('(?:.*?)')         elif p == '%':             if delim is None:                 result.append('(?:.*?)')             else:                 result.append('(?:(?:[^%s])*?)' % re.escape(delim))         else:             result.append(re.escape(p))   # ← escape all other characters     return re.compile(''.join(result), re.I) ```  Alternatively, apply `re.escape()` to the entire wildcard first, then substitute the (now-escaped) `\\*` and `\\%` tokens back with their regex equivalents."
+      }
+    ]
+  },
+  "bandit": {
+    "metrics": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 1,
+      "CONFIDENCE.MEDIUM": 2,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 4,
+      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 7025,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "alerts": [
+      {
+        "id": "B101",
+        "severity": "LOW",
+        "confidence": "HIGH",
+        "file": "backend/apps/accounts/management/commands/seed_demo.py",
+        "line": 85
+      },
+      {
+        "id": "B608",
+        "severity": "MEDIUM",
+        "confidence": "LOW",
+        "file": "backend/apps/events/export_snapshot.py",
+        "line": 181
+      },
+      {
+        "id": "B110",
+        "severity": "LOW",
+        "confidence": "HIGH",
+        "file": "backend/realtime/consumers.py",
+        "line": 85
+      },
+      {
+        "id": "B606",
+        "severity": "LOW",
+        "confidence": "MEDIUM",
+        "file": "backend/start.py",
+        "line": 14
+      },
+      {
+        "id": "B607",
+        "severity": "LOW",
+        "confidence": "HIGH",
+        "file": "backend/start.py",
+        "line": 14
+      },
+      {
+        "id": "B104",
+        "severity": "MEDIUM",
+        "confidence": "MEDIUM",
+        "file": "backend/start.py",
+        "line": 14
+      }
+    ]
+  },
+  "deployment_check_warnings": [
+    "security.W004"
+  ],
+  "limitations": [
+    "No live VPS or external target scanned",
+    "No exhaustive field fuzzing, stress test or OS image CVE scan",
+    "Authenticated iframe attempt inconclusive due browser load error"
+  ]
+}

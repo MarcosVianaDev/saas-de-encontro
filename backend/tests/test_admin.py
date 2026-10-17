@@ -28,22 +28,22 @@ class AdminTests(TestCase):
 
     def test_login_and_all_admin_changelists(self):
         self.assertTrue(self.client.login(username="test_admin", password="Test-only-long-password-632!"))
-        self.assertEqual(self.client.get("/admin/").status_code, 200)
+        self.assertEqual(self.client.get("/mcx/").status_code, 200)
         for model in admin.site._registry:
-            self.assertEqual(self.client.get(f"/admin/{model._meta.app_label}/{model._meta.model_name}/").status_code, 200)
+            self.assertEqual(self.client.get(f"/mcx/{model._meta.app_label}/{model._meta.model_name}/").status_code, 200)
 
     def test_anonymous_and_non_staff_cannot_enter(self):
-        self.assertEqual(self.client.get("/admin/").status_code, 302)
+        self.assertEqual(self.client.get("/mcx/").status_code, 302)
         get_user_model().objects.create_user("ordinary", password="Test-only-password-321!")
         self.client.login(username="ordinary", password="Test-only-password-321!")
-        self.assertEqual(self.client.get("/admin/").status_code, 302)
+        self.assertEqual(self.client.get("/mcx/").status_code, 302)
 
     def test_export_jobs_are_inspectable_but_not_editable(self):
         self.client.force_login(self.superuser)
         job = ExportJob.objects.create(event=self.event, requested_by=self.superuser)
-        url = f'/admin/events/exportjob/{job.pk}/'
+        url = f'/mcx/events/exportjob/{job.pk}/'
         self.assertEqual(self.client.get(url+'change/').status_code,200)
-        self.assertEqual(self.client.post('/admin/events/exportjob/add/',{}).status_code,403)
+        self.assertEqual(self.client.post('/mcx/events/exportjob/add/',{}).status_code,403)
         self.assertEqual(self.client.post(url+'change/',{'state':'COMPLETED'}).status_code,403)
         self.assertEqual(self.client.post(url+'delete/',{'post':'yes'}).status_code,403)
         job.refresh_from_db()
@@ -52,9 +52,9 @@ class AdminTests(TestCase):
     def test_gift_sweep_lease_is_inspectable_but_not_editable(self):
         self.client.force_login(self.superuser)
         sweep = InitialGiftSweep.objects.create()
-        url = f'/admin/passes/initialgiftsweep/{sweep.pk}/'
+        url = f'/mcx/passes/initialgiftsweep/{sweep.pk}/'
         self.assertEqual(self.client.get(url + 'change/').status_code, 200)
-        self.assertEqual(self.client.post('/admin/passes/initialgiftsweep/add/', {}).status_code, 403)
+        self.assertEqual(self.client.post('/mcx/passes/initialgiftsweep/add/', {}).status_code, 403)
         self.assertEqual(self.client.post(url + 'change/', {'cursor': ''}).status_code, 403)
         self.assertEqual(self.client.post(url + 'delete/', {'post': 'yes'}).status_code, 403)
         self.assertTrue(InitialGiftSweep.objects.filter(pk=sweep.pk).exists())
@@ -83,4 +83,4 @@ class AdminTests(TestCase):
     def test_audit_admin_is_read_only(self):
         self.client.force_login(self.superuser)
         entry = AuditLog.objects.create(action="test", object_label="event")
-        self.assertEqual(self.client.post(f"/admin/audit/auditlog/{entry.pk}/delete/", {"post": "yes"}).status_code, 403)
+        self.assertEqual(self.client.post(f"/mcx/audit/auditlog/{entry.pk}/delete/", {"post": "yes"}).status_code, 403)

@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/ws/": { target: "ws://backend:8000", ws: true },
         "/api/": "http://backend:8000",
-        "/admin/": "http://backend:8000",
+        "/mcx/": "http://backend:8000",
         "/static/": "http://backend:8000",
       },
     },

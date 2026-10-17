@@ -4,10 +4,11 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from common.security import account_allowed
 
 
 def allowed(user, audience):
-    if not user.is_authenticated or not user.is_active:
+    if not account_allowed(user):
         return False
     if audience not in ('participant', 'event-manager', 'global'):
         return False
