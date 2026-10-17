@@ -11,6 +11,7 @@ import { birthMonths, birthYears, latestBirthYear } from "../birth-options";
 import { brazilStates } from "../brazil-states";
 
 import { ThemeSelector } from "../ThemeSelector";
+import { HeightField } from "../components/HeightField";
 import { Icon } from "../components/Icon";
 
 import type { ParticipantController } from "../hooks/useParticipantController";
@@ -189,6 +190,7 @@ export function ProfilePage({
               </select>
             </label>
           </div>
+          <HeightField value={profile.height} onChange={(height) => setProfile({ ...profile, height })} />
           <label className="field bio-field">
             <span>Sobre você</span>
             <textarea

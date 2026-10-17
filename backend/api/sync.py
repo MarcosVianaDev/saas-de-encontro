@@ -128,7 +128,7 @@ class ParticipantSyncView(APIView):
         for peer in EventParticipant.objects.filter(pk__in=changed).select_related('profile', 'user', 'event').prefetch_related('photos'):
             data = person_payload(peer)
             if states[str(peer.pk)]['blocked']:
-                data.update(name='Usuário bloqueado', image='/images/profile-placeholder.svg', job='', city='', residenceState='', gender='', bio='', interests=[], online=False, age=0)
+                data.update(name='Usuário bloqueado', image='/images/profile-placeholder.svg', job='', city='', residenceState='', height=None, gender='', bio='', interests=[], online=False, age=0)
             updates.append(data)
         if has_more:
             last = page[-1]

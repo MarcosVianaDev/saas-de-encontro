@@ -110,6 +110,7 @@ export function ParticipantDialogs({
                     {brazilStateName(details.residenceState)}
                   </p>
                 )}
+                {details.height != null && <p>Altura: {details.height} cm</p>}
                 {(details.bio || !real) && (
                   <p>
                     {details.bio ||

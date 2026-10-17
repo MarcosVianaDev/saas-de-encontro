@@ -76,6 +76,24 @@ export function FiltersPage({
           </div>
         </section>
         <section className="filter-card">
+          <div className="section-label"><h3>Altura</h3><span>Opcional</span></div>
+          <div className="form-row">
+            <label className="field">
+              <span>Altura mínima (cm)</span>
+              <input type="number" inputMode="numeric" min={50} max={draft.maxHeight ?? 250} step={1}
+                placeholder="Sem mínimo" value={draft.minHeight ?? ""}
+                onChange={(event) => setDraft({ ...draft, minHeight: event.target.value === "" ? null : Number(event.target.value) })} />
+            </label>
+            <label className="field">
+              <span>Altura máxima (cm)</span>
+              <input type="number" inputMode="numeric" min={draft.minHeight ?? 50} max={250} step={1}
+                placeholder="Sem máximo" value={draft.maxHeight ?? ""}
+                onChange={(event) => setDraft({ ...draft, maxHeight: event.target.value === "" ? null : Number(event.target.value) })} />
+            </label>
+          </div>
+          <p className="microcopy">Ao definir uma altura, somente participantes com altura informada dentro da faixa serão exibidos.</p>
+        </section>
+        <section className="filter-card">
           <h3>Gênero</h3>
           <div className="chips">
             {["Todos", "Mulheres", "Homens"].map((item) => (

@@ -17,6 +17,8 @@ class ParticipantProfile(BaseModel):
     job = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=200, default="São Paulo, SP")
     residence_state = models.CharField(max_length=2, choices=BRAZIL_STATES, blank=True, default='')
+    height_cm = models.PositiveSmallIntegerField(null=True, blank=True,
+                                               validators=[MinValueValidator(50), MaxValueValidator(250)])
     interests = models.JSONField(default=list, blank=True)
     purpose = models.CharField(max_length=200, blank=True)
     topic_answers = models.JSONField(default=dict, blank=True)

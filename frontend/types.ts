@@ -1,5 +1,6 @@
 export type PersonId = string | number;
 export type Person = {
+  height?: number | null;
   residenceState?: string;
   id: PersonId;
   name: string;
@@ -17,6 +18,7 @@ export type Person = {
   photoEvidence?: { id: string; url: string }[];
 };
 export type Profile = {
+  height?: number | null;
   residenceState?: string;
   topicAnswers?: Record<string, string[]>;
   interests: string[];
@@ -29,6 +31,8 @@ export type Profile = {
   bio: string;
 };
 export type Filters = {
+  minHeight?: number | null;
+  maxHeight?: number | null;
   min: number;
   max: number;
   gender: string;

@@ -10,6 +10,7 @@ import type { ParticipantController } from "../hooks/useParticipantController";
 type Props = Pick<
   ParticipantController,
   | "applyData"
+  | "busy"
   | "candidate"
   | "eligible"
   | "eventName"
@@ -19,12 +20,13 @@ type Props = Pick<
   | "seen"
   | "select"
   | "serverData"
-  | "setSeen"
+  | "reviewParticipants"
   | "showDetails"
 >;
 
 export function DiscoveryPage({
   applyData,
+  busy,
   candidate,
   eligible,
   eventName,
@@ -34,7 +36,7 @@ export function DiscoveryPage({
   seen,
   select,
   serverData,
-  setSeen,
+  reviewParticipants,
   showDetails,
 }: Props) {
   return (
@@ -178,13 +180,10 @@ export function DiscoveryPage({
               </button>
               <button
                 className="text-button"
-                onClick={() => {
-                  if (!real) setSeen([]);
-                }}
+                disabled={busy}
+                onClick={() => void reviewParticipants()}
               >
-                {real
-                  ? "Histórico preservado no banco"
-                  : "Rever perfis da demonstração"}
+                Rever participantes
               </button>
             </div>
           )}

@@ -68,6 +68,7 @@ urlpatterns = [
     path("participants/", views.ParticipantsView.as_view()),
     path("participants/<uuid:peer_id>/", views.ParticipantView.as_view()),
     path("discovery/", views.DiscoveryView.as_view()),
+    path("discovery/review/", views.ReviewParticipantsView.as_view()),
     path("interactions/<uuid:peer_id>/", views.InteractionView.as_view()),
     path("favorites/<uuid:peer_id>/", views.FavoriteView.as_view()),
     path("conversations/", views.ConversationsView.as_view()),

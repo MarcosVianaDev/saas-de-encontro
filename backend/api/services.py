@@ -17,7 +17,7 @@ from apps.reports.models import Block
 from .event_scope import event_id
 
 
-DEFAULT_FILTERS = {"min": 18, "max": 35, "gender": "Todos", "interests": [], "purpose": "Networking"}
+DEFAULT_FILTERS = {"min": 18, "max": 35, "gender": "Todos", "interests": [], "purpose": "Networking", "minHeight": None, "maxHeight": None}
 
 
 def audit(actor, action, obj):
@@ -97,6 +97,7 @@ def person_payload(person):
         "age": age(profile) if profile else None, "gender": profile.gender if profile else "",
         "job": profile.job if profile else "", "city": profile.city if profile else "",
         "residenceState": profile.residence_state if profile else "",
+        "height": profile.height_cm if profile else None,
         "image": photo_url(primary) if primary else "/images/profile-placeholder.svg",
         "interests": profile.interests if profile else [], "online": person.activity_is_recent(),
         "mutual": False, "bio": profile.bio if profile else ""}
@@ -123,10 +124,15 @@ def chat_payload(participant):
     return chats, states
 
 
-def discovery(participant, filters, people=None):
+def discovery(participant, filters, people=None, include_passes=False):
     if not participant.is_active or participant.event.state != 'RUNNING' or (participant.event.mode != 'ONLINE' and not participant.location_consent):
         return []
-    decided = {str(pk) for pk in Interaction.objects.filter(participant=participant).values_list("target_id", flat=True)}
+    interactions = Interaction.objects.filter(participant=participant)
+    interactions = interactions.exclude(decision='PASS') if include_passes else interactions.exclude(decision='PASS', review_pending=True)
+    decided = {str(pk) for pk in interactions.values_list("target_id", flat=True)}
+    if include_passes:
+        for match in Match.objects.filter(Q(participant=participant) | Q(partner=participant), is_active=True):
+            decided.add(str(match.partner_id if match.participant_id == participant.pk else match.participant_id))
     candidates = []
     if people is None:
         people = [person_payload(target) for target in visible_participants(participant)]
@@ -139,6 +145,10 @@ def discovery(participant, filters, people=None):
             continue
         if filters["interests"] and not set(filters["interests"]).intersection(data["interests"]):
             continue
+        if any(bound is not None for bound in [filters.get('minHeight'), filters.get('maxHeight')]):
+            height = data.get('height')
+            if height is None or (filters.get('minHeight') is not None and height < filters['minHeight']) or (filters.get('maxHeight') is not None and height > filters['maxHeight']):
+                continue
         candidates.append(data)
     return candidates
 
@@ -179,12 +189,12 @@ def bootstrap(participant):
             peer = EventParticipant.objects.select_related("profile").get(id=peer_id)
             data = person_payload(peer)
             if state["blocked"]:
-                data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", residenceState="", gender="", bio="", interests=[], online=False, age=0)
+                data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", residenceState="", height=None, gender="", bio="", interests=[], online=False, age=0)
             participants.append(data)
     return {"profileTopics": [{'id': str(t.pk), 'key': t.key, 'name': t.name, 'options': t.options, 'multiple': t.multiple, 'required': rule.get('required', False), 'minimum': rule.get('minimum', 1)} for t, rule in event_topics(participant.event)], "profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
             "year": str(profile.birth_year or ""), "gender": profile.gender or "Prefiro não informar", "bio": profile.bio,
             "interests": profile.interests, "purpose": profile.purpose, "topicAnswers": profile.topic_answers,
-            "residenceState": profile.residence_state},
+            "residenceState": profile.residence_state, "height": profile.height_cm},
           "photos": [photo_url(photo) for photo in ordered_photos(participant)],
           'publicPhotos':[photo_url(photo) for photo in ordered_photos(participant) if photo.visibility=='PRE_MATCH'],
         **participant_status(participant), "syncCursor": sync_cursor,
@@ -193,7 +203,7 @@ def bootstrap(participant):
         "filters": filters, "people": participants,
         'discoveryReport': discovery_report(participant) if participant.event.state in ['CLOSED', 'ARCHIVED'] else None,
         "discovery": candidates, "chats": chats, "chatStates": states,
-        "seen": [str(pk) for pk in Interaction.objects.filter(participant=participant).values_list("target_id", flat=True)],
+        "seen": [str(pk) for pk in Interaction.objects.filter(participant=participant).exclude(decision='PASS', review_pending=True).values_list("target_id", flat=True)],
         "liked": [str(pk) for pk in Interaction.objects.filter(participant=participant, decision="LIKE").values_list("target_id", flat=True)],
         "saved": preference.filters.get("favorites", []),
     }
@@ -229,8 +239,9 @@ def ensure_writable(participant):
 def record_decision(participant, target, decision):
     ProfileDiscovery.objects.get_or_create(participant=participant, candidate=target)
     interaction, created = Interaction.objects.get_or_create(participant=participant, target=target, defaults={"decision": decision})
-    if created or interaction.decision != decision:
+    if created or interaction.decision != decision or interaction.review_pending:
         interaction.decision = decision
+        interaction.review_pending = False
         interaction.save()
         InteractionHistory.objects.create(interaction=interaction, decision=decision)
         audit(participant.user, "interaction." + decision.lower(), interaction)

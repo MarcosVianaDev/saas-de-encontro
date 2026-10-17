@@ -1,6 +1,6 @@
 # Fluxo - Administração - Participantes
 
-> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+> **Atualização de 16/10/2026:** os fluxos de captura de outfit, intervenção no perfil e exceção temporária de GPS (seções 11.1 a 11.3) foram conferidos no código e descrevem recursos implementados. As demais partes preservam requisitos ou registros anteriores. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>) para o contexto das revisões anteriores.
 
 > Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
 
@@ -44,6 +44,8 @@ Detalhes do participante
 A área Participantes serve principalmente para localizar e administrar pessoas.
 
 A área Moderação serve principalmente para investigar, acompanhar e decidir sobre ocorrências.
+
+Para operações já implementadas, consultar os passos e formulários das seções **11.1 — Captura de outfit presencial e ativação**, **11.2 — Intervenções administrativas no perfil** e **11.3 — Exceção temporária de localização**. A intervenção em foto ou bio exige origem em denúncia/atendimento do participante, motivo justificado, confirmação e auditoria; a biografia deve manter 50 a 200 caracteres.
 
 ## 3. Tela Participantes
 
@@ -282,7 +284,73 @@ Possíveis ações:
 - Suspender do evento;
 - Remover acesso ao evento.
 
+Na ficha também existem os fluxos operacionais implementados de **Ativação e presença** e **Intervenção no perfil**, conforme as permissões da equipe. Eles não são sanções administrativas e estão detalhados a seguir.
+
 A nomenclatura “bloquear participante” não deve ser usada para sanções administrativas, pois Block é reservado ao relacionamento participante-participante.
+
+### 11.1 Captura de outfit presencial e ativação
+
+O **Operador** é o responsável operacional pela captura presencial do outfit e pela ativação do participante. As ações exigem, respectivamente, as permissões `outfit` e `activation`, disponíveis por padrão para Operadores, Moderadores e Administradores do Evento. O vínculo da equipe e o participante devem pertencer ao evento em atendimento.
+
+Fluxo na ficha do participante:
+
+1. Localizar a pessoa na lista **Participantes** e abrir sua ficha.
+2. Na seção **Ativação e presença**, selecionar **Capturar foto**. Em dispositivos compatíveis, a captura solicita a câmera traseira.
+3. Fotografar o participante presencialmente e conferir a prévia do look. Usar **Tirar novamente** se a imagem não estiver adequada.
+4. Selecionar **Usar esta foto** para enviar e registrar o outfit. São aceitas imagens JPEG, PNG ou WebP de até 10 MB.
+5. Conferir os requisitos do cadastro e selecionar **Ativar perfil**. Salvar o outfit, isoladamente, não ativa o participante.
+
+Na ativação manual, o sistema exige nome, sobrenome, nascimento, gênero, bio de **50 a 200 caracteres**, exatamente 3 fotos públicas válidas (uma principal), outfit e os tópicos, campos e termos obrigatórios do evento. Nos eventos Presenciais ou Híbridos, exige também validação de localização. Cadastro incompleto deve ser corrigido antes de tentar novamente.
+
+A ativação manual é permitida com o evento **Aberto** ou **Em andamento**. Ela não remove suspensão de conta, suspensão no evento ou banimento: essas restrições precisam ser resolvidas antes. A captura registra o responsável, a data e o contexto na auditoria (`outfit.captured`); a ativação gera `profile.activated` e notifica o participante.
+
+**Exceção de modalidade:** eventos Online não solicitam GPS. Quando a organização habilita a ativação automática de participantes em um evento Online, o outfit é dispensado e o perfil pode ser ativado ao completar os demais requisitos. Sem essa opção habilitada, o fluxo manual continua exigindo outfit. A equipe não deve solicitar captura presencial como requisito do fluxo Online com ativação automática.
+
+### 11.2 Intervenções administrativas no perfil
+
+A seção **Intervenção no perfil** permite à moderação tratar uma foto pública ou a biografia sem conceder edição irrestrita do perfil. Administradores e Moderadores possuem as permissões `remove_photo` e `edit_bio` por padrão; outros membros precisam de autorização operacional explícita. As permissões são validadas no backend para cada ação.
+
+Toda intervenção exige uma **origem já registrada**, vinculada à pessoa atendida no mesmo evento:
+
+- uma denúncia recebida por esse participante; ou
+- um chamado/conversa de Suporte aberto pelo participante.
+
+Não basta informar um motivo solto: a origem deve ser selecionada no formulário e validada pelo sistema. Se não existir denúncia ou atendimento relacionado, é necessário registrar o contexto adequado antes de intervir; não pode ser utilizada uma ocorrência de outra pessoa ou evento.
+
+Fluxo operacional:
+
+1. Abrir a ficha e acessar **Intervenção no perfil**.
+2. Em **Origem**, selecionar a denúncia ou atendimento relacionado.
+3. Em **Ação**, escolher **Remover foto pública** ou **Editar descrição**.
+4. Para remoção, selecionar uma das fotos públicas atuais e conferir sua prévia. Para edição, preencher a descrição com **50 a 200 caracteres**; o backend valida o texto sem espaços nas extremidades.
+5. Preencher **Motivo** com a justificativa da intervenção (até 4.000 caracteres).
+6. Selecionar **Revisar intervenção**, conferir o aviso e então **Confirmar intervenção**.
+
+Na **remoção de foto pública**, a imagem deixa de estar disponível no perfil, mas seu registro é preservado no histórico restrito. O participante é desativado para revisão, com situação Inativo e motivo `PHOTO_REVIEW`. Ele deve enviar uma foto substituta e obter nova ativação após cumprir os requisitos. Não é permitido reativar com menos de 3 fotos públicas válidas.
+
+Na **edição da biografia**, o texto é atualizado após validação do limite de 50 a 200 caracteres; essa ação, por si só, não desativa nem reativa o perfil. Ambas as ações notificam o participante e registram responsável, momento, evento, motivo, tipo e identificador da origem, além do texto anterior ou da referência à foto. Os registros de auditoria são `profile.remove_photo` e `profile.edit_bio`.
+
+Intervenções de escrita não são permitidas após o evento ser Encerrado ou Arquivado. A consulta à origem da intervenção não autoriza acesso geral às mensagens privadas do participante.
+
+### 11.3 Exceção temporária de localização por falha técnica
+
+Nos eventos Presenciais ou Híbridos, o gestor ou membro autorizado com a permissão `location_exception` pode conceder uma **exceção temporária de GPS**. Administradores e Moderadores possuem essa permissão por padrão; Operadores não a possuem por padrão. O recurso não é utilizado em eventos Online.
+
+A exceção se aplica exclusivamente ao participante cujo motivo de desativação seja **`GPS_TECHNICAL`**, registrado pelo fluxo de falha técnica de localização. Ela não é um meio de contornar banimento, suspensão, remoção de foto ou outros requisitos de ativação, nem remove essas restrições.
+
+Fluxo na seção **Ativação e presença**:
+
+1. Localizar o participante com falha técnica e abrir sua ficha no evento correto.
+2. Preencher **Motivo da intervenção ou consulta**, justificando a necessidade da exceção.
+3. Selecionar **Ignorar verificação temporariamente** para abrir o diálogo **Exceção de localização**.
+4. Em **Duração da exceção (minutos)**, informar **X minutos**, como número inteiro positivo. Não existe uma duração fixa para todos os atendimentos.
+5. Conferir o aviso de que o participante ficará ativo durante esse período mesmo sem nova validação de localização e selecionar **Reativar temporariamente**, ou **Cancelar**.
+
+O sistema valida o evento, a permissão, o motivo, a duração e a condição `GPS_TECHNICAL`. Em seguida, reativa temporariamente a participação, calcula o término da exceção a partir do momento da concessão e cria um registro de exceção com responsável, justificativa e expiração. A auditoria recebe `location.exception`, incluindo a duração, e o participante é notificado. Sua tentativa manual de validar o GPS permanece disponível.
+
+Ao expirar o período, a rotina de manutenção encerra a exceção e registra `location.exception_expired`. Se o motivo continuar sendo `GPS_TECHNICAL`, o perfil volta a ficar Inativo e o participante é notificado para validar a localização ou procurar a equipe. Uma validação de GPS bem-sucedida pode resolver a falha técnica antes disso, sem exigir que a exceção se torne permanente.
+
+A concessão da exceção não exige consultar o histórico individual de localização. Essa consulta tem regras próprias de acesso, estado do evento e auditoria; não se deve confundir a permissão de conceder exceção com a autorização para investigar o histórico. Não são concedidas novas exceções em eventos Encerrados ou Arquivados.
 
 ## 12. Suspensão
 
@@ -396,7 +464,9 @@ Acesso temporariamente restringido por ação administrativa.
 
 Acesso ao evento removido por decisão administrativa.
 
-“Inativo”, “offline” ou “online” representam atividade e não devem ser confundidos com estados administrativos.
+“Offline” e “online” representam atividade e não devem ser confundidos com suspensão, banimento ou desativação operacional do perfil.
+
+Nos fluxos implementados, a situação **Inativo** também pode indicar desativação operacional: `PHOTO_REVIEW` após remoção de foto pública ou `GPS_TECHNICAL` por falha técnica de localização. O motivo deve ser consultado antes de escolher a tratativa. Estar offline, por si só, não equivale a esses motivos nem justifica uma exceção de GPS.
 
 ## 16. Novos cadastros durante o evento
 
@@ -479,7 +549,10 @@ O fluxo Participantes deverá resultar inicialmente nas seguintes telas/estados:
 7. confirmação de banimento/remoção;
 8. participante banido;
 9. cadastro incompleto;
-10. estados vazios e ausência de resultados.
+10. estados vazios e ausência de resultados;
+11. captura de outfit com prévia, nova captura e envio;
+12. intervenção no perfil com origem, ação, motivo e confirmação;
+13. exceção temporária de localização com justificativa e duração em minutos.
 
 Detalhes de denúncias e investigação pertencem ao documento específico de Moderação.
 
@@ -517,9 +590,9 @@ Mudanças de equipe, grupos, permissões, delegação/retomada, decisões de mod
 
 ## Perfil, fotos e visibilidade
 
-A ativação exige 3 fotos públicas válidas. Após ativado, o participante não pode remover ou substituir essas fotos. A foto de outfit também é obrigatória para participação, mas é adicionada pela equipe autorizada, especialmente Operador/Moderador.
+A ativação exige bio de 50 a 200 caracteres e 3 fotos públicas válidas, sendo uma principal. Após ativado, o participante não pode remover ou substituir essas fotos diretamente. No fluxo manual, a foto de outfit também é obrigatória e é capturada pela equipe autorizada, especialmente Operador/Moderador, antes de ativar o perfil. Eventos Online dispensam GPS; quando a ativação automática está habilitada, também dispensam outfit, conforme a seção 11.1.
 
-Antes do Match, ficam visíveis as 3 fotos públicas. Após o Match, as demais fotos ficam disponíveis e a foto de outfit aparece destacada em primeiro lugar.
+Antes do Match, ficam visíveis as 3 fotos públicas. Após o Match, as demais fotos ficam disponíveis e a foto de outfit, quando houver, aparece destacada em primeiro lugar.
 
 Se a moderação remover uma foto pública, o perfil é desativado por deixar de cumprir o mínimo de 3 fotos. O participante deve adicionar outra foto e solicitar reativação junto à moderação. A tratativa também pode ocorrer pelo chat de Suporte, vinculando solicitação, análise e reativação ao atendimento e à auditoria. Nenhum perfil pode ser reativado com menos de 3 fotos públicas válidas.
 
@@ -531,8 +604,8 @@ O botão Denunciar permanece disponível no perfil da Descoberta, inclusive no p
 
 Motivos pré-definidos incluem ofensa/ameaça/assédio, importunação ou comportamento sexual indesejado, nudez ou conteúdo sexual explícito, racismo/discriminação, discurso de ódio, violência/ameaça, fraude/golpe, uso indevido de imagem ou identidade, conteúdo ou comportamento possivelmente ilegal e Outro. O sistema não faz classificação jurídica definitiva.
 
-Múltiplos bloqueios não geram alerta automático. Com 10 denúncias válidas não consideradas infundadas, a moderação do evento recebe alerta explícito com acesso direto à tela de Moderação filtrada pelo participante. A equipe pode desativar preventivamente o perfil para análise; o participante recebe tarja informando que o perfil está em análise e pode procurar o Suporte.
+Múltiplos bloqueios não geram alerta automático. Com denúncias relevantes de **10 denunciantes distintos no mesmo evento**, Administradores e Moderadores ativos recebem alerta com acesso à ficha do participante. Denúncias infundadas, ocorrências administrativas e duplicatas do mesmo denunciante não aumentam a contagem. O alerta não aplica sanção automática nesse primeiro limiar.
 
-Com 20 denúncias válidas, o perfil é desativado automaticamente para análise e a Administração Global é notificada. Denúncias já analisadas e consideradas infundadas não contam para esses limites.
+Com **20 denunciantes distintos** pelos mesmos critérios, o perfil é desativado automaticamente para análise com motivo `REPORT_REVIEW`; o participante e a Administração Global são notificados. Isso não equivale a banimento. Invalidar uma denúncia não reativa automaticamente o perfil: a moderação deve avaliar e executar a tratativa adequada. Consulte a seção 22 do [Fluxo de Moderação](<Fluxo - Administração - Moderação.md>).
 
 O histórico de denúncias fica vinculado ao perfil global. A Administração Global pode marcar manualmente o perfil como Denunciado recorrente. Quando esse participante ingressar em outro evento, a Administração Global é notificada e decide caso a caso se comunica ou não a administração do novo evento. Histórico e marcação de recorrência não produzem banimento automático em eventos futuros.

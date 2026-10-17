@@ -1,18 +1,24 @@
 # SaaS de Encontro — Manual do Participante
 
-> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+> **Atualização de 16/10/2026:** cadastro, biografia, tópicos obrigatórios, modalidades, bloqueios e limites de denúncias foram conferidos no código. Descrições de roadmap e pendências estão identificadas separadamente; os documentos de [estado atual](<Estado atual do sistema.md>) e [verificação](<Verificacao da implementacao.md>) preservam o contexto das revisões anteriores.
 
 > Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
 
 ## 1. O que é a plataforma
 
-A plataforma conecta participantes dentro de eventos e salas autorizadas. Você cria ou reutiliza seu perfil, define preferências, conhece pessoas presentes no mesmo contexto e decide entre demonstrar interesse ou passar.
+A plataforma conecta participantes dentro de eventos autorizados. Você cria ou reutiliza seu perfil, define preferências, conhece pessoas presentes no mesmo contexto e decide entre demonstrar interesse ou passar. A organização de participantes em salas é roadmap futuro e não integra o fluxo atual.
 
 ## 2. Cadastro e perfil
 
-O cadastro utiliza sua conta de acesso. O perfil do evento exige nome e sobrenome, mês e ano de nascimento, gênero, bio com no mínimo 50 caracteres e os demais campos obrigatórios definidos para aquele evento.
+O cadastro utiliza sua conta de acesso. O perfil do evento exige nome e sobrenome, mês e ano de nascimento, gênero, bio com **50 a 200 caracteres** e os demais campos obrigatórios definidos para aquele evento.
 
 O evento também pode solicitar respostas a campos próprios. Alguns campos podem ser opcionais e outros obrigatórios.
+
+A organização pode habilitar tópicos cadastrados na plataforma, como interesses e finalidade no evento. Cada tópico apresenta suas opções e permite uma ou várias escolhas, conforme a configuração. Quando for obrigatório, o formulário informa a quantidade mínima de opções a selecionar. Por exemplo, um tópico de interesses pode exigir pelo menos 2 escolhas; selecionar apenas uma não atende ao requisito e impede a conclusão do cadastro ou a ativação.
+
+No cadastro inicial, a primeira etapa reúne os campos do perfil, a segunda reúne as fotos e a terceira aparece somente quando houver tópicos ou campos adicionais obrigatórios, incluindo termos e consentimentos. Tópicos opcionais podem ser preenchidos depois, na edição do perfil.
+
+**Modalidade do evento:** em eventos Presenciais ou Híbridos, a ativação exige validação de localização e foto de outfit capturada pela equipe. Em eventos **Online**, não é solicitado GPS. Quando a organização habilita a ativação automática para um evento Online, a foto de outfit é dispensada e o perfil pode ser ativado ao concluir os dados, as 3 fotos públicas válidas (uma principal), os tópicos obrigatórios e os demais campos e termos exigidos, desde que o evento esteja Aberto ou Em andamento. Sem essa opção habilitada, a ativação segue a validação da equipe e exige outfit.
 
 ## 3. Fotos
 
@@ -20,7 +26,7 @@ Para ativar o perfil, você deverá ter pelo menos 3 fotos, sendo uma definida c
 
 Antes de um match, as outras pessoas verão somente as 3 fotos públicas. As fotos adicionais ficam protegidas e serão liberadas somente depois de um match.
 
-O sistema também prevê uma foto de outfit vinculada ao evento. Ela representa como você está vestido naquele momento e fica oculta até o match, quando passa a ajudar no reconhecimento presencial.
+Nos eventos Presenciais ou Híbridos, a equipe autorizada captura uma foto de outfit vinculada ao evento. Ela representa como você está vestido naquele momento e fica oculta até o match, quando passa a ajudar no reconhecimento presencial. A foto de outfit é dispensada nos eventos Online com ativação automática habilitada.
 
 ## 4. Salvar seu perfil para outros eventos
 
@@ -34,13 +40,13 @@ Você poderá configurar critérios de descoberta e definir quais são mais impo
 
 Alguns critérios poderão ser definidos como restritivos e outros como preferências. O sistema não relaxará seus filtros automaticamente.
 
-Se não existirem mais pessoas dentro dos critérios escolhidos, a descoberta será interrompida e você poderá alterar seus filtros para encontrar novas opções.
+Se não existirem mais pessoas dentro dos critérios escolhidos, a descoberta exibirá **Revisar filtros** e **Rever participantes**. A segunda opção reapresenta os participantes marcados como PASS que ainda correspondem aos filtros atuais, para uma nova avaliação, sem apagar o histórico ou recolocar likes e matches na fila.
 
 ## 6. Gostei e Não gostei
 
 Ao visualizar um perfil, você poderá dar LIKE ou PASS.
 
-A plataforma mantém um histórico das pessoas que você marcou como “Gostei” e “Não gostei”. Você poderá voltar a esse histórico e mudar de decisão. Por exemplo, uma pessoa anteriormente marcada como PASS poderá posteriormente receber um LIKE.
+A plataforma mantém o histórico das decisões. Ao esgotar a descoberta, use **Rever participantes** para reavaliar quem recebeu PASS. Você pode passar novamente ou dar LIKE; o histórico anterior permanece registrado. Essa ação não desfaz likes ou matches existentes.
 
 ## 7. Quando você recebe um like
 
@@ -58,7 +64,7 @@ As opções, preços, validade e forma de liberação dependem da configuração
 
 O match acontece quando existe interesse mútuo válido.
 
-Depois do match, vocês passam a visualizar todas as fotos disponibilizadas um ao outro, inclusive as fotos adicionais e a foto de outfit. O match também libera a conversa entre os participantes.
+Depois do match, vocês passam a visualizar todas as fotos disponibilizadas um ao outro, inclusive as fotos adicionais e a foto de outfit, quando houver. O match também libera a conversa entre os participantes.
 
 ## 10. Conversas
 
@@ -84,13 +90,15 @@ Ao bloquear, você poderá indicar o motivo e explicar o ocorrido.
 
 Um bloqueio realizado em um evento não bloqueia automaticamente a mesma pessoa em eventos futuros.
 
-Se você encontrar novamente alguém que bloqueou anteriormente, nada será exibido ao simplesmente visualizar o perfil ou escolher PASS. Caso tente dar LIKE, o sistema avisará que você já bloqueou aquela pessoa em outro evento e pedirá confirmação.
-
-Se você confirmar o novo LIKE, estará escolhendo permitir uma nova possibilidade de relacionamento naquele evento. O bloqueio antigo continua no histórico, mas esse aviso deixa de ser apresentado em eventos futuros, salvo se você realizar um novo bloqueio posteriormente.
+As restrições de visualização e interação do bloqueio se aplicam somente ao evento em que ele foi realizado.
 
 ## 14. Denúncias e segurança
 
 Denúncia e bloqueio são ações diferentes. Uma denúncia permite relatar um ocorrido para análise da administração responsável.
+
+Você pode denunciar a mesma pessoa **uma única vez por evento**. Uma nova tentativa contra essa pessoa no mesmo evento é recusada, mesmo que você escolha outro motivo.
+
+O envio de denúncias também está sujeito a um limite de frequência para evitar abuso: por padrão, **10 tentativas de envio por minuto por conta**, compartilhadas entre as sessões dessa conta. Tentativas recusadas também podem consumir esse limite. Ao atingir o limite, aguarde o prazo informado pelo sistema antes de tentar novamente. Esse controle não permite repetir uma denúncia contra a mesma pessoa no evento.
 
 As denúncias podem gerar análise de moderação e medidas administrativas. Uma denúncia, por si só, não significa que uma infração foi automaticamente confirmada.
 
@@ -130,6 +138,7 @@ A plataforma deverá oferecer ao usuário uma forma de solicitar a exclusão do 
 
 ### Geolocalização e presença
 
+- Em eventos Online, GPS e validação de presença física não são solicitados. O indicador de presença considera a atividade recente no sistema; após o intervalo configurado sem atividade, o participante é considerado ausente. As regras de raio, consentimento de localização e anomalias abaixo se aplicam aos eventos Presenciais ou Híbridos.
 - Eventos físicos/híbridos possuem ponto de referência, raio e frequência de validação configuráveis no cadastro/edição.
 - A primeira validação ocorre na ativação; as seguintes respeitam a frequência configurada.
 - Sair do raio não restringe o sistema. Afastamento progressivo é comportamento normal.
@@ -150,7 +159,7 @@ Estados: Rascunho → Agendado → Aberto → Em andamento ⇄ Pausado → Encer
 - Rascunho: edição livre dos dados do evento, inclusive raio, organização e responsável.
 - Agendado: alterações passam a exigir restrições/confirmação explícita.
 - Aberto: janela operacional anterior ao início, configurável por evento. Permite cadastro de participantes e validação de acessos/permissões da equipe. Dados do evento ficam congelados; correção de raio é exceção para Administrador Global ou Administrador responsável, sempre auditada.
-- Antes do início, push e e-mail avisam Administrador Global e Administrador responsável de que o evento está prestes a começar. Qualquer um deles pode alterar Agendado → Aberto.
+- As transições geram notificações internas à gestão. Push, e-mail e antecedências configuráveis permanecem no roadmap de canais. A gestão autorizada pode abrir o evento manualmente a partir de 2 horas antes do início; a abertura automática ocorre 5 minutos antes.
 - Em andamento: inicia automaticamente no horário cadastrado e habilita a experiência social completa.
 - Próximo ao fim, uma tarja informa ao participante o horário de encerramento.
 - Pausado: somente gestores podem pausar/retomar. Discovery e lista de participantes ficam indisponíveis; mensagens existentes continuam funcionando. Tarja informa a pausa. Não são oferecidas opções de persistir/excluir perfil. Pausa não prorroga o horário final e todas as transições são auditadas.
@@ -174,10 +183,10 @@ Estados: Rascunho → Agendado → Aberto → Em andamento ⇄ Pausado → Encer
 4. Passes, revelações, pagamentos e regras comerciais: tipos, preços, duração, consumo, expiração, estorno, cobrança, repasse e regras fiscais.
 5. Notificações: matriz completa de eventos, destinatários e canais; antecedências configuráveis para início/fim e comportamento de falha/reenvio.
 6. Geolocalização: duração/quantidade de retries, precisão mínima, algoritmo/limiares de anomalia e permissões para consulta dos sinais.
-7. Perfil e fotos: exceções para substituição das três fotos públicas após ativação, especialmente moderação/conteúdo inadequado.
-8. Bloqueio, denúncia e segurança entre eventos: catálogo definitivo de motivos, evidências automáticas, limiares de sinais e critérios para intervenção global.
+7. Perfil e fotos: a remoção administrativa de foto e a edição de bio com origem e motivo auditados já existem. Consulte as seções 11.1 a 11.3 do [Fluxo de Participantes](<Fluxo - Administração - Participantes.md>); alterações futuras não dispensam os requisitos atuais.
+8. Segurança: catálogo de motivos, evidências condicionadas ao conteúdo indicado e limiares de 10/20 denunciantes distintos já estão implementados. Evoluções desses critérios e políticas entre eventos permanecem sujeitas a definição; bloqueios atuais são restritos ao evento.
 9. Produção, segurança e operação: cloud, storage S3, autenticação definitiva, recuperação de senha, Google/Apple, API, CI/CD, observabilidade, backup/restore e infraestrutura de produção.
-10. Exportação do evento arquivado: conteúdo exato do ZIP/HTML, anexos/evidências, integridade/autenticidade, controle de acesso, auditoria da exportação e procedimento formal de fornecimento.
+10. Exportação: o pacote ZIP, a consulta HTML offline, o termo PDF, os hashes SHA-256 e a auditoria estão implementados e são restritos à Administração Global. Consulte a seção 18 do [Manual do Contratante e Organizador](<Manual do Contratante e Organizador.md>); o participante não possui acesso direto à exportação.
 11. Ciclo de vida: antecedência configurável das notificações/tarjas e eventual regra extraordinária de reabertura de evento já Encerrado.
 
 ## Likes recebidos e passes
@@ -200,15 +209,19 @@ Não é permitido agendar após o encerramento previsto. Agendamento nos 30 minu
 
 ## Perfil, fotos e visibilidade
 
-A ativação exige 3 fotos públicas válidas, que se tornam imutáveis para o participante após a ativação. A foto de outfit também é obrigatória e é adicionada pela equipe autorizada. Após o Match, as demais fotos são liberadas e a foto de outfit aparece primeiro, em destaque.
+A ativação exige bio com 50 a 200 caracteres e 3 fotos públicas válidas, sendo uma principal. As fotos públicas se tornam imutáveis para o participante após a ativação. Em eventos Presenciais ou Híbridos, a foto de outfit é obrigatória e é adicionada pela equipe autorizada. Em eventos Online, GPS é dispensado; se a organização habilitar a ativação automática, o outfit também é dispensado e o perfil pode ser ativado ao completar os requisitos, em Aberto ou Em andamento. Sem ativação automática habilitada, a validação pela equipe e o outfit continuam exigidos. Após o Match, as demais fotos são liberadas e o outfit, quando houver, aparece primeiro, em destaque.
 
 Se a moderação remover uma foto pública, o perfil é desativado até que o participante adicione uma substituta e obtenha nova validação. A reativação pode ser tratada presencialmente ou pelo Suporte, mantendo sempre o mínimo de 3 fotos públicas válidas e o vínculo auditável da intervenção.
 
 Antes da abertura do evento, a organização pode configurar campos adicionais obrigatórios ou opcionais para ativação, incluindo aceite de termos próprios, consentimentos e listas de itens para marcação. Campos obrigatórios precisam ser satisfeitos para ativação; termos e consentimentos devem ser versionados e auditáveis.
 
+Os tópicos cadastráveis podem permitir escolha única ou múltipla. Nos tópicos obrigatórios, é necessário respeitar o mínimo informado no formulário — por exemplo, selecionar pelo menos 2 interesses. Eles são preenchidos na terceira etapa do cadastro inicial, junto dos demais requisitos obrigatórios; os tópicos opcionais ficam disponíveis na edição posterior do perfil.
+
 ## Denúncias e segurança
 
-Denúncias podem ser feitas pela Descoberta, perfil expandido ou Mensagens e exigem relato. Conteúdos substituídos permanecem no histórico conforme retenção. Dez denúncias válidas geram alerta à moderação; vinte desativam o perfil para análise e notificam a Administração Global. Denúncias consideradas infundadas não entram na contagem. O histórico permanece associado ao perfil global, sem banimento automático em eventos futuros.
+Denúncias podem ser feitas pela Descoberta, perfil expandido ou Mensagens e exigem relato. Conteúdos indicados na denúncia são vinculados à evidência conforme sua disponibilidade e as regras de retenção. **10 denunciantes distintos** com denúncias relevantes no mesmo evento geram alerta à moderação; **20 denunciantes distintos** desativam o perfil para análise e notificam a Administração Global. Denúncias infundadas e ocorrências administrativas não entram na contagem; duplicatas históricas do mesmo denunciante contam uma única vez. Isso não constitui banimento automático nem se aplica a eventos futuros.
+
+Cada participante pode denunciar uma mesma pessoa somente uma vez no evento. O envio está sujeito ao limite padrão de 10 tentativas por minuto por conta, compartilhado entre sessões; ao atingir o limite, aguarde o prazo indicado. O limite de frequência é distinto da regra que impede denúncias repetidas.
 
 ## LGPD, retenção e eliminação
 

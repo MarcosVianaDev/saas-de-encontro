@@ -18,6 +18,7 @@ class ProfileSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(choices=["Mulheres", "Homens", "Não binário", "Prefiro não informar"])
     bio = serializers.CharField(min_length=BIO_MIN_LENGTH, max_length=BIO_MAX_LENGTH)
     residenceState = serializers.ChoiceField(choices=BRAZIL_STATES, required=False, allow_blank=True)
+    height = serializers.IntegerField(min_value=50, max_value=250, required=False, allow_null=True)
     interests = serializers.ListField(child=serializers.CharField(max_length=200), required=False)
     purpose = serializers.CharField(max_length=200, allow_blank=True, required=False)
     topicAnswers = serializers.DictField(child=serializers.ListField(child=serializers.CharField(max_length=200)), required=False)
@@ -51,6 +52,8 @@ class ProfileSerializer(serializers.Serializer):
 
 
 class FilterSerializer(serializers.Serializer):
+    minHeight = serializers.IntegerField(min_value=50, max_value=250, required=False, allow_null=True, default=None)
+    maxHeight = serializers.IntegerField(min_value=50, max_value=250, required=False, allow_null=True, default=None)
     min = serializers.IntegerField(min_value=18, max_value=70)
     max = serializers.IntegerField(min_value=18, max_value=100)
     gender = serializers.ChoiceField(choices=["Todos", "Mulheres", "Homens"])
@@ -72,6 +75,8 @@ class FilterSerializer(serializers.Serializer):
     def validate(self, data):
         if data["min"] > data["max"]:
             raise serializers.ValidationError("A idade mínima não pode superar a máxima.")
+        if data.get('minHeight') is not None and data.get('maxHeight') is not None and data['minHeight'] > data['maxHeight']:
+            raise serializers.ValidationError('A altura mínima não pode superar a máxima.')
         return data
 
 

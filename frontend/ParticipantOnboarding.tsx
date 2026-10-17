@@ -5,6 +5,7 @@ import { api, request } from "./backend-client";
 import type { Bootstrap, Profile } from "./types";
 import { birthMonths, birthYears, latestBirthYear } from "./birth-options";
 import { ProfileTopics } from "./ProfileTopics";
+import { HeightField } from "./components/HeightField";
 import { participantMock } from "./participant-mock";
 
 export function ParticipantOnboarding({
@@ -135,6 +136,7 @@ export function ParticipantOnboarding({
                 </option>
               </select>
             </label>
+            <HeightField value={profile.height} onChange={(height) => setProfile({ ...profile, height })} />
             <label>
               Sobre você
               <textarea

@@ -1,6 +1,6 @@
 # Fluxo de Administração do Evento
 
-> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+> **Atualização de 16/10/2026:** solicitação e aprovação de eventos, QR Code assinado, raio padrão e exportação foram conferidos no código. As descrições históricas restantes devem ser interpretadas com o [estado atual](<Estado atual do sistema.md>) e a [verificação](<Verificacao da implementacao.md>); recursos identificados como roadmap não são funcionalidades disponíveis.
 
 > Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
 
@@ -26,7 +26,7 @@ Após a autenticação, o backend identifica:
 
 Quando o usuário possui vínculo administrativo com o evento, a navegação é direcionada para o Dashboard administrativo daquele evento.
 
-Uma mesma conta poderá futuramente exercer papéis diferentes em eventos diferentes, por exemplo administrador em um evento e participante em outro.
+Uma mesma conta pode exercer papéis diferentes em eventos diferentes, por exemplo administrador em um evento e participante em outro. A escolha do contexto determina as permissões de cada acesso.
 
 A autorização deve ser validada no backend. A interface não deve ser a única responsável por restringir ações administrativas.
 
@@ -72,10 +72,7 @@ Esses dados devem ser somente leitura quando sua definição pertencer à admini
 
 ### 5.1 Status
 
-Estados conceituais iniciais:
-- Agendado;
-- Em andamento;
-- Encerrado.
+Estados implementados: Rascunho (`DRAFT`) → Agendado (`SCHEDULED`) → Aberto (`OPEN`) → Em andamento (`RUNNING`) ⇄ Pausado (`PAUSED`) → Encerrado (`CLOSED`) → Arquivado (`ARCHIVED`). Solicitações de contratantes começam em Rascunho e dependem de aprovação global.
 
 ### 5.2 QR Code de acesso
 
@@ -83,7 +80,11 @@ A tela terá um botão para exibir o QR Code de acesso ao evento.
 
 O QR Code será utilizado por participantes comuns para iniciar o ingresso/cadastro vinculado ao evento, funcionando como mecanismo de associação do usuário ao contexto daquele evento.
 
-O QR Code não deve depender da exposição direta do UUID como mecanismo de ingresso. A implementação deverá utilizar uma referência ou token seguro associado ao evento.
+O QR Code contém um link com **token assinado e datado pelo servidor**, vinculado ao UUID do evento. O backend usa a assinatura Django com o contexto `event-join` e validade máxima de **30 dias**. Conhecer ou informar apenas o UUID não é suficiente para ingressar; se o UUID for enviado junto do token, os dois precisam corresponder.
+
+A assinatura impede alterar o evento do convite sem invalidá-lo; ela não cifra o conteúdo nem transforma o link em convite de uso único. Tokens adulterados ou expirados são recusados. O servidor também verifica o estado e o término previsto do evento a cada consulta ou ingresso: somente **Aberto** e **Em andamento**, antes do término, aceitam novos participantes. Convites de eventos em Rascunho, Agendado, Pausado, Encerrado ou Arquivado não autorizam ingresso.
+
+Para concluir o ingresso, é necessário entrar ou criar uma conta. O token associa essa conta ao evento como participante, sem conceder funções administrativas. Ingressos repetidos da mesma conta reutilizam sua participação naquele evento. Um link antigo não contorna o encerramento, mesmo que a assinatura ainda esteja dentro dos 30 dias.
 
 A interface poderá permitir:
 - exibir o QR Code em tela cheia;
@@ -91,6 +92,22 @@ A interface poderá permitir:
 - utilizar o QR Code em materiais ou telas do evento.
 
 Quando o evento estiver encerrado, novos ingressos por esse QR Code devem deixar de ser aceitos.
+
+### 5.3 Solicitação de novo evento pelo contratante
+
+O contratante que já atua como gestor autorizado de um evento pode usar **Solicitar novo evento** no painel administrativo. A operação usa a organização do contexto atual, que precisa estar ativa; não permite escolher outra organização ou nomear outro responsável na solicitação. A gestão recebida por delegação é avaliada pelas permissões efetivas no backend; apenas visualizar um botão não concede autorização.
+
+Fluxo implementado:
+
+1. Abrir **Solicitar novo evento** no painel do evento de origem.
+2. Preencher nome, descrição, modalidade, início e término. O término deve ser posterior ao início. Em Presencial/Híbrido, informar latitude e longitude; o raio padrão é **100 m** e o limite adicional padrão é **1.000 m**. Online dispensa coordenadas e pode habilitar ativação automática de participantes.
+3. Se desejado, configurar o Presente Inicial gratuito por duração ou revelações, com entrega imediata ou atraso em minutos após o início, anterior ao término previsto.
+4. Enviar a solicitação. O sistema cria um novo evento em **Rascunho (`DRAFT`)**, registra o solicitante como responsável e Administrador desse evento e marca a pendência de aprovação. O evento de origem permanece separado.
+5. A solicitação é registrada na auditoria (`event.requested`) e notificada às contas ativas da Administração Global. Enquanto aguarda aprovação, o gestor pode corrigir os dados do rascunho solicitado, inclusive as datas; isso não autoriza alterar organização ou responsável nem aprovar o próprio pedido.
+6. A Administração Global revisa os dados e executa **Aprovar e agendar evento**. A transição `DRAFT → SCHEDULED` de um evento solicitado é exclusiva da Administração Global e exige datas válidas.
+7. O sistema registra `event.transition` e `event.approved` e notifica o solicitante. A aprovação não abre imediatamente o ingresso: o evento ainda deve entrar em **Aberto** conforme o ciclo de vida.
+
+O agendador não aprova pedidos automaticamente nem abre ingressos em um evento que continua em Rascunho. O QR Code/link de ingresso só é disponibilizado para um evento elegível, em Aberto ou Em andamento e antes do término.
 
 ## 6. Dashboard administrativo
 
@@ -408,9 +425,9 @@ Este documento deve permanecer como referência funcional para o desenvolvimento
 
 O evento é arquivado automaticamente 15 dias após seu encerramento. A mudança notifica o Administrador Global e o Administrador responsável pelo evento. O estado Arquivado é somente leitura.
 
-Na Administração Global, o evento arquivado deve oferecer uma ação para exportar seus dados em arquivo ZIP. A exportação será destinada à consulta offline e deverá conter um HTML navegável com os dados auditáveis do evento. Poderá ser utilizada para auditoria, revisão administrativa e, quando legalmente cabível, fornecimento às autoridades competentes.
+Na Administração Global, a exportação **está implementada** e pode gerar um pacote ZIP para consulta offline, inclusive de eventos arquivados. O processamento é assíncrono em worker dedicado, com acompanhamento de estado e progresso. O pacote contém HTML navegável somente leitura, JSON, SQL, mídias disponíveis, manifesto de hashes SHA-256 e verificador; o termo em PDF é gerado e baixado separadamente, com o hash do ZIP.
 
-Lembrete para detalhamento posterior: definir conteúdo do ZIP, estrutura do HTML, anexos e evidências incluídos, mecanismos de integridade e autenticidade, controle de acesso, auditoria da própria exportação e procedimento formal de fornecimento. A exportação não substitui a base oficial, a trilha de auditoria nem eventual LegalHold.
+Geração, status, download e registros de assinatura/entrega são restritos à Administração Global e auditados. Os hashes são conferidos antes do download, disponível por 168 horas por padrão, com prazo configurável. Consulte o procedimento e os limites na seção 18 do [Manual do Contratante e Organizador](<Manual do Contratante e Organizador.md>). A exportação não substitui a base oficial, a trilha de auditoria nem eventual LegalHold, e não recupera dados já eliminados ou anonimizados.
 
 ## Consolidação funcional — decisões de 04/10/2026
 
@@ -452,7 +469,7 @@ Estados: Rascunho → Agendado → Aberto → Em andamento ⇄ Pausado → Encer
 - Rascunho: edição livre dos dados do evento, inclusive raio, organização e responsável.
 - Agendado: alterações passam a exigir restrições/confirmação explícita.
 - Aberto: janela operacional anterior ao início, configurável por evento. Permite cadastro de participantes e validação de acessos/permissões da equipe. Dados do evento ficam congelados; correção de raio é exceção para Administrador Global ou Administrador responsável, sempre auditada.
-- Antes do início, push e e-mail avisam Administrador Global e Administrador responsável de que o evento está prestes a começar. Qualquer um deles pode alterar Agendado → Aberto.
+- As transições geram notificações internas à gestão. Push, e-mail e antecedências configuráveis permanecem no roadmap de canais. A gestão autorizada pode abrir o evento manualmente a partir de 2 horas antes do início; a abertura automática ocorre 5 minutos antes.
 - Em andamento: inicia automaticamente no horário cadastrado e habilita a experiência social completa.
 - Próximo ao fim, uma tarja informa ao participante o horário de encerramento.
 - Pausado: somente gestores podem pausar/retomar. Discovery e lista de participantes ficam indisponíveis; mensagens existentes continuam funcionando. Tarja informa a pausa. Não são oferecidas opções de persistir/excluir perfil. Pausa não prorroga o horário final e todas as transições são auditadas.
@@ -461,7 +478,7 @@ Estados: Rascunho → Agendado → Aberto → Em andamento ⇄ Pausado → Encer
 - No Encerrado, Discovery e filtros são desativados; lista deixa de mostrar estados dos participantes; mensagens tornam-se somente leitura; perfil torna-se somente leitura.
 - No perfil encerrado, o participante pode optar por persistir/reaproveitar o perfil globalmente ou excluir sua exposição social. A exclusão remove o perfil do acesso dos demais e anonimiza sua representação nas mensagens, sem eliminar imediatamente registros sujeitos a retenção, auditoria ou LegalHold.
 - Arquivado: ocorre automaticamente 15 dias após o encerramento e notifica ambos os gestores. É somente leitura e acessível administrativamente para métricas, relatórios, denúncias, auditoria e pontos de atenção.
-- Administração Global deve permitir exportar o evento em ZIP com HTML navegável e dados auditáveis para consulta offline e eventual fornecimento formal quando legalmente cabível. Detalhes do pacote serão definidos posteriormente.
+- A Administração Global já dispõe de exportação assíncrona em ZIP, consulta HTML offline, termo PDF e verificação por SHA-256, conforme a seção Arquivamento automático e exportação deste documento.
 
 ### Princípios de auditoria
 
@@ -476,10 +493,10 @@ Estados: Rascunho → Agendado → Aberto → Em andamento ⇄ Pausado → Encer
 4. Passes, revelações, pagamentos e regras comerciais: tipos, preços, duração, consumo, expiração, estorno, cobrança, repasse e regras fiscais.
 5. Notificações: matriz completa de eventos, destinatários e canais; antecedências configuráveis para início/fim e comportamento de falha/reenvio.
 6. Geolocalização: duração/quantidade de retries, precisão mínima, algoritmo/limiares de anomalia e permissões para consulta dos sinais.
-7. Perfil e fotos: exceções para substituição das três fotos públicas após ativação, especialmente moderação/conteúdo inadequado.
-8. Bloqueio, denúncia e segurança entre eventos: catálogo definitivo de motivos, evidências automáticas, limiares de sinais e critérios para intervenção global.
+7. Perfil e fotos: captura de outfit, remoção administrativa de foto e edição de bio com origem e motivo auditados já existem. Consulte as seções 11.1 a 11.3 do [Fluxo de Participantes](<Fluxo - Administração - Participantes.md>).
+8. Segurança: catálogo de motivos, evidências condicionadas ao conteúdo indicado e limiares de 10/20 denunciantes distintos já estão implementados no [Fluxo de Moderação](<Fluxo - Administração - Moderação.md>). Políticas futuras não alteram o caráter contextual dos bloqueios atuais.
 9. Produção, segurança e operação: cloud, storage S3, autenticação definitiva, recuperação de senha, Google/Apple, API, CI/CD, observabilidade, backup/restore e infraestrutura de produção.
-10. Exportação do evento arquivado: conteúdo exato do ZIP/HTML, anexos/evidências, integridade/autenticidade, controle de acesso, auditoria da exportação e procedimento formal de fornecimento.
+10. Exportação: geração assíncrona, ZIP/HTML, evidências disponíveis, manifesto SHA-256, termo PDF e auditoria estão implementados. Permanecem sujeitas à política da plataforma as condições de fornecimento externo e retenção, sem caracterizar o recurso de exportação como futuro.
 11. Ciclo de vida: antecedência configurável das notificações/tarjas e eventual regra extraordinária de reabertura de evento já Encerrado.
 
 ## Matriz de permissões — definição atual
@@ -526,9 +543,9 @@ Não é permitido agendar após o encerramento previsto. Agendamento nos 30 minu
 
 ## Perfil, fotos e visibilidade
 
-A ativação exige três fotos públicas válidas e foto de outfit adicionada pela equipe. Após o Match, as demais fotos são liberadas. Se uma foto pública for removida administrativamente, o perfil fica desativado até reposição e nova validação.
+A ativação exige bio de 50 a 200 caracteres, três fotos públicas válidas (uma principal), tópicos e demais requisitos obrigatórios. No fluxo manual, exige também foto de outfit adicionada pela equipe; em eventos Online com ativação automática habilitada, o outfit é dispensado. GPS é exigido em Presencial/Híbrido e dispensado em Online. Após o Match, as demais fotos são liberadas. Se uma foto pública for removida administrativamente, o perfil fica desativado até reposição e nova validação.
 
-Antes da abertura, a organização pode definir campos adicionais obrigatórios ou opcionais para ativação, incluindo termos, consentimentos e listas de marcação.
+Antes da abertura, a organização pode definir campos adicionais obrigatórios ou opcionais para ativação, incluindo termos, consentimentos e tópicos de escolha única ou múltipla. O mínimo de respostas de cada tópico obrigatório deve ser cumprido; por exemplo, ao menos 2 interesses. As intervenções posteriores em foto e bio seguem origem obrigatória em denúncia ou atendimento e motivo auditado, conforme o [Fluxo de Participantes](<Fluxo - Administração - Participantes.md>).
 
 ## LGPD, retenção e eliminação
 
@@ -540,7 +557,7 @@ Documento: https://docs.google.com/document/d/1iVfUgkg_0EBERID5z9ZA-WnRu9e6bIDEC
 
 A geolocalização é usada para validar presença, apoiar a experiência do evento e gerar sinais de segurança, sem rastreamento exato contínuo e sem punição automática por anomalia.
 
-O evento define a frequência normal das verificações. O raio do evento possui valor padrão de 1.000 metros e determina presença atual. Há também um limite adicional, igualmente com padrão de 1.000 metros, informado no cadastro do evento e alterável somente até antes de o evento entrar em andamento. Assim, dentro do raio o participante é considerado presente; fora do raio, mas dentro do limite máximo, considera-se que esteve no evento e pode retornar, sem caracterizar anomalia; além do limite máximo entra-se na zona de possível anomalia.
+Nos eventos Presenciais ou Híbridos, o evento define a frequência normal das verificações. O raio possui valor padrão de **100 metros** e determina presença atual. Há também um limite adicional com padrão de **1.000 metros**, informado no cadastro e alterável somente antes de o evento entrar em andamento. O limite máximo padrão é, portanto, 1.100 metros. Dentro do raio, o participante é considerado presente; fora do raio, mas dentro do limite máximo, é considerado temporariamente fora; além dele, há possível anomalia. Eventos Online não solicitam GPS e usam atividade recente para indicar presença.
 
 Quando uma verificação periódica falhar, o sistema realiza mais 5 tentativas, com intervalo de 1 minuto. Se todas falharem, o participante recebe tarja persistente de falha no GPS e notificação fixa acionável que força nova tentativa. Se uma tentativa manual obtiver localização válida, tarja e notificação desaparecem e o fluxo normal é retomado. Se o problema persistir e a próxima verificação periódica agendada também não conseguir determinar a localização, o perfil é desativado por falha técnica e o participante é orientado a comparecer à moderação.
 

@@ -1,6 +1,6 @@
 # Fluxo - Administração - Moderação
 
-> **Referência documental de 12/10/2026:** este arquivo preserva requisitos ou registros anteriores; não comprova que todos os recursos descritos estão implementados hoje. Consulte [Estado atual do sistema](<Estado atual do sistema.md>), [Verificação atual](<Verificacao da implementacao.md>) e [pendências da etapa 10](<Etapa 10 - verificacao e pendencias.md>).
+> **Atualização de 16/10/2026:** as seções de evidências, bloqueios e limiares de denúncias foram conferidas no código. Os registros de evidências são condicionados ao conteúdo indicado na denúncia; os limiares consideram denunciantes distintos do mesmo evento. As demais referências históricas devem ser lidas com o [estado atual](<Estado atual do sistema.md>) e a [verificação](<Verificacao da implementacao.md>).
 
 > Documento de requisitos consolidado em 04/10/2026. Não é uma declaração de funcionalidades já implementadas; consulte [Verificação da implementação](<Verificacao da implementacao.md>). O texto preserva a evolução da fonte: as seções finais de definição/consolidação prevalecem sobre propostas anteriores do mesmo assunto. Consulte o [índice e análise](README.md) para divergências e precedência.
 
@@ -12,7 +12,7 @@ Fonte: [DOCX](<Fluxo - Administração - Moderação.md.docx>). Referência visu
 
 Este documento define o fluxo funcional e as telas da área Moderação do painel administrativo de um evento.
 
-A área Moderação é o centro operacional de segurança do evento. Ela recebe denúncias e sinais derivados de bloqueios, permite investigação, registra decisões administrativas e mantém rastreabilidade.
+A área Moderação é o centro operacional de segurança do evento. Ela recebe denúncias e ocorrências administrativas, permite investigação, registra decisões e mantém rastreabilidade. Bloqueios podem ser consultados como contexto agregado, mas não abrem automaticamente denúncias ou alertas.
 
 Princípio central:
 
@@ -186,27 +186,19 @@ A descrição é conteúdo sensível e deve ser acessível somente a usuários c
 
 ## 9. Evidências
 
-A arquitetura já prevê ReportEvidence, portanto a tela deve reservar uma seção:
+A seção **Evidências** está implementada com registros `ReportEvidence`, criados automaticamente no envio quando o participante indica conteúdo relacionado. Isso não significa captura de todo o perfil ou de toda a conversa: cada registro corresponde à foto, mensagem ou contexto informado na denúncia. É possível denunciar com relato e motivos mesmo sem selecionar uma evidência adicional.
 
-### Evidências
+| Conteúdo indicado | Registro automático | Validação e limites |
+| --- | --- | --- |
+| **Foto relacionada** | Identificador da foto, referência do arquivo e informação de que ela estava removida ou não no momento do registro. | A foto deve pertencer ao denunciado no mesmo evento. Foto pós-match exige match ativo e ausência de bloqueio. O registro vincula o arquivo existente; não promete uma nova cópia independente de toda a galeria. |
+| **Mensagem relacionada** | Identificador da mensagem, texto e identificador de quem a enviou, preservados em uma fotografia textual da evidência. | A mensagem deve pertencer à conversa entre denunciante e denunciado. Uma mensagem de terceiro ou de outro evento é recusada. A evidência não autoriza consultar as demais conversas da pessoa. |
+| **Contexto ou foto alterada/removida** | Descrição do contexto e indicador `photoChanged`. | O relato contextual é preservado, mas não recria uma imagem indisponível nem comprova sozinho o conteúdo anterior. |
 
-Possíveis representações conceituais:
-- imagem;
-- anexo;
-- outro elemento permitido.
+Ao enviar a denúncia, o sistema valida a origem das evidências, cria a ocorrência de moderação e registra sua criação na auditoria. Uma evidência inválida impede a conclusão do envio, sem deixar uma denúncia parcial. A fotografia textual da mensagem permanece vinculada à evidência; a referência de mídia fica sujeita à disponibilidade do arquivo e à retenção aplicável.
 
-Os tipos definitivos de evidência ainda não estão definidos.
+Na ficha da ocorrência, a equipe autorizada consulta descrições e dados registrados. Quando há arquivo de imagem, o acesso usa uma rota autenticada, restrita à moderação do evento; o acesso à mídia é auditado como `evidence.viewed`. Não existe acesso público irrestrito às evidências nem autorização automática para consultar dados de outros eventos.
 
-Essa decisão deverá considerar:
-- dados de terceiros;
-- conteúdo privado;
-- armazenamento;
-- autorização de acesso;
-- retenção;
-- LegalHold;
-- segurança.
-
-A estrutura da tela deve estar preparada sem antecipar regras ainda não definidas.
+Armazenamento, acesso, retenção e LegalHold continuam aplicáveis. Não há captura automática de outfit, gravação geral da conversa ou reconstrução de conteúdo eliminado por este fluxo.
 
 ## 10. Contexto relacionado
 
@@ -382,7 +374,7 @@ Ação: suspensão
 Responsável: Ana Carolina
 20:31
 
-A regra definitiva deverá estabelecer se a ocorrência é automaticamente resolvida ou permanece em acompanhamento após a suspensão.
+A ocorrência permanece em acompanhamento após a suspensão; o encerramento exige uma ação explícita de resolução.
 
 ## 18. Decisão - banimento do evento
 
@@ -454,52 +446,30 @@ A reabertura acrescenta um novo evento ao histórico.
 
 ## 21. Sinais de múltiplos bloqueios
 
-Um bloqueio isolado entre participantes não deve abrir automaticamente uma denúncia.
+Bloqueios isolados ou acumulados não criam automaticamente denúncias, alertas ou sanções. A quantidade e a linha temporal dos bloqueios podem aparecer como contexto administrativo do evento, sem constituir prova de infração.
 
-O sistema poderá, entretanto, gerar um sinal de moderação quando forem atendidos critérios relevantes.
-
-Exemplo:
-
-Múltiplos bloqueios
-
-Rafael Costa recebeu 5 bloqueios neste evento.
-
-Ao abrir:
-
-### Sinal de comportamento
-
-Rafael Costa, 30
-
-5 bloqueios recebidos
-
-Linha temporal:
-
-18:13 - bloqueio
-18:47 - bloqueio
-19:02 - bloqueio
-19:51 - bloqueio
-20:07 - bloqueio
-
-Motivos agregados, quando disponíveis:
-
-Comportamento inadequado - 3
-Insistência - 1
-Outro - 1
-
-Essas informações representam sinais para análise, não prova de infração.
+Não existe um limiar implementado de “X bloqueios = alerta”. Os limiares de segurança descritos a seguir se baseiam em **denunciantes distintos**, e não em bloqueios.
 
 ## 22. Limiares de alerta
 
-Não definir neste momento um valor rígido como:
+Os limiares implementados são **10 e 20 denunciantes distintos**, calculados separadamente para cada participante denunciado no evento:
 
-3 bloqueios = alerta.
+| Quantidade de denunciantes relevantes | Efeito implementado |
+| --- | --- |
+| **10 ou mais** | Alerta interno para Administradores e Moderadores ativos do evento, com acesso à ficha do participante. Não há suspensão ou banimento automático nesse primeiro limiar. As novas ocorrências criadas a partir desse patamar recebem prioridade elevada. |
+| **20 ou mais** | Desativação automática do perfil para análise: `is_active=False`, situação Inativo e motivo `REPORT_REVIEW`. O participante é notificado, assim como as contas ativas da Administração Global. Isso não equivale a banimento. |
 
-Os limiares poderão futuramente ser:
-- configuração global do SaaS;
-- configuração específica por evento;
-- regra derivada de outros critérios.
+Critérios da contagem:
 
-O fluxo deve estar preparado para receber sinais sem fixar prematuramente o algoritmo que os gera.
+- apenas denúncias de participantes vinculados ao **mesmo evento** do denunciado;
+- exclusão de denúncias marcadas como infundadas;
+- exclusão de ocorrências administrativas abertas pela equipe;
+- cada denunciante conta uma única vez, mesmo que existam duplicatas históricas;
+- o número de motivos ou evidências de uma denúncia não aumenta a contagem.
+
+Novos envios contra a mesma pessoa pelo mesmo participante no evento são recusados. O envio também está sujeito ao limite padrão de **10 tentativas por minuto por conta**, compartilhado entre sessões. Esse controle de frequência é independente dos limiares de 10 e 20 denunciantes recebidos por uma pessoa.
+
+As notificações de limiar são deduplicadas por participante e destinatário. Marcar uma denúncia como infundada a retira da contagem relevante, mas não apaga o histórico nem reativa automaticamente um perfil já desativado para análise. A equipe precisa avaliar a situação e executar a tratativa de reativação apropriada. Não há banimento automático em eventos futuros por esses limiares.
 
 ## 23. Nova denúncia em tempo real
 
@@ -522,9 +492,7 @@ Moderação 3
 →
 Moderação 4
 
-Conforme o escopo geral, uma nova denúncia deve gerar notificação para:
-- administração do evento;
-- administração global da plataforma.
+O envio cria a ocorrência e atualiza sua disponibilidade para a fila de moderação. As notificações específicas por acúmulo seguem a seção 22: alerta à equipe no limiar de 10 denunciantes distintos e à Administração Global no limiar de 20. Ocorrências administrativas abertas pela equipe possuem fluxo próprio de notificação, sem entrar nessa contagem. Não se deve prometer uma notificação global automática para cada denúncia de participante.
 
 ## 24. Permissões
 
@@ -653,7 +621,7 @@ Intervenções em perfil devem ser vinculadas à denúncia que as originou ou à
 
 ## Denúncias e segurança
 
-O participante pode denunciar pela Descoberta, perfil expandido ou Mensagens, com relato obrigatório e indicação do conteúdo relacionado. Conteúdos substituídos permanecem vinculados ao histórico para auditoria conforme retenção. Dez denúncias válidas alertam a moderação do evento; vinte desativam automaticamente o perfil para análise e notificam a Administração Global. Denúncias consideradas infundadas deixam de contar. O histórico permanece ligado ao perfil global, sem banimento automático em eventos futuros.
+O participante pode denunciar pela Descoberta, perfil expandido ou Mensagens, com relato obrigatório e indicação opcional do conteúdo relacionado. As evidências automáticas condicionadas à indicação do conteúdo estão descritas na seção 9. Os limiares consideram **10 e 20 denunciantes distintos**, do mesmo evento, excluindo denúncias infundadas e ocorrências administrativas, conforme a seção 22. O histórico é preservado conforme retenção, sem banimento automático em eventos futuros.
 
 ## LGPD, retenção e eliminação
 

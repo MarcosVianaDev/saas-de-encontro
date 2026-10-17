@@ -67,6 +67,7 @@ export function App() {
     profile,
     purposes,
     ready,
+    reviewParticipants,
     real,
     removePhoto,
     run,
@@ -333,7 +334,8 @@ export function App() {
                       seen={seen}
                       select={select}
                       serverData={serverData}
-                      setSeen={setSeen}
+                      busy={busy}
+                      reviewParticipants={reviewParticipants}
                       showDetails={showDetails}
                     />
                   )}

@@ -391,12 +391,25 @@ export function useParticipantController() {
       (p) =>
         p.age >= f.min &&
         p.age <= f.max &&
+        (f.minHeight == null || (p.height != null && p.height >= f.minHeight)) &&
+        (f.maxHeight == null || (p.height != null && p.height <= f.maxHeight)) &&
         (f.gender === "Todos" || p.gender === f.gender) &&
         (!f.interests.length ||
           f.interests.some((i) => p.interests.includes(i))),
     );
   const eligible = real ? remoteDiscovery : eligibleFor(filters);
   const candidate = eligible.find((p) => !seen.includes(p.id));
+  const reviewParticipants = async () => {
+    if (!real) {
+      setSeen((old) => old.filter((id) => liked.includes(id) || String(id) in chats));
+      return;
+    }
+    await run(async () => {
+      const result = await request<{ count: number; data: Bootstrap }>("discovery/review/", "POST");
+      applyData(result.data);
+      if (!result.data.discovery.length) notify("Nenhum participante marcado como PASS corresponde aos filtros atuais.");
+    });
+  };
 
   const { saveProfile, applyFilters, removePhoto, uploadPhotos } =
     useParticipantProfile({
@@ -478,6 +491,7 @@ export function useParticipantController() {
     profile,
     purposes,
     ready,
+    reviewParticipants,
     real,
     removePhoto,
     run,

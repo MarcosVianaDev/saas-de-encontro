@@ -24,7 +24,7 @@ from apps.profiles.models import ParticipantProfile, ParticipantPreference, Part
 from apps.messaging.models import Message
 from demo.data import DEMO_EVENT_ID
 from .serializers import LoginSerializer, ProfileSerializer, FilterSerializer, DecisionSerializer, MessageSerializer, PhotoDeleteSerializer
-from .services import current, bootstrap, target_for, blocked, visible_participants, match_for, photo_url, ordered_photos, person_payload, record_decision, audit, DEFAULT_FILTERS
+from .services import current, bootstrap, discovery, target_for, blocked, visible_participants, match_for, photo_url, ordered_photos, person_payload, record_decision, audit, DEFAULT_FILTERS
 from .event_admin import navigation, invite_event, join_event
 from .services import ensure_social, ensure_writable
 from .event_scope import navigation_context
@@ -159,6 +159,8 @@ class ProfileView(APIView):
                     setattr(profile, field, data[field])
             if 'residenceState' in data:
                 profile.residence_state = data['residenceState']
+            if 'height' in data:
+                profile.height_cm = data['height']
             answers = dict(profile.topic_answers)
             if 'interests' in data:
                 answers['interests'] = data['interests']
@@ -238,6 +240,23 @@ class DiscoveryView(APIView):
         participant = current(request,active=True)
         ensure_social(participant)
         return Response(bootstrap(participant)['discovery'])
+
+
+class ReviewParticipantsView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        from apps.interactions.models import Interaction
+        participant = current(request, active=True)
+        ensure_social(participant)
+        EventParticipant.objects.select_for_update().get(pk=participant.pk)
+        preference, _ = ParticipantPreference.objects.get_or_create(participant=participant, defaults={'filters': DEFAULT_FILTERS.copy()})
+        filters = {**DEFAULT_FILTERS, **preference.filters}
+        candidates = discovery(participant, filters, include_passes=True)
+        count = Interaction.objects.filter(participant=participant, decision='PASS',
+            target_id__in=[person['id'] for person in candidates], review_pending=False).update(review_pending=True, updated_at=timezone.now())
+        if count:
+            audit(request.user, 'discovery.review_passes', participant)
+        return Response({'count': count, 'data': bootstrap(participant)})
 
 
 class InteractionView(APIView):
