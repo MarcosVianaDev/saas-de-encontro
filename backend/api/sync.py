@@ -148,10 +148,14 @@ class ParticipantSyncView(APIView):
 
 class ParticipantCatalogView(APIView):
     def get(self, request):
+        from apps.profiles.topics import event_topics, topic_payload, available_filter_topics
         participant = current(request)
+        topics = event_topics(participant.event)
+        filter_topics = available_filter_topics(participant.event, topics)
+        metadata = {'profileTopics': topic_payload(topics)}
         if not participant_status(participant)['socialAvailable']:
-            return Response({'people': [], 'discovery': []})
-        people = [person_payload(peer) for peer in visible_participants(participant)]
+            return Response({'people': [], 'discovery': [], **metadata})
+        people = [person_payload(peer, filter_topics=filter_topics) for peer in visible_participants(participant)]
         preference = ParticipantPreference.objects.filter(participant=participant).first()
         filters = {**DEFAULT_FILTERS, **(preference.filters if preference else {})}
-        return Response({'people': people, 'discovery': discovery(participant, filters, people)})
+        return Response({'people': people, 'discovery': discovery(participant, filters, people, filter_topics=filter_topics), **metadata})

@@ -72,3 +72,5 @@ class ProfileTopic(BaseModel):
     key = models.CharField(max_length=50, unique=True)
     options = models.JSONField(default=list)
     multiple = models.BooleanField(default=False)
+    show_in_filter = models.BooleanField(default=False)
+    filter_multiple = models.BooleanField(default=False)

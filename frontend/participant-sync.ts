@@ -26,7 +26,7 @@ export function mergePeers(people: Person[], delta: Pick<SyncDelta, "peers" | "b
     const inaccessible = hidden.has(String(person.id)) || delta.chatStates[person.id]?.blocked;
     if (inaccessible && !(person.id in delta.chatStates)) continue;
     next.set(String(person.id), inaccessible ? { ...person, name: "Usuário bloqueado",
-      image: "/images/profile-placeholder.svg", job: "", city: "", residenceState: "", height: null, gender: "", bio: "", interests: [], online: false, age: 0 } : person);
+      image: "/images/profile-placeholder.svg", job: "", city: "", residenceState: "", height: null, gender: "", bio: "", interests: [], topicAnswers: {}, online: false, age: 0 } : { ...next.get(String(person.id)), ...person });
   }
   return [...next.values()];
 }

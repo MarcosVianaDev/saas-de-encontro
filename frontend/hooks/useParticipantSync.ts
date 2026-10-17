@@ -223,7 +223,7 @@ export function useParticipantSync({
       globalMode ||
       contexts ||
       !serverData?.socialAvailable ||
-      !["descobrir", "participantes"].includes(page)
+      !["descobrir", "participantes", "filtros"].includes(page)
     )
       return;
     let disposed = false;
@@ -234,6 +234,7 @@ export function useParticipantSync({
       try {
         const data = await api.catalog();
         if (!disposed && !busyRef.current) {
+          if (data.profileTopics) setServerData((old) => old ? { ...old, profileTopics: data.profileTopics } : old);
           setPeople((old) =>
             mergePeers(
               old.filter((person) => person.id in chatStatesRef.current),

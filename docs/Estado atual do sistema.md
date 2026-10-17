@@ -61,14 +61,17 @@ Fontes: `frontend/GlobalAdministration.tsx`, `EventRequestForm.tsx`, `backend/ap
 
 ## Tópicos cadastráveis e requisitos do evento
 
-`ProfileTopic` armazena nome, chave estável, lista de opções e indicador de múltipla escolha. A administração global cadastra e edita tópicos em Mais → Participantes, com opções separadas por vírgula e toggle de múltipla escolha. As respostas por participante ficam em `ParticipantProfile.topic_answers`; interesses e finalidade também mantêm campos de compatibilidade para o perfil e filtros existentes.
+`ProfileTopic` armazena nome, chave estável, opções, escolha múltipla no perfil (`multiple`), exibição no filtro (`show_in_filter`) e escolha múltipla no filtro (`filter_multiple`). A administração global cadastra e edita tópicos em Mais → Participantes. Ao habilitar **Exibir no filtro**, aparece o controle **Escolha única ↔ Escolha múltipla**, com a label selecionada em destaque. O tipo de escolha no filtro é independente do tipo de resposta no perfil. As respostas ficam em `ParticipantProfile.topic_answers`; interesses e finalidade mantêm campos de compatibilidade.
 
 | Tópico inicial | Opções sem “Outros” | Tipo inicial |
 |---|---|---|
 | Interesses | Música, Viagens, Tecnologia, Gastronomia, Esportes, Arte, Networking | Múltipla escolha |
 | Finalidade no evento | Networking, Amizade, Relacionamento, Negócios, Troca de ideias | Escolha única |
+| Orientação | Heterossexual, Homossexual, Bissexual | Escolha única |
 
-A migração `profiles.0006_seed_profile_topics` cria esses tópicos e migra respostas existentes, removendo seleções fora das listas iniciais. As listas estáticas anteriores ficam no mock do frontend. No acesso real, opções do perfil e dos filtros vêm do banco.
+A migração `profiles.0006_seed_profile_topics` cria Interesses/Finalidade e migra respostas existentes. `profiles.0010_profiletopic_filters_and_orientation`, de **17/10/2026**, acrescenta as configurações de filtro e cria Orientação, sem preencher a orientação dos participantes. Interesses e Finalidade continuam disponíveis no filtro; Orientação inicia visível e com escolha única. Tópicos novos iniciam com Exibir no filtro desmarcado. O catálogo e as opções permanecem editáveis. As listas estáticas anteriores ficam no mock do frontend.
+
+No acesso real, o filtro apresenta somente os tópicos com Exibir no filtro marcado e habilitados em **Usar no evento**. Cada tópico tem sempre **Não filtrar**, que remove sua restrição. Escolha única substitui a opção anterior; escolha múltipla encontra pessoas com qualquer uma das opções selecionadas. Tópicos diferentes se combinam entre si e com idade, gênero e altura. Preferências são persistidas por participação; tópicos ocultados/desabilitados e opções removidas deixam de restringir resultados. A antiga preferência de Finalidade não passa a filtrar automaticamente: a seleção deve ser feita no novo controle. O catálogo periódico atualiza os tópicos na tela de filtros e descoberta, sem recarregar o bootstrap completo.
 
 O cadastro do evento salva as regras em `Event.settings.participant_topics`:
 

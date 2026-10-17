@@ -129,7 +129,7 @@ export const api = {
   },
   readMessages: (id: PersonId, messages: string[]) =>
     request<{ read: string[]; updated: string }>(`conversations/${id}/read/`, "POST", { messages }),
-  catalog: () => request<Pick<Bootstrap, "people" | "discovery">>("catalog/"),
+  catalog: () => request<Pick<Bootstrap, "people" | "discovery" | "profileTopics">>("catalog/"),
   conversations: () =>
     request<Pick<Bootstrap, "chats" | "chatStates">>("conversations/"),
   saveProfile: (body: unknown) => request<Bootstrap>("profile/", "PUT", body),

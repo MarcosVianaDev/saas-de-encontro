@@ -1099,6 +1099,18 @@
   gap: 12px;
   margin-bottom: 16px;
 }
+
+.topic-filter-choice {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .65rem;
+  margin: .5rem 0 1rem;
+  font-size: .875rem;
+}
+.topic-filter-choice > span { opacity: .6; }
+.topic-filter-choice > span.selected { opacity: 1; color: var(--adm-accent, #f59e0b); font-weight: 700; }
+:root .topic-filter-choice > label.topic-filter-choice-control { display: block; flex: 0 0 auto; width: auto; margin: 0; min-height: 0; }
 .event-team-header h1 {
   margin: 0;
 }

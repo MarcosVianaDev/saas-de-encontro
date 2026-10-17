@@ -1,5 +1,6 @@
 export type PersonId = string | number;
 export type Person = {
+  topicAnswers?: Record<string, string[]>;
   height?: number | null;
   residenceState?: string;
   id: PersonId;
@@ -31,6 +32,8 @@ export type Profile = {
   bio: string;
 };
 export type Filters = {
+  topics?: Record<string, string[]>;
+  genders?: string[];
   minHeight?: number | null;
   maxHeight?: number | null;
   min: number;
@@ -116,6 +119,8 @@ export type SyncDelta = {
   blocked: PersonId[];
 };
 export type ProfileTopic = {
+  showInFilter?: boolean;
+  filterMultiple?: boolean;
   required?: boolean;
   minimum?: number;
   id: string;

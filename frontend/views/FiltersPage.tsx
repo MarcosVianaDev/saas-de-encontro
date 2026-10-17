@@ -1,12 +1,14 @@
 import { useState } from "react";
 
 import { Icon } from "../components/Icon";
+import { genderOptions, selectedGenders } from "../gender-filters";
+import { TopicFilters } from "../components/TopicFilters";
 
 import type { ParticipantController } from "../hooks/useParticipantController";
 
 type Props = Pick<
   ParticipantController,
-  "applyFilters" | "filters" | "eligibleFor" | "interests" | "purposes"
+  "applyFilters" | "filters" | "eligibleFor" | "interests" | "purposes" | "filterTopics"
 >;
 
 export function FiltersPage({
@@ -15,6 +17,7 @@ export function FiltersPage({
   eligibleFor,
   interests,
   purposes,
+  filterTopics,
 }: Props) {
   const [draft, setDraft] = useState(filters);
   const [interestSearch, setInterestSearch] = useState("");
@@ -96,19 +99,26 @@ export function FiltersPage({
         <section className="filter-card">
           <h3>Gênero</h3>
           <div className="chips">
-            {["Todos", "Mulheres", "Homens"].map((item) => (
+            <button type="button" className={`chip ${selectedGenders(draft).length === 0 ? "active" : ""}`}
+              aria-pressed={selectedGenders(draft).length === 0}
+              onClick={() => setDraft({ ...draft, gender: "Todos", genders: [] })}>Todos</button>
+            {genderOptions.map((item) => (
               <button
                 type="button"
-                key={item}
-                aria-pressed={draft.gender === item}
-                className={`chip ${draft.gender === item ? "active" : ""}`}
-                onClick={() => setDraft({ ...draft, gender: item })}
+                key={item.value}
+                aria-pressed={selectedGenders(draft).includes(item.value)}
+                className={`chip ${selectedGenders(draft).includes(item.value) ? "active" : ""}`}
+                onClick={() => setDraft({ ...draft, gender: "Todos", genders: selectedGenders(draft).includes(item.value)
+                  ? selectedGenders(draft).filter((gender) => gender !== item.value)
+                  : [...selectedGenders(draft), item.value] })}
               >
-                {item}
+                {item.label}
               </button>
             ))}
           </div>
+          <p className="microcopy">Selecione um ou mais gêneros. Sem uma seleção específica, serão exibidos todos os gêneros.</p>
         </section>
+        {filterTopics !== null ? <TopicFilters topics={filterTopics} filters={draft} onChange={setDraft} /> : <>
         <section className="filter-card">
           <div className="section-label">
             <h3>Interesses</h3>
@@ -124,6 +134,8 @@ export function FiltersPage({
             />
           </div>
           <div className="chips">
+            <button type="button" className={`chip ${draft.interests.length ? "" : "active"}`}
+              aria-pressed={!draft.interests.length} onClick={() => setDraft({ ...draft, interests: [] })}>Não filtrar</button>
             {interests
               .filter((item) =>
                 item.toLowerCase().includes(interestSearch.toLowerCase()),
@@ -161,6 +173,8 @@ export function FiltersPage({
         <section className="filter-card">
           <h3>Finalidade no evento</h3>
           <div className="chips">
+            <button type="button" className={`chip ${draft.purpose ? "" : "active"}`}
+              aria-pressed={!draft.purpose} onClick={() => setDraft({ ...draft, purpose: "" })}>Não filtrar</button>
             {purposes.map((item) => (
               <button
                 type="button"
@@ -177,6 +191,7 @@ export function FiltersPage({
             Uma preferência para apresentar no seu perfil.
           </p>
         </section>
+        </>}
         <div className="filter-summary">
           <Icon name="people" size={18} />
           <span>

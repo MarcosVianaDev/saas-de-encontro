@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.profiles.models import ProfileTopic
 from apps.profiles.constants import BIO_MIN_LENGTH, BIO_MAX_LENGTH
 from apps.profiles.locations import BRAZIL_STATES
+from apps.profiles.topics import available_filter_topics
 
 
 class LoginSerializer(serializers.Serializer):
@@ -52,6 +53,8 @@ class ProfileSerializer(serializers.Serializer):
 
 
 class FilterSerializer(serializers.Serializer):
+    topics = serializers.DictField(child=serializers.ListField(
+        child=serializers.CharField(max_length=200), max_length=100), required=False, default=dict)
     minHeight = serializers.IntegerField(min_value=50, max_value=250, required=False, allow_null=True, default=None)
     maxHeight = serializers.IntegerField(min_value=50, max_value=250, required=False, allow_null=True, default=None)
     min = serializers.IntegerField(min_value=18, max_value=70)
@@ -60,10 +63,22 @@ class FilterSerializer(serializers.Serializer):
     interests = serializers.ListField(child=serializers.CharField(max_length=200))
     purpose = serializers.CharField(max_length=200, allow_blank=True)
 
+    def validate_topics(self, values):
+        event = self.context['event']
+        available = available_filter_topics(event)
+        for key, options in values.items():
+            if key not in available or any(option not in available[key].options for option in options):
+                raise serializers.ValidationError('Selecione opções de tópicos habilitados para o filtro deste evento.')
+            if not available[key].filter_multiple and len(set(options)) > 1:
+                raise serializers.ValidationError(f'{available[key].name}: selecione apenas uma opção no filtro.')
+        return {key: list(dict.fromkeys(options)) for key, options in values.items()}
+
     def validate_interests(self, values):
         topic = ProfileTopic.objects.filter(key='interests').first()
         if any(value not in (topic.options if topic else []) for value in values):
             raise serializers.ValidationError('Selecione apenas opções cadastradas e respeite a escolha única do tópico.')
+        if topic and topic.show_in_filter and not topic.filter_multiple and len(set(values)) > 1:
+            raise serializers.ValidationError('Selecione apenas uma opção no filtro de interesses.')
         return values
 
     def validate_purpose(self, value):

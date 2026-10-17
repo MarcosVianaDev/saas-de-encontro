@@ -1,5 +1,8 @@
 import { useParticipantSocial } from "./useParticipantSocial";
 import { useParticipantProfile } from "./useParticipantProfile";
+import { clearGenderFilters, matchesGender, restoreGenderFilters } from "../gender-filters";
+import { matchingParticipants } from "../participant-filters";
+import { useDiscoveryReminder } from "./useDiscoveryReminder";
 
 import { useParticipantRouter } from "./useParticipantRouter";
 import { useParticipantSync } from "./useParticipantSync";
@@ -49,6 +52,9 @@ export function useParticipantController() {
     ? serverData?.profileTopics?.find((topic) => topic.key === "purpose")
         ?.options || []
     : mockPurposes;
+  const filterTopics = !frontendConfig.useMocks
+    ? (serverData?.profileTopics || []).filter((topic) => topic.showInFilter === true)
+    : null;
   const [mailbox, setMailbox] = useState("messages");
   const [noticeUnread, setNoticeUnread] = useState(0);
   const [globalMode, setGlobalMode] = useState(false);
@@ -211,7 +217,7 @@ export function useParticipantController() {
       year: data.profile.year || String(latestBirthYear),
     });
     setPhotos(data.photos);
-    setFilters(data.filters);
+    setFilters(restoreGenderFilters(data.event.id, data.filters));
 
     setPeople(data.people);
     setRemoteDiscovery(data.discovery);
@@ -371,6 +377,7 @@ export function useParticipantController() {
   const leave = async () => {
     if (real) {
       await api.logout();
+      clearGenderFilters();
       clearImageCache();
       if (returnToLogin()) return;
       setPeople([]);
@@ -396,18 +403,15 @@ export function useParticipantController() {
     setPage("login");
   };
   const stage = stages.findIndex((s) => s.page === page);
-  const eligibleFor = (f: Filters) =>
-    people.filter(
-      (p) =>
-        p.age >= f.min &&
-        p.age <= f.max &&
-        (f.minHeight == null || (p.height != null && p.height >= f.minHeight)) &&
-        (f.maxHeight == null || (p.height != null && p.height <= f.maxHeight)) &&
-        (f.gender === "Todos" || p.gender === f.gender) &&
-        (!f.interests.length ||
-          f.interests.some((i) => p.interests.includes(i))),
-    );
-  const eligible = real ? remoteDiscovery : eligibleFor(filters);
+  const eligibleFor = (f: Filters) => matchingParticipants(people, f, filterTopics);
+  const { discoveryCount, explainDiscoveryCount } = useDiscoveryReminder({
+    enabled: authenticated && ready && !adminMode && !globalMode && !contexts &&
+      (real ? Boolean(serverData?.socialAvailable && serverData.onboardingComplete !== false)
+        : !frontendConfig.isDemonstration || Boolean(demoData?.onboardingComplete)),
+    eventId: serverData?.event.id || mockEvent?.id,
+    page, real, filters, topics: filterTopics, people, busyRef, notify,
+  });
+  const eligible = real ? remoteDiscovery.filter((person) => matchesGender(person.gender, filters)) : eligibleFor(filters);
   const candidate = eligible.find((p) => !seen.includes(p.id));
   const reviewParticipants = async () => {
     if (!real) {
@@ -417,7 +421,7 @@ export function useParticipantController() {
     await run(async () => {
       const result = await request<{ count: number; data: Bootstrap }>("discovery/review/", "POST");
       applyData(result.data);
-      if (!result.data.discovery.length) notify("Nenhum participante marcado como PASS corresponde aos filtros atuais.");
+      if (!result.data.discovery.some((person) => matchesGender(person.gender, filters))) notify("Nenhum participante marcado como PASS corresponde aos filtros atuais.");
     });
   };
 
@@ -429,6 +433,8 @@ export function useParticipantController() {
       photos,
       profile,
       real,
+      eventId: serverData?.event.id,
+      filterTopics,
       run,
       setFilters,
       setPhotos,
@@ -475,11 +481,14 @@ export function useParticipantController() {
     chats,
     contexts,
     demoData,
+    discoveryCount,
     details,
     eligible,
     eligibleFor,
     eventName,
+    explainDiscoveryCount,
     filters,
+    filterTopics,
     globalMode,
     interests,
     inviteName,

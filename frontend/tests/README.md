@@ -1,5 +1,7 @@
 # Testes de navegador
 
+`check-topic-filters.cjs` usa a API real do ambiente descartável para cadastrar um tópico, alternar Exibir no filtro, verificar escolha única/múltipla com destaque das labels, editar Orientação, salvar respostas do perfil, combinar filtros, recarregar preferências e limpar seleções com Não filtrar. Verifica também a ocultação de filtros e a configuração em viewport de 320 px. O proxy do servidor de testes inclui `/mcx/`, caminho atual do Django Admin.
+
 Para executar a revisão dirigida de segurança no stack descartável de produção:
 
 ```sh

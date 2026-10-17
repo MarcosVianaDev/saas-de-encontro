@@ -200,11 +200,11 @@ class ProfileView(APIView):
 
 class FiltersView(APIView):
     def put(self, request):
-        serializer = FilterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             participant = current(request)
             ensure_writable(participant)
+            serializer = FilterSerializer(data=request.data, context={'event': participant.event})
+            serializer.is_valid(raise_exception=True)
             EventParticipant.objects.select_for_update().get(pk=participant.pk)
             preference = participant.preference
             preference.filters = {**serializer.validated_data, "favorites": preference.filters.get("favorites", [])}

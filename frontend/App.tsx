@@ -44,11 +44,14 @@ export function App() {
     chats,
     contexts,
     demoData,
+    discoveryCount,
     details,
     eligible,
     eligibleFor,
     eventName,
+    explainDiscoveryCount,
     filters,
+    filterTopics,
     globalMode,
     interests,
     inviteName,
@@ -325,6 +328,7 @@ export function App() {
                   {page === "filtros" && !serverData?.event.readOnly && (
                     <FiltersPage
                       filters={filters}
+                      filterTopics={filterTopics}
                       applyFilters={applyFilters}
                       eligibleFor={eligibleFor}
                       interests={interests}
@@ -413,6 +417,8 @@ export function App() {
                   "filtros",
                 ].includes(page) && (
                   <ParticipantNavigation
+                    discoveryCount={discoveryCount}
+                    explainDiscoveryCount={explainDiscoveryCount}
                     navigateBottom={navigateBottom}
                     noticeUnread={noticeUnread}
                     page={page}

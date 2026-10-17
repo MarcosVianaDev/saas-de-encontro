@@ -164,7 +164,7 @@ Get-Content -Raw scripts/verify_celery_queues.py | docker compose run --rm --no-
 | Administração global | `frontend/GlobalAdministration.tsx`, `backend/api/global_admin.py` |
 | Evento e equipe | `frontend/Administration.tsx`, `TeamManagement.tsx`, `backend/api/team.py`, `event_operations.py` |
 | Criação/solicitação de evento | `frontend/EventRequestForm.tsx`, `backend/api/event_requests.py` |
-| Tópicos e regras por evento | `frontend/ProfileTopicManagement.tsx`, `EventParticipantTopics.tsx`, `backend/apps/profiles/topics.py` |
+| Tópicos e regras por evento | `frontend/ProfileTopicManagement.tsx`, `EventParticipantTopics.tsx`, `components/TopicFilters.tsx`, `topic-filters.ts`, `backend/apps/profiles/topics.py` |
 | Passes e presente inicial | `frontend/InitialGiftFields.tsx`, `backend/api/passes.py`, `backend/apps/passes/gifts.py` |
 | Avisos e notificações | `backend/api/notifications.py`, `backend/apps/notifications/announcements.py` |
 | Tema e componentes | `frontend/styles.css`, `administration.css`, `toggles.css`; confira os imports vigentes de `main.tsx` |

@@ -30,6 +30,8 @@ class TopicSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     options = serializers.ListField(child=serializers.CharField(max_length=200), allow_empty=False, max_length=100)
     multiple = serializers.BooleanField()
+    showInFilter = serializers.BooleanField(source='show_in_filter', required=False)
+    filterMultiple = serializers.BooleanField(source='filter_multiple', required=False)
 
 
 def save_topic(request):
@@ -239,7 +241,7 @@ class GlobalView(APIView):
     def get(self,request):
         authorize(request)
         return Response({'navigation':'global', 'staff':request.user.is_staff,
-            'topics':[{'id':str(t.pk),'key':t.key,'name':t.name,'options':t.options,'multiple':t.multiple} for t in ProfileTopic.objects.order_by('created_at')],
+            'topics':[{'id':str(t.pk),'key':t.key,'name':t.name,'options':t.options,'multiple':t.multiple,'showInFilter':t.show_in_filter,'filterMultiple':t.filter_multiple} for t in ProfileTopic.objects.order_by('created_at')],
             'metrics':{**{s:Event.objects.filter(state=s).count() for s in ['RUNNING','SCHEDULED','PAUSED','DRAFT']},
                 'clients':Organization.objects.filter(is_active=True).count(),
                 'critical':ModerationCase.objects.filter(priority=2,closed_at__isnull=True).count(),

@@ -225,7 +225,8 @@ class ParticipantSyncTests(TestCase):
             response = self.client.get('/api/catalog/')
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(len(response.json()['people']), 12)
-        self.assertLessEqual(len(queries), 12)
+        self.assertLessEqual(len(queries), 13)  # Includes one query for the dynamic filter catalog.
+        self.assertEqual(sum('FROM "profiles_profiletopic"' in query['sql'] for query in queries), 1)
         self.assertIn('/images/catalog-0.jpg', [person['image'] for person in response.json()['people']])
 
     def test_event_closing_delivers_report_once_without_reloading_message_history(self):

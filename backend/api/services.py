@@ -1,4 +1,5 @@
-from apps.profiles.topics import event_topics
+from apps.profiles.topics import (event_topics, topic_payload, available_filter_topics,
+                                 selected_topic_filters, normalized_topic_filters)
 from django.db.models import Q
 from django.db import transaction
 from datetime import timedelta
@@ -18,7 +19,7 @@ from .event_scope import event_id
 from common.security import request_account_allowed
 
 
-DEFAULT_FILTERS = {"min": 18, "max": 35, "gender": "Todos", "interests": [], "purpose": "Networking", "minHeight": None, "maxHeight": None}
+DEFAULT_FILTERS = {"min": 18, "max": 35, "gender": "Todos", "interests": [], "purpose": "Networking", "minHeight": None, "maxHeight": None, "topics": {}}
 
 
 def audit(actor, action, obj):
@@ -89,7 +90,7 @@ def ordered_photos(participant):
                   key=lambda item: (item.position, item.created_at))
 
 
-def person_payload(person):
+def person_payload(person, *, filter_topics=None):
     profile = getattr(person, "profile", None)
     images = ordered_photos(person)
     primary = next((image for image in images if image.is_primary), None)
@@ -100,7 +101,11 @@ def person_payload(person):
         "height": profile.height_cm if profile else None,
         "image": photo_url(primary) if primary else "/images/profile-placeholder.svg",
         "interests": profile.interests if profile else [], "online": person.activity_is_recent(),
-        "mutual": False, "bio": profile.bio if profile else ""}
+        "mutual": False, "bio": profile.bio if profile else "",
+        **({'topicAnswers': {key: values for key, values in (
+            {'interests': profile.interests, 'purpose': [profile.purpose] if profile.purpose else [],
+             **profile.topic_answers} if profile else {}
+        ).items() if key in filter_topics}} if filter_topics is not None else {})}
 
 
 def match_for(participant, peer_id):
@@ -124,7 +129,7 @@ def chat_payload(participant):
     return chats, states
 
 
-def discovery(participant, filters, people=None, include_passes=False):
+def discovery(participant, filters, people=None, include_passes=False, *, filter_topics=None):
     if not participant.is_active or participant.event.state != 'RUNNING' or (participant.event.mode != 'ONLINE' and not participant.location_consent):
         return []
     interactions = Interaction.objects.filter(participant=participant)
@@ -134,8 +139,11 @@ def discovery(participant, filters, people=None, include_passes=False):
         for match in Match.objects.filter(Q(participant=participant) | Q(partner=participant), is_active=True):
             decided.add(str(match.partner_id if match.participant_id == participant.pk else match.participant_id))
     candidates = []
+    if filter_topics is None:
+        filter_topics = available_filter_topics(participant.event)
+    selected = selected_topic_filters(filters, filter_topics)
     if people is None:
-        people = [person_payload(target) for target in visible_participants(participant)]
+        people = [person_payload(target, filter_topics=filter_topics) for target in visible_participants(participant)]
     for data in people:
         if str(data['id']) in decided:
             continue
@@ -143,7 +151,8 @@ def discovery(participant, filters, people=None, include_passes=False):
             continue
         if filters["gender"] != "Todos" and data["gender"] != filters["gender"]:
             continue
-        if filters["interests"] and not set(filters["interests"]).intersection(data["interests"]):
+        answers = {**data.get('topicAnswers', {}), 'interests': data['interests']}
+        if any(not set(values).intersection(answers.get(key, [])) for key, values in selected.items()):
             continue
         if any(bound is not None for bound in [filters.get('minHeight'), filters.get('maxHeight')]):
             height = data.get('height')
@@ -178,10 +187,13 @@ def bootstrap(participant):
     profile, _ = ParticipantProfile.objects.get_or_create(participant=participant)
     preference, _ = ParticipantPreference.objects.get_or_create(participant=participant, defaults={"filters": DEFAULT_FILTERS})
     filters = {**DEFAULT_FILTERS, **{key: value for key, value in preference.filters.items() if key in DEFAULT_FILTERS}}
+    topics = event_topics(participant.event)
+    filter_topics = available_filter_topics(participant.event, topics)
+    filters = normalized_topic_filters(filters, filter_topics)
     chats, states = chat_payload(participant)
     social_available = participant.is_active and participant.event.state == 'RUNNING' and (participant.event.mode == 'ONLINE' or participant.location_consent)
-    participants = [person_payload(p) for p in visible_participants(participant)] if social_available else []
-    candidates = discovery(participant, filters, participants)
+    participants = [person_payload(p, filter_topics=filter_topics) for p in visible_participants(participant)] if social_available else []
+    candidates = discovery(participant, filters, participants, filter_topics=filter_topics)
     # Keep ended/blocked conversations available without identifying a blocked peer.
     known = {data["id"] for data in participants}
     for peer_id, state in states.items():
@@ -191,7 +203,7 @@ def bootstrap(participant):
             if state["blocked"]:
                 data.update(name="Usuário bloqueado", image="/images/profile-placeholder.svg", job="", city="", residenceState="", height=None, gender="", bio="", interests=[], online=False, age=0)
             participants.append(data)
-    return {"profileTopics": [{'id': str(t.pk), 'key': t.key, 'name': t.name, 'options': t.options, 'multiple': t.multiple, 'required': rule.get('required', False), 'minimum': rule.get('minimum', 1)} for t, rule in event_topics(participant.event)], "profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
+    return {"profileTopics": topic_payload(topics), "profile": {"first": profile.first_name, "last": profile.last_name, "month": str(profile.birth_month or 1),
             "year": str(profile.birth_year or ""), "gender": profile.gender or "Prefiro não informar", "bio": profile.bio,
             "interests": profile.interests, "purpose": profile.purpose, "topicAnswers": profile.topic_answers,
             "residenceState": profile.residence_state, "height": profile.height_cm},

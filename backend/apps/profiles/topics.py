@@ -11,6 +11,40 @@ def event_topics(event):
     return [(topic, rules[str(topic.pk)]) for topic in topics if str(topic.pk) in rules]
 
 
+def topic_payload(topics):
+    return [{'id': str(topic.pk), 'key': topic.key, 'name': topic.name,
+             'options': topic.options, 'multiple': topic.multiple, 'showInFilter': topic.show_in_filter,
+             'filterMultiple': topic.filter_multiple,
+             'required': rule.get('required', False), 'minimum': rule.get('minimum', 1)}
+            for topic, rule in topics]
+
+
+def available_filter_topics(event, topics=None):
+    return {topic.key: topic for topic, _ in (event_topics(event) if topics is None else topics)
+            if topic.show_in_filter}
+
+
+def selected_topic_filters(filters, topics):
+    """Ignore stored preferences for hidden/disabled topics and removed choices."""
+    selected = filters.get('topics', {})
+    result = {}
+    for key, topic in topics.items():
+        # Interests were already a discovery filter before dynamic topics.
+        # Legacy purpose was only a preference; do not activate it implicitly.
+        values = selected.get(key, filters.get('interests', []) if key == 'interests' else [])
+        values = list(dict.fromkeys(value for value in values if value in topic.options))
+        if not topic.filter_multiple:
+            values = values[:1]
+        if values:
+            result[key] = values
+    return result
+
+
+def normalized_topic_filters(filters, topics):
+    selected = selected_topic_filters(filters, topics)
+    return {**filters, 'topics': selected, 'interests': selected.get('interests', [])}
+
+
 def validate_topic_requirements(event, answers):
     for topic, rule in event_topics(event):
         selected = list(dict.fromkeys(answers.get(topic.key, [])))

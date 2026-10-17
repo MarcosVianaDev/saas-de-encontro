@@ -1,5 +1,21 @@
 # Verificação da implementação
 
+## Tópicos do perfil e filtros em 17/10/2026
+
+O cadastro global ganhou Exibir no filtro e um controle específico de escolha única/múltipla no filtro, mostrado somente quando habilitado e com a label selecionada em destaque. `profiles.0010_profiletopic_filters_and_orientation` adiciona os campos e cria Orientação com Heterossexual, Homossexual e Bissexual. O tipo de resposta do perfil permanece independente do filtro.
+
+O filtro do participante usa o catálogo do evento e sempre oferece Não filtrar em cada tópico. A API valida opções e cardinalidade, persiste preferências e aplica as combinações na descoberta, catálogo e revisão de participantes. Filtros ocultos/desabilitados ou com opções removidas deixam de restringir a descoberta. O catálogo acrescenta uma consulta constante aos tópicos; o teste mantém o limite de 13 queries e exige exatamente uma consulta ao catálogo, preservando o prefetch das fotos. O mock mantém suas listas estáticas e também oferece Não filtrar.
+
+| Verificação | Resultado |
+|---|---|
+| Suíte completa de backend | **357 testes aprovados**, incluindo `api.test_topic_filters`, tópicos, sincronização, altura e permissões |
+| `npm --prefix frontend run build:production` | TypeScript e builds de login, participante, gestão de eventos e administração global aprovados |
+| `manage.py makemigrations --check --dry-run` | Sem alterações adicionais à migração incluída |
+| `python scripts/run-browser-tests.py check-topic-filters.cjs` | **Cenário completo e três auxiliares aprovados**, com API real, cadastro/edição em 320 px, persistência, escolhas independentes, Não filtrar e salvamento da Orientação |
+| Regressões de navegador | `check-gender-filters.cjs`, `check-onboarding-topics.cjs` e `check-real.cjs` aprovados; proxy `/mcx/` do servidor de testes corrigido para acompanhar a rota atual do Admin |
+
+Logs: `.tools/topic-filters-backend.log`, `.tools/topic-filters-build-final.log`, `.tools/topic-filters-migrations.log` e `.tools/topic-filters-browser-final.log`. Cenário completo em `.tools/browser-tests/2b3336f50d2e/`; regressões em `.tools/browser-tests/763f3a05309a/`. A migração é aplicada pela inicialização do backend na implantação. Os testes usam bancos e serviços descartáveis.
+
 ## Presente inicial em lotes em 16/10/2026
 
 A distribuição periódica foi separada da fila operacional. O Beat despacha uma varredura com concessão exclusiva no PostgreSQL; `celery_gifts` entrega em lotes de até 25 participantes, com cursor e uma continuação por lote. A migração `passes.0006_initialgiftsweep` mantém a concessão renovável por 120 segundos. Tarefas antigas, ciclos sobrepostos e continuações repetidas são rejeitados; a unicidade do passe continua protegida por lock e constraint. Dev/prod, modelos de ambiente, scripts `full-clean` e verificador dos ambientes incluem o novo worker. [Contrato e implantação](<Operacao e desenvolvimento.md#processamento-assíncrono>).

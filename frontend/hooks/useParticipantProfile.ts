@@ -4,8 +4,10 @@ import { BIO_MIN_LENGTH, BIO_MAX_LENGTH } from "../profile-validation";
 import { type FormEvent } from "react";
 
 import { api } from "../backend-client";
+import { saveGenderFilters } from "../gender-filters";
+import { normalizeTopicFilters } from "../topic-filters";
 
-import type { Profile, Filters, SessionData } from "../types";
+import type { Profile, Filters, SessionData, ProfileTopic } from "../types";
 import { type Page } from "../participant-pages";
 
 type Options = {
@@ -15,6 +17,8 @@ type Options = {
   photos: string[];
   profile: Profile;
   real: boolean;
+  eventId?: string;
+  filterTopics: ProfileTopic[] | null;
   run: (action: () => Promise<void>) => Promise<void>;
   setFilters: Dispatch<SetStateAction<Filters>>;
   setPhotos: Dispatch<SetStateAction<string[]>>;
@@ -28,6 +32,8 @@ export function useParticipantProfile({
   photos,
   profile,
   real,
+  eventId,
+  filterTopics,
   run,
   setFilters,
   setPhotos,
@@ -60,15 +66,19 @@ export function useParticipantProfile({
   };
   const applyFilters = async (draft: Filters) => {
     if (!real) {
+      if (eventId) saveGenderFilters(eventId, draft);
       setFilters({ ...draft, interests: [...draft.interests] });
       navigate("descobrir");
       notify("Preferências aplicadas. Boas conexões!");
       return;
     }
     await run(async () => {
-      applyData(await api.saveFilters(draft));
+      const { genders: _genders, ...backendFilters } = normalizeTopicFilters(draft, filterTopics || []);
+      const data = await api.saveFilters({ ...backendFilters, gender: "Todos" });
+      saveGenderFilters(data.event.id, draft);
+      applyData(data);
       navigate("descobrir");
-      notify("Preferências salvas no backend.");
+      notify("Preferências aplicadas. Boas conexões!");
     });
   };
   const removePhoto = async (url: string, index: number) => {

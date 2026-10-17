@@ -6,7 +6,7 @@ import type { ParticipantController } from "../hooks/useParticipantController";
 
 type Props = Pick<
   ParticipantController,
-  "navigateBottom" | "noticeUnread" | "page" | "unread"
+  "navigateBottom" | "noticeUnread" | "page" | "unread" | "discoveryCount" | "explainDiscoveryCount"
 >;
 
 export function ParticipantNavigation({
@@ -14,6 +14,8 @@ export function ParticipantNavigation({
   noticeUnread,
   page,
   unread,
+  discoveryCount,
+  explainDiscoveryCount,
 }: Props) {
   return (
     <>
@@ -42,7 +44,12 @@ export function ParticipantNavigation({
                 ? "active"
                 : ""
             }
-            onClick={() => navigateBottom(item.page)}
+            aria-label={item.text}
+            aria-describedby={item.page === "descobrir" && discoveryCount > 0 ? "discovery-menu-count" : undefined}
+            onClick={() => {
+              if (item.page === "descobrir") explainDiscoveryCount();
+              navigateBottom(item.page);
+            }}
             aria-current={
               page === item.page ||
               (page === "filtros" && item.page === "descobrir")
@@ -52,6 +59,10 @@ export function ParticipantNavigation({
           >
             <Icon name={item.icon} size={22} />
             <span>{item.text}</span>
+            {item.page === "descobrir" && discoveryCount > 0 && (
+              <span id="discovery-menu-count" className="nav-discovery-count"
+                aria-label={`${discoveryCount} pessoas ainda combinam com suas preferências`}>{discoveryCount}</span>
+            )}
             {item.page === "mensagens" &&
               (unread.length > 0 || noticeUnread > 0) && (
                 <i className="nav-unread" />
