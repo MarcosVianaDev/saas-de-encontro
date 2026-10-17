@@ -30,6 +30,7 @@ class AnnouncementSchedulingTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def post(self, action='schedule', **extra):
         return self.client.post('/api/event-admin/announcements/', {
@@ -95,6 +96,7 @@ class AnnouncementSchedulingTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         response = self.client.put('/api/event-admin/configuration/', {
             'starts_at': (self.event.starts_at + timedelta(hours=1)).isoformat(),
             'ends_at': (self.event.starts_at + timedelta(hours=3)).isoformat(), 'confirmed': True,

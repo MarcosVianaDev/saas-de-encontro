@@ -25,6 +25,7 @@ class DiscoveryReportTests(TestCase):
         session['event_id'] = str(self.event.pk)
         session['navigation'] = 'participant'
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def person(self, name, event, user=None):
         user = user or get_user_model().objects.create_user(username=name)

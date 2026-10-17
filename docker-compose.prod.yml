@@ -1,0 +1,149 @@
+name: saas-de-encontro-prod
+x-backend: &backend
+  image: saas-de-encontro-backend-prod:${APP_VERSION:-local}
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  env_file: ${PROD_ENV_FILE:-.env.prod}
+  environment:
+    DJANGO_DEBUG: "0"
+    DJANGO_SEED_DEMO: "0"
+    DJANGO_ALLOWED_HOSTS: ${APP_DOMAIN:?Defina APP_DOMAIN no .env.prod}
+    DJANGO_CSRF_TRUSTED_ORIGINS: https://${APP_DOMAIN:?Defina APP_DOMAIN no .env.prod}
+    DJANGO_TRUST_PROXY_SSL_HEADER: "1"
+    POSTGRES_HOST: db
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    DJANGO_CACHE_URL: redis://redis:6379/2
+    DJANGO_CACHE_KEY_PREFIX: eventconnect-prod
+    DRF_NUM_PROXIES: "2"
+    MEDIA_USE_X_ACCEL_REDIRECT: "1"
+  volumes:
+    - ${PROD_DATA_DIR:-./data/production}/media:/app/media
+    - ${PROD_DATA_DIR:-./data/production}/backups:/app/backups
+    - ${PROD_DATA_DIR:-./data/production}/staticfiles:/app/staticfiles
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  backend:
+    <<: *backend
+    healthcheck:
+      test: [CMD, python, -c, "import os, urllib.request; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings'); from django.conf import settings; host=settings.ALLOWED_HOSTS[0].lstrip('.'); urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/api/health/', headers={'Host':host, 'X-Forwarded-Proto':'https'}), timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  celery_worker:
+    <<: *backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: [celery, -A, config, worker, --loglevel=info, --concurrency=1, --queues=celery, --hostname=default@%h, --prefetch-multiplier=1]
+    healthcheck:
+      test: [CMD-SHELL, "celery -A config inspect ping --destination default@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  celery_exports:
+    <<: *backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: [celery, -A, config, worker, --loglevel=info, --concurrency=1, --queues=exports, --hostname=exports@%h, --prefetch-multiplier=1]
+    stop_grace_period: 10m
+    healthcheck:
+      test: [CMD-SHELL, "celery -A config inspect ping --destination exports@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  celery_beat:
+    <<: *backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: [celery, -A, config, beat, --loglevel=info, --schedule=/tmp/celerybeat-schedule]
+  frontend:
+    image: saas-de-encontro-frontend-prod:${APP_VERSION:-local}
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_FRONTEND_DATA_MODE: django
+    restart: unless-stopped
+  db:
+    image: postgres:18-bookworm
+    env_file: ${PROD_ENV_FILE:-.env.prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  redis:
+    image: redis:8-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./infra/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/app-routes.conf:/etc/nginx/app-routes.conf:ro
+      - ${PROD_DATA_DIR:-./data/production}/media:/srv/private-media:ro
+      - ${PROD_DATA_DIR:-./data/production}/staticfiles:/srv/static:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/static/admin/css/base.css]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  traefik:
+    image: traefik:v3
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Defina APP_DOMAIN no .env.prod}
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --providers.file.filename=/etc/traefik/routes.yml
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?Defina ACME_EMAIL no .env.prod}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --ping=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/traefik.prod.yml:/etc/traefik/routes.yml:ro
+      - letsencrypt:/letsencrypt
+    depends_on:
+      nginx:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, traefik, healthcheck, --ping]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+volumes:
+  postgres_data:
+  redis_data:
+  letsencrypt:

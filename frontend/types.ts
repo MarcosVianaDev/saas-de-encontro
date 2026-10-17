@@ -37,12 +37,15 @@ export type Filters = {
 };
 export type Message = {
   id?: string;
+  created?: string;
+  updated?: string;
   unread?: boolean;
   text: string;
   mine: boolean;
   time: string;
 };
 export type Bootstrap = {
+  syncCursor?: string;
   profileTopics?: ProfileTopic[];
   discoveryReport?: {
     likesSent: number;
@@ -98,6 +101,16 @@ export type Bootstrap = {
     readOnly?: boolean;
   };
 };
+export type SyncDelta = {
+  cursor: string;
+  hasMore: boolean;
+  status: Pick<Bootstrap, "active" | "registrationStatus" | "onboardingComplete" | "activated" | "socialAvailable" | "locationConsent" | "presence" | "location" | "event" | "discoveryReport">;
+  messages: (Message & { id: string; peer: string })[];
+  chatStates: Bootstrap["chatStates"];
+  peers: Person[];
+  unread: PersonId[];
+  blocked: PersonId[];
+};
 export type ProfileTopic = {
   required?: boolean;
   minimum?: number;
@@ -111,6 +124,7 @@ export type SessionData =
   | Bootstrap
   | {
       navigation: "administration";
+      eventId?: string;
       role: string;
       globalContext?: boolean;
       initialPage?: "event" | "dashboard";

@@ -1,0 +1,4 @@
+# Explicit development entrypoint; the default command keeps existing local data.
+name: saas-de-encontro
+include:
+  - docker-compose.yml

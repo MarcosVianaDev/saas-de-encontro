@@ -26,6 +26,7 @@ class EventTimelineTests(TestCase):
         session['event_id'] = str(self.event.pk)
         session['navigation'] = 'administration'
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def timeline(self):
         response = self.client.get('/api/event-admin/transition/')

@@ -1,4 +1,5 @@
-from django.urls import path
+from functools import wraps
+from django.urls import include, path
 from . import views
 from .event_admin import JoinView, AdminBootstrapView, AdminParticipantActionView, AdminCaseActionView, AdminEvidenceContentView, AdminPhotoContentView, AdminParticipantProfileView
 from .event_operations import EventTransitionView, EventConfigurationView
@@ -13,8 +14,12 @@ from .passes import LikesReceivedView,AdminPassView,FinancialReportView
 from .location import LocationView,LocationExceptionView,LocationHistoryView,LocationDecisionView
 from .notifications import NotificationView,AnnouncementView
 from .exports import EventExportsView, ExportStatusView, ExportDownloadView
+from .sync import ParticipantSyncView, ParticipantCatalogView, MessageReadView
 
 urlpatterns = [
+    path('sync/', ParticipantSyncView.as_view()),
+    path('catalog/', ParticipantCatalogView.as_view()),
+    path('conversations/<uuid:peer_id>/read/', MessageReadView.as_view()),
     path('event-admin/exports/', EventExportsView.as_view()),
     path('event-admin/exports/<uuid:identifier>/', ExportStatusView.as_view()),
     path('event-admin/exports/<uuid:identifier>/download/', ExportDownloadView.as_view()),
@@ -70,3 +75,17 @@ urlpatterns = [
     path("matches/<uuid:peer_id>/end/", views.EndMatchView.as_view()),
     path("photos/<uuid:photo_id>/content/", views.PhotoContentView.as_view()),
 ]
+
+
+def scoped(view):
+    @wraps(view)
+    def dispatch(request, event_id, **kwargs):
+        request.explicit_event_id = event_id
+        return view(request, **kwargs)
+    return dispatch
+
+
+# File links cannot supply custom headers. The same authorization checks apply
+# to scoped URLs, and callers may also use them instead of X-Event-ID.
+scoped_patterns = [path(str(route.pattern), scoped(route.callback)) for route in urlpatterns]
+urlpatterns += [path('events/<uuid:event_id>/', include(scoped_patterns))]

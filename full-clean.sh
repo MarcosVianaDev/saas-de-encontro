@@ -65,7 +65,7 @@ path.write_text(text, encoding='utf-8')
 PY
 
 # Impede escritas e tarefas enquanto o schema e recriado.
-docker compose stop backend celery_worker celery_beat
+docker compose stop backend celery_worker celery_exports celery_beat
 docker compose up -d --wait db redis
 docker compose exec -T redis redis-cli FLUSHALL
 
@@ -113,7 +113,7 @@ if get_user_model().objects.exists():
 print('Banco recriado, migracoes aplicadas e nenhum usuario cadastrado.')
 PY
 
-docker compose up -d --force-recreate --wait backend celery_worker celery_beat frontend nginx traefik
+docker compose up -d --force-recreate --wait backend celery_worker celery_exports celery_beat frontend nginx traefik
 printf '\n%s\n' \
     'Pronto! Crie seu primeiro administrador:' \
     'docker compose exec backend python manage.py createsuperuser' \

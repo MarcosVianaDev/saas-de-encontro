@@ -4,13 +4,17 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8080';
 const MOCK_URL = process.env.TEST_MOCK_URL || 'http://localhost:5174';
 const credentials = () => JSON.parse(fs.readFileSync(process.env.TEST_CREDENTIALS_FILE || '.tools/demo-credentials.json', 'utf8'));
 const launch = () => chromium.launch({headless: true, ...(process.env.TEST_BROWSER_PATH ? {executablePath:process.env.TEST_BROWSER_PATH} : process.platform==='win32' ? {channel:'msedge'} : {})});
+const mockSync = data => ({
+  cursor: 'mock-sync', hasMore: false, messages: [], peers: [], blocked: [],
+  status: { active: data.active, onboardingComplete: data.onboardingComplete,
+    socialAvailable: data.socialAvailable ?? (data.active && data.event.state === 'RUNNING'), event: data.event },
+  chatStates: data.chatStates || {}, unread: Object.keys(data.chats || {}).filter(peer => data.chats[peer].some(message => message.unread)),
+});
 async function api(page,path,method='GET',body) {
   return page.evaluate(async({path,method,body})=>{
-    const session=await(await fetch('/api/session/')).json();
-    const response=await fetch(`/api/${path}`,{method,headers:{'Content-Type':'application/json','X-CSRFToken':session.csrfToken},body:body===undefined?undefined:JSON.stringify(body)});
-    const data=await response.json();
-    if(!response.ok)throw Error(`${path}: HTTP ${response.status} ${JSON.stringify(data)}`);
-    return data;
+    const client = await import('/backend-client.ts');
+    await client.api.session();
+    return client.request(path, method, body);
   },{path,method,body});
 }
 async function login(page,email) {
@@ -31,4 +35,4 @@ async function selectEvent(page) {
   await card.getByRole('button',{name:'Administrar evento',exact:true}).click();
   await page.locator('.adm-hero').waitFor();
 }
-module.exports={BASE_URL,MOCK_URL,launch,testCredentials:credentials,login,api,selectEvent};
+module.exports={BASE_URL,MOCK_URL,launch,testCredentials:credentials,login,api,selectEvent,mockSync};

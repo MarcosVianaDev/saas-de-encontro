@@ -50,6 +50,7 @@ class MvpFlowTests(TestCase):
 
     def as_user(self,user):
         self.client.force_login(user);s=self.client.session;s['event_id']=str(self.event.pk);s['navigation']='participant';s.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = s.get('event_id', '')
 
     def state(self,state):
         Event.objects.filter(pk=self.event.pk).update(state=state)
@@ -276,7 +277,13 @@ class MvpFlowTests(TestCase):
     def test_report_thresholds_ignore_unfounded_and_do_not_ban(self):
         endpoint=f'/api/reports/{self.peer.pk}/'
         payload={'reasons':['Outro'],'description':'Relato fictício para análise'}
-        for _ in range(10):self.assertEqual(self.client.post(endpoint,payload,format='json').status_code,201)
+        def report_as_distinct_participant(index):
+            user=get_user_model().objects.create_user(username=f'reporting-participant-{index}')
+            EventParticipant.objects.create(user=user,event=self.event)
+            self.as_user(user)
+            response=self.client.post(endpoint,payload,format='json')
+            self.assertEqual(response.status_code,201,response.content)
+        for index in range(10):report_as_distinct_participant(index)
         self.peer.refresh_from_db();self.assertTrue(self.peer.is_active)
         self.assertTrue(Notification.objects.filter(kind='reports10').exists())
         report=Report.objects.filter(reported=self.peer,description=payload['description']).first()
@@ -284,10 +291,9 @@ class MvpFlowTests(TestCase):
         self.as_user(self.moderator)
         self.assertEqual(self.client.post(f'/api/event-admin/cases/{case.pk}/action/',{'action':'resolve','reason':'Denúncia revisada e considerada infundada','unfounded':True},format='json').status_code,200)
         report.refresh_from_db();self.assertTrue(report.is_unfounded)
-        self.as_user(self.actor.user)
-        for _ in range(10):self.client.post(endpoint,payload,format='json')
+        for index in range(10,20):report_as_distinct_participant(index)
         self.peer.refresh_from_db();self.assertTrue(self.peer.is_active)
-        self.client.post(endpoint,payload,format='json')
+        report_as_distinct_participant(20)
         self.peer.refresh_from_db();self.assertFalse(self.peer.is_active)
         self.assertEqual(self.peer.deactivation_reason,'REPORT_REVIEW')
         self.assertFalse(hasattr(self.peer,'ban'))

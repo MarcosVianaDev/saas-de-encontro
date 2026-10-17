@@ -15,6 +15,7 @@ from apps.events.permissions import require
 from apps.events.models import Event
 from apps.audit.services import record
 from .event_admin import access
+from .event_scope import event_id, navigation_context
 
 
 def notification_participant(notification):
@@ -53,16 +54,16 @@ def notification_participant(notification):
 
 class NotificationView(APIView):
     def query(self,request):
-        context=request.session.get('navigation')
+        context=navigation_context(request)
         if context=='administration':
             member=access(request)
             q=Notification.objects.filter(recipient=request.user,participant__isnull=True,event=member.event)
         elif context=='global' and request.user.is_superuser:
             q=Notification.objects.filter(recipient=request.user,participant__isnull=True)
         else:
-            event_id=request.session.get('event_id')
+            identifier=event_id(request, required=False)
             q=Notification.objects.filter(participant__user=request.user,recipient__isnull=True,
-                                          participant__event_id=event_id) if event_id else Notification.objects.none()
+                                          participant__event_id=identifier) if identifier else Notification.objects.none()
         return q.select_related('participant__event').order_by('-created_at')
 
     def get(self,request):

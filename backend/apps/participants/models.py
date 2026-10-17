@@ -45,13 +45,20 @@ class EventParticipant(BaseModel):
         from django.utils import timezone
         from django.db.models import Q
         from apps.moderation.models import UserSuspension
-        if not self.user.is_active or UserSuspension.objects.filter(user=self.user).filter(Q(ends_at__isnull=True)|Q(ends_at__gt=timezone.now())).exists():
+        if not self.user.is_active:
+            return 'Conta suspensa'
+        user_suspended = getattr(self, 'has_current_user_suspension', None)
+        if user_suspended is None:
+            user_suspended = UserSuspension.objects.filter(user_id=self.user_id).filter(Q(ends_at__isnull=True)|Q(ends_at__gt=timezone.now())).exists()
+        if user_suspended:
             return 'Conta suspensa'
         if self.event.state in ['CLOSED', 'ARCHIVED']:
             return 'Evento encerrado'
         if self.active_ban:
             return 'Banido'
-        if self.event_suspensions.filter(revoked_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists():
+        suspensions = getattr(self, 'current_event_suspensions', None)
+        event_suspended = bool(suspensions) if suspensions is not None else self.event_suspensions.filter(revoked_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists()
+        if event_suspended:
             return 'Suspenso'
         if self.is_active:
             return 'Ativo'

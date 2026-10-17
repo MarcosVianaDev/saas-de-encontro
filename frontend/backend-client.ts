@@ -1,6 +1,34 @@
-import type { Bootstrap, Person, PersonId, SessionData } from "./types";
+import type { Bootstrap, Person, PersonId, SessionData, SyncDelta } from "./types";
 
 let csrfToken = "";
+type TabContext = { navigation: string; eventId?: string };
+const contextKey = "eventconnect-tab-context";
+let tabContext: TabContext | null = (() => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(contextKey) || "null");
+    return saved && ["global", "administration", "participant", "selection"].includes(saved.navigation)
+      ? saved : null;
+  } catch {
+    return null;
+  }
+})();
+function storeContext(context: TabContext | null) {
+  const changed = JSON.stringify(tabContext) !== JSON.stringify(context);
+  tabContext = context;
+  if (context) sessionStorage.setItem(contextKey, JSON.stringify(context));
+  else sessionStorage.removeItem(contextKey);
+  if (changed) window.dispatchEvent(new Event('eventconnect-context-changed'));
+}
+export const currentContext = () => tabContext;
+export function rememberContext(value: unknown) {
+  if (!value || typeof value !== "object") return;
+  const data = value as { navigation?: string; eventId?: string; event?: { id?: string } };
+  const navigation = data.navigation || (data.event?.id ? "participant" : undefined);
+  if (!navigation) return;
+  const eventId = data.eventId || data.event?.id;
+  if (["global", "selection"].includes(navigation)) storeContext({ navigation });
+  else if (eventId) storeContext({ navigation, eventId });
+}
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -12,8 +40,14 @@ export class ApiError extends Error {
 function errorText(value: unknown): string {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return value.map(errorText).join(" ");
-  if (value && typeof value === "object")
-    return Object.values(value).map(errorText).join(" ");
+  if (value && typeof value === "object") {
+    const labels: Record<string, string> = { bio: "Sobre você", first: "Nome", last: "Sobrenome",
+      starts_at: "Início", ends_at: "Fim", name: "Nome", email: "E-mail" };
+    return Object.entries(value).map(([field, errors]) =>
+      ["detail", "non_field_errors", "__all__"].includes(field) ? errorText(errors)
+        : `${labels[field] || field.replaceAll("_", " ")}: ${errorText(errors)}`,
+    ).join(" ");
+  }
   return "Não foi possível concluir a operação.";
 }
 export async function request<T>(
@@ -22,12 +56,19 @@ export async function request<T>(
   body?: unknown,
 ): Promise<T> {
   const form = body instanceof FormData;
+  // Selecting a context must use the selection in the body, never the old tab
+  // context. Other requests capture this tab's scope before starting fetch.
+  const selecting = path.startsWith("auth/") || path === "contexts/" || path === "global/event/"
+    || (path === "event-admin/" && method === "POST") || (path.startsWith("join/") && method === "POST");
+  const scope = selecting ? null : tabContext;
   const response = await fetch(`/api/${path}`, {
     method,
     credentials: "same-origin",
     cache: "no-store",
     headers: {
       Accept: "application/json",
+      ...(scope ? { "X-App-Context": scope.navigation } : {}),
+      ...(scope?.eventId ? { "X-Event-ID": scope.eventId } : {}),
       ...(body && !form ? { "Content-Type": "application/json" } : {}),
       ...(method !== "GET" ? { "X-CSRFToken": csrfToken } : {}),
     },
@@ -39,6 +80,10 @@ export async function request<T>(
       data ? errorText(data) : `O backend retornou HTTP ${response.status}.`,
       response.status,
     );
+  if (selecting) {
+    const result = data as { data?: unknown } | null;
+    rememberContext(result?.data || data);
+  }
   return data as T;
 }
 export const api = {
@@ -49,6 +94,7 @@ export const api = {
       demoEmail: string | null;
     }>("session/");
     csrfToken = result.csrfToken;
+    if (!result.authenticated) storeContext(null);
     return result;
   },
   async login(email: string, password: string, register = false) {
@@ -68,8 +114,22 @@ export const api = {
   async logout() {
     const result = await request<{ csrfToken: string }>("auth/logout/", "POST");
     csrfToken = result.csrfToken;
+    storeContext(null);
   },
-  bootstrap: () => request<SessionData>("bootstrap/"),
+  async bootstrap() {
+    const result = await request<SessionData>("bootstrap/");
+    rememberContext(result);
+    return result;
+  },
+  sync(cursor?: string, state?: string) {
+    const query = new URLSearchParams();
+    if (cursor) query.set("cursor", cursor);
+    if (state) query.set("state", state);
+    return request<SyncDelta>(`sync/?${query}`);
+  },
+  readMessages: (id: PersonId, messages: string[]) =>
+    request<{ read: string[]; updated: string }>(`conversations/${id}/read/`, "POST", { messages }),
+  catalog: () => request<Pick<Bootstrap, "people" | "discovery">>("catalog/"),
   conversations: () =>
     request<Pick<Bootstrap, "chats" | "chatStates">>("conversations/"),
   saveProfile: (body: unknown) => request<Bootstrap>("profile/", "PUT", body),

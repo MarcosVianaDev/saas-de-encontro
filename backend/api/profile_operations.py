@@ -4,7 +4,6 @@ from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
-from django.http import FileResponse, Http404
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,10 +11,12 @@ from PIL import Image, UnidentifiedImageError
 from apps.accounts.models import UserProfile
 from apps.audit.services import record
 from apps.profiles.models import ParticipantPhoto, EventOutfitPhoto, ParticipantFieldValue
+from apps.profiles.constants import BIO_MIN_LENGTH, BIO_MAX_LENGTH
 from apps.participants.models import EventParticipant
 from apps.notifications.models import Notification
 from apps.events.permissions import require
 from .event_admin import access
+from .protected_media import protected_media_response
 from .services import current, bootstrap, ordered_photos, ensure_writable, match_for, blocked
 
 
@@ -32,7 +33,7 @@ def validate_activation(p):
         raise ValidationError('São necessárias três fotos públicas válidas, uma principal e a foto de outfit capturada pela equipe.')
     if not p.event.auto_activate_participants and not getattr(p, 'outfit_photo', None):
         raise ValidationError('É necessária a foto de outfit capturada pela equipe.')
-    if not profile.first_name or not profile.last_name or not profile.birth_month or not profile.birth_year or not profile.gender or len(profile.bio.strip())<50:
+    if not profile.first_name or not profile.last_name or not profile.birth_month or not profile.birth_year or not profile.gender or not BIO_MIN_LENGTH <= len(profile.bio.strip()) <= BIO_MAX_LENGTH:
         raise ValidationError('Complete os campos obrigatórios do perfil.')
     for field in p.event.profile_fields.filter(is_required=True):
         value=p.field_values.filter(field=field).first()
@@ -104,11 +105,7 @@ class OutfitContentView(APIView):
             if not match.is_active or blocked(p,peer):
                 raise PermissionDenied('Foto disponível somente após match ativo.')
         outfit=get_object_or_404(EventOutfitPhoto,participant=peer)
-        if not default_storage.exists(outfit.storage_key):raise Http404
-        response=FileResponse(default_storage.open(outfit.storage_key,'rb'))
-        response['Cache-Control']='private, no-store'
-        response['X-Content-Type-Options']='nosniff'
-        return response
+        return protected_media_response(outfit.storage_key)
 
 
 class ProfileInterventionView(APIView):
@@ -118,7 +115,7 @@ class ProfileInterventionView(APIView):
         from apps.reports.models import Report
         from apps.notifications.models import SupportThread
         return Response({'bio':p.profile.bio,
-            'photos':[{'id':str(photo.pk),'url':photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/event-admin/photos/{photo.pk}/content/'} for photo in ordered_photos(p) if photo.visibility=='PRE_MATCH'],
+            'photos':[{'id':str(photo.pk),'url':photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/events/{p.event_id}/event-admin/photos/{photo.pk}/content/'} for photo in ordered_photos(p) if photo.visibility=='PRE_MATCH'],
             'sources':[{'id':str(r.pk),'kind':'report','label':r.reason} for r in Report.objects.filter(reported=p)]+[{'id':str(t.pk),'kind':'support','label':t.subject} for t in SupportThread.objects.filter(participant=p)]})
 
     @transaction.atomic
@@ -142,7 +139,8 @@ class ProfileInterventionView(APIView):
             p.is_active=False;p.registration_status='INACTIVE';p.deactivation_reason='PHOTO_REVIEW';p.save()
         else:
             bio=str(request.data.get('bio','')).strip()
-            if not 50<=len(bio)<=4000:raise ValidationError('A descrição deve conter entre 50 e 4.000 caracteres.')
+            if not BIO_MIN_LENGTH <= len(bio) <= BIO_MAX_LENGTH:
+                raise ValidationError({'bio': f'A descrição deve conter entre {BIO_MIN_LENGTH} e {BIO_MAX_LENGTH} caracteres.'})
             obj=p.profile;previous=obj.bio;obj.bio=bio;obj.save()
         record(request.user,f'profile.{action}',obj,p.event,reason=reason,source=str(source),kind=kind,
             previous=previous if action=='edit_bio' else obj.storage_key)

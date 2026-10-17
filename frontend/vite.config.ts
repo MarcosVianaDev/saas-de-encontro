@@ -6,6 +6,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      "/ws/": { target: "ws://backend:8000", ws: true },
       "/api/": "http://backend:8000",
       "/admin/": "http://backend:8000",
       "/static/": "http://backend:8000",

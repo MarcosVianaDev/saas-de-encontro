@@ -3,6 +3,7 @@ import Dropdown from "react-bootstrap/Dropdown";
 import Tabs from "react-bootstrap/Tabs";
 import Tab from "react-bootstrap/Tab";
 import { request } from "./backend-client";
+import { subscribeRealtime } from "./realtime";
 import type { SessionData, ProfileTopic } from "./types";
 import { ProfileTopicManagement } from "./ProfileTopicManagement";
 import { InitialGiftFields, initialGiftPayload } from "./InitialGiftFields";
@@ -124,6 +125,9 @@ export function GlobalAdministration({
       .catch((e) => setError(e.message));
   useEffect(() => {
     void load();
+    return subscribeRealtime(update => {
+      if (!document.hidden && update.topics.some(topic => ['reconnected', 'notifications'].includes(topic))) void load();
+    });
   }, []);
   useEffect(() => {
     const before = (e: BeforeUnloadEvent) => {

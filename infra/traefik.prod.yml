@@ -1,0 +1,13 @@
+http:
+  routers:
+    application:
+      rule: 'Host(`{{ env "APP_DOMAIN" }}`)'
+      entryPoints: [websecure]
+      service: nginx
+      tls:
+        certResolver: letsencrypt
+  services:
+    nginx:
+      loadBalancer:
+        servers:
+          - url: "http://nginx:80"

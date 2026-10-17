@@ -20,6 +20,7 @@ def select(request, key):
     context = next((c for c in available(request.user) if c['key'] == key),None)
     if not context:
         raise PermissionDenied('Este contexto não está disponível para sua conta.')
+    request.selected_context = context
     request.session['navigation'] = context['navigation']
     if context.get('event'): request.session['event_id'] = context['event']
     else: request.session.pop('event_id',None)
@@ -53,4 +54,5 @@ class GlobalEventContextView(APIView):
         request.session['event_id'] = str(event.pk)
         request.session['navigation'] = 'administration'
         return Response({'navigation':'administration','role':'ADMIN','globalContext':True,
+            'eventId':str(event.pk),
             'initialPage': 'event' if event.state == 'DRAFT' else 'dashboard'})

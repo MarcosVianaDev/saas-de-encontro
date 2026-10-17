@@ -1,4 +1,4 @@
-const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const { BASE_URL, MOCK_URL, launch, testCredentials, api } = require('./helpers.cjs');
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -11,7 +11,6 @@ const crypto=require('node:crypto');
   const photo='frontend/public/images/photo-1544005313-94ddf0286df2.jpg';
   const photos=[photo,'frontend/public/images/photo-1535713875002-d1d0cf377fde.jpg','frontend/public/images/photo-1534528741775-53994a69daeb.jpg'];
   async function page(){const context=await browser.newContext({viewport:{width:390,height:844}});const p=await context.newPage();lastPage=p;p.on('pageerror',e=>errors.push(e.message));await p.goto(base,{waitUntil:'networkidle'});return p;}
-  async function api(p,path,method='GET',body){return p.evaluate(async({path,method,body})=>{const s=await(await fetch('/api/session/')).json();const r=await fetch(`/api/${path}`,{method,headers:{'Content-Type':'application/json','X-CSRFToken':s.csrfToken},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(`${path}: HTTP ${r.status}`);return r.json();},{path,method,body});}
   try{
     const root=await page();
     await api(root,'auth/login/','POST',{email:credentials.adminEmail,password:credentials.password});

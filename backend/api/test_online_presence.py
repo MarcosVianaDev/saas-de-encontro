@@ -36,6 +36,7 @@ class OnlinePresenceTests(TestCase):
         session['event_id'] = str(self.event.pk)
         session['navigation'] = 'participant' if user == self.user else 'administration'
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def test_presence_uses_configured_interval_and_exact_boundary(self):
         for minutes in [1, 10, 30]:
@@ -67,7 +68,11 @@ class OnlinePresenceTests(TestCase):
         with patch('django.utils.timezone.now', return_value=first_contact+timedelta(seconds=5)):
             self.client.get('/api/bootstrap/')
         self.participant.refresh_from_db()
-        self.assertEqual(self.participant.last_seen_at, first_contact+timedelta(seconds=5))
+        self.assertEqual(self.participant.last_seen_at, first_contact)
+        with patch('django.utils.timezone.now', return_value=first_contact+timedelta(minutes=1)):
+            self.client.get('/api/bootstrap/')
+        self.participant.refresh_from_db()
+        self.assertEqual(self.participant.last_seen_at, first_contact+timedelta(minutes=1))
 
     def test_online_ignores_gps_and_stale_retry_state(self):
         EventParticipant.objects.filter(pk=self.participant.pk).update(location_failure_started_at=self.now,

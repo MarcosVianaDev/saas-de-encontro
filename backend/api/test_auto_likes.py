@@ -41,6 +41,7 @@ class AutomaticLikesTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         response = client.post('/api/event-admin/passes/', {
             'action': 'grant', 'participant': str(self.target.pk), 'offer': str(self.offer.pk), 'origin': 'Test',
         }, format='json')
@@ -53,6 +54,7 @@ class AutomaticLikesTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         response = client.get('/api/likes-received/')
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()['hidden'], 1)
@@ -97,6 +99,7 @@ class AutomaticLikesTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         response = client.put('/api/profile/photos/', {'url': public[2].storage_key}, format='json')
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()['photos'][0], public[2].storage_key)
@@ -116,6 +119,7 @@ class AutomaticLikesTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         data = client.get('/api/notifications/').json()['items']
         self.assertIsNone(next(n for n in data if n['kind'] == 'like')['participant'])
         ParticipantPass.objects.create(participant=self.target, offer=self.offer, reveal_limit=2)
@@ -129,5 +133,6 @@ class AutomaticLikesTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         data = client.get('/api/notifications/').json()['items']
         self.assertEqual(next(n for n in data if n['kind'] == 'match')['participant'], str(self.target.pk))

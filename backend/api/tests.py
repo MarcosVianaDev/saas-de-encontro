@@ -29,6 +29,7 @@ class DemoFlowTests(TestCase):
         session = self.client.session
         session["event_id"] = str(self.actor.event_id)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def test_seed_is_idempotent_and_preserves_changes(self):
         counts = {m: m.objects.count() for m in apps.get_models()}

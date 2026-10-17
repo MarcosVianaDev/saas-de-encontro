@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 from apps.profiles.models import ProfileTopic
+from apps.profiles.constants import BIO_MIN_LENGTH, BIO_MAX_LENGTH
 from apps.profiles.locations import BRAZIL_STATES
 
 
@@ -15,7 +16,7 @@ class ProfileSerializer(serializers.Serializer):
     month = serializers.IntegerField(min_value=1, max_value=12)
     year = serializers.IntegerField(min_value=1900)
     gender = serializers.ChoiceField(choices=["Mulheres", "Homens", "Não binário", "Prefiro não informar"])
-    bio = serializers.CharField(min_length=50, max_length=200)
+    bio = serializers.CharField(min_length=BIO_MIN_LENGTH, max_length=BIO_MAX_LENGTH)
     residenceState = serializers.ChoiceField(choices=BRAZIL_STATES, required=False, allow_blank=True)
     interests = serializers.ListField(child=serializers.CharField(max_length=200), required=False)
     purpose = serializers.CharField(max_length=200, allow_blank=True, required=False)

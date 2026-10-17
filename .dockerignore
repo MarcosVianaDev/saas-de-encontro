@@ -1,7 +1,13 @@
 .git
 .env
+.env.*
 .venv
 .tools
 **/node_modules
 **/dist
 **/__pycache__
+backend/media
+backend/backups
+backend/staticfiles
+data
+docs

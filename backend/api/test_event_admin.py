@@ -41,6 +41,7 @@ class EventAdministrationTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def role(self, value):
         EventAdministrator.objects.filter(user=self.owner, event=self.event).update(role=value)
@@ -50,6 +51,7 @@ class EventAdministrationTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def token(self, event=None):
         return signing.dumps(str((event or self.event).pk), salt='event-join')
@@ -100,10 +102,12 @@ class EventAdministrationTests(TestCase):
         session['navigation'] = 'selection'
         session.pop('event_id', None)
         session.save()
+        self.client.defaults.pop('HTTP_X_EVENT_ID', None)
         response = self.client.get('/api/bootstrap/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['navigation'], 'administration')
         self.assertEqual(self.client.session['navigation'], 'administration')
+        self.client.defaults['HTTP_X_EVENT_ID'] = response.json()['eventId']
         self.assertEqual(self.client.get('/api/event-admin/').status_code, 200)
 
     def test_admin_login_through_invite_still_opens_participant_access(self):
@@ -156,11 +160,13 @@ class EventAdministrationTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.other_event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         self.assertEqual(self.client.get('/api/bootstrap/').status_code, 200)
         self.client.force_login(self.owner)
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         self.assertEqual(self.action('reactivate').status_code, 200)
         self.assertIsNotNone(EventSuspension.objects.get(participant=self.peer).revoked_at)
 

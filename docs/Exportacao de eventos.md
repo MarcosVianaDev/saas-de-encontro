@@ -2,6 +2,8 @@
 
 Implementação em 12/10/2026. A geração é assíncrona no Celery e autorizada somente para conta ativa superuser. Para testes, qualquer estado de evento é aceito, inclusive antes do arquivamento; esse acesso não amplia permissões de ADMIN/MODERATOR/OPERATOR/staff.
 
+Desde **16/10/2026**, a geração e seus retries usam a fila `exports`, atendida por `celery_exports`; as automações continuam em `celery_worker`, na fila `celery`. Os dois workers compartilham o volume de backups existente. Atualize também o novo serviço ao implantar: [filas e operação](<Operacao e desenvolvimento.md#processamento-assíncrono>).
+
 ## Uso na interface
 
 No contexto global de um evento, abra Mais. Entre Relatório do evento e Sair da conta, **Exportar dados** solicita o pacote. O próprio botão mostra a etapa/progresso do job e consulta o status a cada dois segundos. Ao concluir, passa a um dropdown **Baixar dados** com as opções **Baixar o Termo** (PDF) e **Baixar ZIP**, sem label separada de conclusão. Em falha ou expiração, Exportar dados permite uma nova tentativa.

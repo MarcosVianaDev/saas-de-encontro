@@ -2,10 +2,10 @@ from datetime import timedelta
 from uuid import UUID
 from django.core import signing
 from django.contrib.auth import get_user_model
-from django.core.files.storage import default_storage
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -26,6 +26,8 @@ from .services import DEFAULT_FILTERS, age
 from types import SimpleNamespace
 from apps.events.permissions import effective_role
 from apps.events.permissions import DEFAULTS,permits
+from .event_scope import event_id, navigation_context
+from .protected_media import protected_media_response
 
 
 def event_open(event):
@@ -75,11 +77,12 @@ def join_event(user, event):
 def access(request, moderate=False, admin=False):
     if UserSuspension.objects.filter(user=request.user).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now())).exists():
         raise PermissionDenied('Sua conta está suspensa.')
+    identifier = event_id(request)
     if request.user.is_superuser:
-        event = get_object_or_404(Event,pk=request.session.get('event_id'))
+        event = get_object_or_404(Event,pk=identifier)
         return SimpleNamespace(role='ADMIN',event=event,user=request.user,permissions=[],delegated_to_id=None)
     membership = get_object_or_404(EventAdministrator.objects.select_related('event', 'user'),
-        user=request.user, event_id=request.session.get('event_id'), is_active=True)
+        user=request.user, event_id=identifier, is_active=True)
     role = effective_role(membership)
     if role not in ['ADMIN', 'MODERATOR', 'OPERATOR', 'DELEGATED'] or (moderate and not permits(membership,'reports')) or (admin and role != 'ADMIN'):
         raise PermissionDenied('Seu papel não permite esta ação.')
@@ -94,58 +97,105 @@ def log(user, action, obj, event, **details):
 
 
 def navigation(request):
-    if request.session.get('navigation') == 'global' and request.user.is_superuser:
+    context = navigation_context(request)
+    identifier = event_id(request, required=False)
+    if context == 'global' and request.user.is_superuser:
         return {'navigation':'global'}
-    if request.session.get('navigation') == 'selection':
+    if context == 'global':
+        raise PermissionDenied('Acesso exclusivo da Administração Global.')
+    if context == 'selection':
         from .contexts import available
         return {'navigation':'selection','contexts':available(request.user)}
-    if request.user.is_superuser and request.session.get('navigation') == 'administration':
-        draft = Event.objects.filter(pk=request.session.get('event_id'), state='DRAFT').exists()
-        return {'navigation':'administration','role':'ADMIN','globalContext':True,
+    if request.user.is_superuser and context == 'administration':
+        event = get_object_or_404(Event, pk=identifier)
+        draft = event.state == 'DRAFT'
+        return {'navigation':'administration','role':'ADMIN','globalContext':True,'eventId':str(event.pk),
             'initialPage': 'event' if draft else 'dashboard'}
-    membership = EventAdministrator.objects.filter(user=request.user, event_id=request.session.get('event_id')).first()
-    return {'navigation': 'administration', 'role': effective_role(membership)} if membership and membership.is_active else {'navigation': 'participant'}
+    if context == 'participant':
+        return {'navigation':'participant'}
+    membership = EventAdministrator.objects.filter(user=request.user, event_id=identifier, is_active=True).first()
+    if context == 'administration' and membership is None:
+        raise PermissionDenied('Você não administra este evento.')
+    return {'navigation': 'administration', 'role': effective_role(membership), 'eventId':str(membership.event_id)} if membership else {'navigation': 'participant'}
 
 
 def suspension_q():
     return Q(revoked_at__isnull=True) & (Q(ends_at__isnull=True) | Q(ends_at__gt=timezone.now()))
 
 
+def admin_participants(event, moderate, now):
+    """Everything used by a participant card, in a fixed number of queries."""
+    participants = event.participants.select_related('user', 'profile', 'event', 'ban').annotate(
+        has_current_user_suspension=Exists(UserSuspension.objects.filter(user_id=OuterRef('user_id')).filter(
+            Q(ends_at__isnull=True) | Q(ends_at__gt=now))),
+    ).prefetch_related(
+        Prefetch('event_suspensions', EventSuspension.objects.filter(revoked_at__isnull=True).filter(
+            Q(ends_at__isnull=True) | Q(ends_at__gt=now)).order_by('pk'), to_attr='current_event_suspensions'),
+        Prefetch('photos', ParticipantPhoto.objects.filter(
+            visibility='PRE_MATCH', is_primary=True, removed_at__isnull=True,
+        ).order_by('pk'), to_attr='admin_primary_photos'),
+    )
+    if moderate:
+        # Independent aggregates avoid a reports x blocks join for every person.
+        reports = Report.objects.filter(
+            reported_id=OuterRef('pk'), is_unfounded=False, is_administrative=False,
+        ).order_by().values('reported_id').annotate(total=Count('pk')).values('total')
+        blocks = Block.objects.filter(target_id=OuterRef('pk')).order_by().values(
+            'target_id',
+        ).annotate(total=Count('pk')).values('total')
+        participants = participants.annotate(
+            reports_count=Coalesce(Subquery(reports), 0),
+            blocks_count=Coalesce(Subquery(blocks), 0),
+        ).prefetch_related(Prefetch('blocks_received', Block.objects.filter(
+            participant__event=event,
+        ).only('id', 'target_id', 'created_at').order_by('created_at', 'pk'), to_attr='event_block_signals'))
+    return participants.order_by('created_at', 'pk')
+
+
 def participant_payload(p, moderate):
     profile = getattr(p, 'profile', None)
-    suspension = p.event_suspensions.filter(suspension_q()).first()
+    suspensions = getattr(p, 'current_event_suspensions', None)
+    suspension = (suspensions[0] if suspensions else None) if suspensions is not None else p.event_suspensions.filter(suspension_q()).first()
     ban = p.active_ban
-    photo = p.photos.filter(visibility='PRE_MATCH', is_primary=True,removed_at__isnull=True).first()
+    photos = getattr(p, 'admin_primary_photos', None)
+    photo = (photos[0] if photos else None) if photos is not None else p.photos.filter(visibility='PRE_MATCH', is_primary=True,removed_at__isnull=True).first()
     return {'id': str(p.pk), 'name': (f'{profile.first_name} {profile.last_name}'.strip() if profile else '') or p.user.email,
         'age': age(profile) if profile else None, 'job': profile.job if profile else '',
         'email': p.user.email, 'created': p.created_at, 'updated': p.updated_at,
         'lastSeen': p.last_seen_at, 'online': p.activity_is_recent(), 'presence': p.current_presence,
-        'image': (photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/event-admin/photos/{photo.pk}/content/') if photo else '/images/profile-placeholder.svg',
+        'image': (photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/events/{p.event_id}/event-admin/photos/{photo.pk}/content/') if photo else '/images/profile-placeholder.svg',
         'status': p.operational_status,
         'reason': (ban.reason if ban else suspension.reason if suspension else '') if moderate else '',
-        'reports': p.reports_received.filter(is_unfounded=False,is_administrative=False).count() if moderate else None,
-        'blocks': p.blocks_received.count() if moderate else None}
+        'reports': (p.reports_count if hasattr(p, 'reports_count') else p.reports_received.filter(is_unfounded=False,is_administrative=False).count()) if moderate else None,
+        'blocks': (p.blocks_count if hasattr(p, 'blocks_count') else p.blocks_received.count()) if moderate else None}
 
 
-def case_payload(case):
+def case_payload(case, participants=None, history=None, event_id=None):
     report = case.report
+    def participant(p_id, related):
+        return participants[p_id] if participants is not None else participant_payload(getattr(report, related), True)
+    notes = getattr(case, 'admin_notes', None)
+    if notes is None:
+        notes = case.case_notes.select_related('author').order_by('created_at')
+    if history is None:
+        history = AuditLog.objects.filter(object_label=case._meta.label, object_id=case.pk).select_related('actor').order_by('created_at')
     labels = {'case.created': 'Ocorrência criada', 'case.assume': 'Ocorrência assumida',
         'case.note': 'Nota interna adicionada', 'case.resolve': 'Ocorrência resolvida',
         'case.suspend': 'Participante suspenso; caso em acompanhamento', 'case.ban': 'Participante banido do evento',
         'case.reopen': 'Ocorrência reaberta'}
     return {'id': str(case.pk), 'reference': str(case.pk)[:8].upper(), 'reason': report.reason,
         'description': report.description or report.reason, 'kind': 'Administrativa' if report.is_administrative else 'Denúncia', 'priority': case.priority,
-        'reported': participant_payload(report.reported, True), 'reporter': participant_payload(report.reporter, True) if report.reporter_id else None,
-        'author': report.reporter.user.email if report.reporter_id else report.created_by.email if report.created_by_id else 'Administração',
+        'reported': participant(report.reported_id, 'reported'), 'reporter': participant(report.reporter_id, 'reporter') if report.reporter_id else None,
+        'author': participant(report.reporter_id, 'reporter')['email'] if report.reporter_id else report.created_by.email if report.created_by_id else 'Administração',
         'status': 'Resolvida' if case.closed_at else 'Em análise' if case.assigned_to_id else 'Pendente',
         'created': case.created_at, 'closed': case.closed_at,
         'unfounded':report.is_unfounded,
         'responsible': case.assigned_to.email if case.assigned_to_id else None,
-        'notes': [{'id': str(n.pk), 'author': n.author.email, 'body': n.body, 'created': n.created_at} for n in case.case_notes.select_related('author').order_by('created_at')],
+        'notes': [{'id': str(n.pk), 'author': n.author.email, 'body': n.body, 'created': n.created_at} for n in notes],
         'history': [{'id': str(a.pk), 'author': a.actor.email if a.actor_id else 'Sistema',
             'body': labels.get(a.action, a.action) + (': ' + a.details['reason'] if a.details.get('reason') else ''),
-            'created': a.created_at} for a in AuditLog.objects.filter(object_label=case._meta.label, object_id=case.pk).select_related('actor').order_by('created_at')],
-        'evidence': [{'id': str(e.pk), 'description': e.description, 'snapshot':e.snapshot, 'content': f'/api/event-admin/evidence/{e.pk}/content/' if e.storage_key else None} for e in report.evidence.all()]}
+            'created': a.created_at} for a in history],
+        'evidence': [{'id': str(e.pk), 'description': e.description, 'snapshot':e.snapshot, 'content': f'/api/events/{event_id or report.reported.event_id}/event-admin/evidence/{e.pk}/content/' if e.storage_key else None} for e in report.evidence.all()]}
 
 
 class JoinView(APIView):
@@ -163,6 +213,7 @@ class JoinView(APIView):
         from .services import current, bootstrap
         request.session['event_id'] = str(event.pk)
         request.session['navigation'] = 'participant'
+        request.selected_context = {'navigation':'participant','event':str(event.pk)}
         return Response({**bootstrap(current(request)), 'navigation': 'participant'})
 
 
@@ -172,12 +223,23 @@ class AdminBootstrapView(APIView):
         event = member.event
         moderate = permits(member,'reports')
         now = timezone.now()
-        participants = event.participants.select_related('user', 'profile', 'event').order_by('created_at')
+        participants_query = event.participants.all()
         suspended_ids = EventSuspension.objects.filter(suspension_q(), participant__event=event).values_list('participant_id', flat=True)
         global_suspended=UserSuspension.objects.filter(Q(ends_at__isnull=True)|Q(ends_at__gt=now)).values_list('user_id',flat=True)
         activity_minutes = event.location_interval_minutes if event.mode == 'ONLINE' else 5
-        active_count = participants.filter(is_active=True, user__is_active=True,last_seen_at__gte=now-timedelta(minutes=activity_minutes)).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk__in=suspended_ids).exclude(user_id__in=global_suspended).count()
-        cases = ModerationCase.objects.filter(Q(report__reporter__event=event) | Q(report__is_administrative=True, report__reporter__isnull=True), report__reported__event=event).select_related('report__reported__profile', 'report__reported__user', 'report__reporter__profile', 'report__reporter__user', 'report__created_by', 'assigned_to') if moderate else ModerationCase.objects.none()
+        active_count = participants_query.filter(is_active=True, user__is_active=True,last_seen_at__gte=now-timedelta(minutes=activity_minutes)).filter(Q(ban__isnull=True)|Q(ban__revoked_at__isnull=False)).exclude(pk__in=suspended_ids).exclude(user_id__in=global_suspended).count()
+        participants = list(admin_participants(event, moderate, now))
+        participant_data = {p.pk: participant_payload(p, moderate) for p in participants}
+        cases = list(ModerationCase.objects.filter(Q(report__reporter__event=event) | Q(report__is_administrative=True, report__reporter__isnull=True), report__reported__event=event).select_related(
+            'report__created_by', 'assigned_to',
+        ).prefetch_related(
+            Prefetch('case_notes', ModerationNote.objects.select_related('author').order_by('created_at', 'pk'), to_attr='admin_notes'),
+            'report__evidence',
+        ).order_by('-created_at', 'pk')) if moderate else []
+        case_history = {case.pk: [] for case in cases}
+        if cases:
+            for entry in AuditLog.objects.filter(object_label=ModerationCase._meta.label, object_id__in=case_history).select_related('actor').order_by('created_at', 'pk'):
+                case_history[entry.object_id].append(entry)
         token = signing.dumps(str(event.pk), salt='event-join')
         return Response({'navigation': 'administration', 'role': member.role,
             'permissions':sorted(DEFAULTS.get(member.role,set())|set(member.permissions)),
@@ -188,15 +250,15 @@ class AdminBootstrapView(APIView):
                 'responsible': [m.user.get_full_name() or m.user.email for m in event.administrators.filter(role='ADMIN').select_related('user')],
                 'state': event.state, 'status': event.get_state_display(), 'mode': event.mode,
                   'joinPath': None if event.state not in ['OPEN','RUNNING'] or (event.ends_at and event.ends_at <= now) else '/?invite=' + token},
-            'participants': [participant_payload(p, moderate) for p in participants],
-            'cases': [case_payload(c) for c in cases.order_by('-created_at')],
-            'metrics': {'participants': participants.count(), 'active': active_count,
-                'new': participants.filter(created_at__gte=now-timedelta(hours=1)).count(),
+            'participants': list(participant_data.values()),
+            'cases': [case_payload(c, participant_data, case_history[c.pk], event.pk) for c in cases],
+            'metrics': {'participants': len(participants), 'active': active_count,
+                'new': sum(p.created_at >= now-timedelta(hours=1) for p in participants),
                 'matches': Match.objects.filter(participant__event=event).count(),
                 'conversations': Conversation.objects.filter(match__participant__event=event).count(),
                 'blocks': Block.objects.filter(participant__event=event, target__event=event).count() if moderate else None} if member.role=='ADMIN' else {key:None for key in ['participants','active','new','matches','conversations','blocks']},
             'team': [{'id': str(m.pk), 'name': m.user.get_full_name() or m.user.email, 'role': m.get_role_display()} for m in event.administrators.select_related('user')],
-            'blockSignals': [{'participant': participant_payload(p, True), 'timeline': list(p.blocks_received.filter(participant__event=event).order_by('created_at').values_list('created_at', flat=True))} for p in participants if moderate and p.blocks_received.filter(participant__event=event).exists()],
+            'blockSignals': [{'participant': participant_data[p.pk], 'timeline': [block.created_at for block in p.event_block_signals]} for p in participants if moderate and p.event_block_signals],
         })
 
     def post(self, request):
@@ -206,6 +268,7 @@ class AdminBootstrapView(APIView):
             event = get_object_or_404(EventAdministrator,user=request.user,event_id=request.data.get('event'),is_active=True).event
         request.session['event_id'] = str(event.pk)
         request.session['navigation'] = 'administration'
+        request.selected_context = {'navigation':'administration','event':str(event.pk)}
         return Response(navigation(request))
 
 
@@ -307,12 +370,15 @@ class AdminEvidenceContentView(APIView):
         member = access(request, moderate=True)
         evidence = get_object_or_404(ReportEvidence.objects.filter(Q(report__reporter__event=member.event) | Q(report__is_administrative=True, report__reporter__isnull=True)), pk=evidence_id,
             report__reported__event=member.event)
-        if not evidence.storage_key or not default_storage.exists(evidence.storage_key):
+        if not evidence.storage_key:
             raise Http404
-        log(request.user, 'evidence.viewed', evidence, member.event)
-        response = FileResponse(default_storage.open(evidence.storage_key, 'rb'), as_attachment=True)
-        response['Cache-Control'] = 'private, no-store'
-        response['X-Content-Type-Options'] = 'nosniff'
+        response = protected_media_response(evidence.storage_key, as_attachment=True)
+        try:
+            log(request.user, 'evidence.viewed', evidence, member.event)
+        except Exception:
+            if response.streaming:
+                response.file_to_stream.close()
+            raise
         return response
 
 
@@ -327,7 +393,7 @@ class AdminParticipantProfileView(APIView):
         payload['name'] = (f'{profile.first_name} {profile.last_name}'.strip() if profile else '') or participant.user.email
         photos = [photo for photo in ordered_photos(participant) if photo.visibility == 'PRE_MATCH']
         def url(photo):
-            return photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/event-admin/photos/{photo.pk}/content/'
+            return photo.storage_key if photo.storage_key.startswith('/images/') else f'/api/events/{participant.event_id}/event-admin/photos/{photo.pk}/content/'
         primary = next((photo for photo in photos if photo.is_primary), None)
         payload['image'] = url(primary) if primary else '/images/profile-placeholder.svg'
         payload['photos'] = [url(photo) for photo in photos]
@@ -338,9 +404,6 @@ class AdminPhotoContentView(APIView):
     def get(self, request, photo_id):
         member = access(request)
         photo = get_object_or_404(ParticipantPhoto, pk=photo_id, participant__event=member.event, visibility='PRE_MATCH',removed_at__isnull=True)
-        if photo.storage_key.startswith('/images/') or not default_storage.exists(photo.storage_key):
+        if photo.storage_key.startswith('/images/'):
             raise Http404
-        response = FileResponse(default_storage.open(photo.storage_key, 'rb'))
-        response['Cache-Control'] = 'private, no-store'
-        response['X-Content-Type-Options'] = 'nosniff'
-        return response
+        return protected_media_response(photo.storage_key)

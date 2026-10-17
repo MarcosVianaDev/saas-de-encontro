@@ -20,8 +20,17 @@ REASONS=['Ofensa, ameaça ou assédio','Importunação ou comportamento sexual i
     'Racismo ou discriminação','Discurso de ódio','Violência ou ameaça','Fraude ou golpe','Uso indevido de imagem ou identidade','Conteúdo ou comportamento possivelmente ilegal','Outro']
 
 
+def relevant_reporter_count(p):
+    # Historical duplicate reports remain available to moderation, but each
+    # participant can contribute only once to the thresholds in this event.
+    return p.reports_received.filter(
+        is_administrative=False, is_unfounded=False,
+        reporter__event_id=p.event_id,
+    ).values('reporter_id').distinct().count()
+
+
 def thresholds(p):
-    count=p.reports_received.filter(is_administrative=False,is_unfounded=False).count()
+    count=relevant_reporter_count(p)
     if count>=10:
         for m in p.event.administrators.filter(is_active=True,role__in=['ADMIN','MODERATOR']).select_related('user'):
             Notification.objects.get_or_create(dedupe_key=f'reports10:{p.pk}:{m.user_id}',defaults={'recipient':m.user,'event':p.event,
@@ -48,6 +57,8 @@ class BlockView(APIView):
 
 
 class ReportView(APIView):
+    throttle_scope = 'reports'
+
     def get(self,request,peer_id=None):
         p=current(request)
         if peer_id is None:return Response({'reasons':REASONS})
@@ -68,6 +79,10 @@ class ReportView(APIView):
         p=current(request)
         target=get_object_or_404(EventParticipant.objects.select_for_update(),pk=peer_id,event=p.event)
         if p.pk==target.pk:raise ValidationError('Não é permitido denunciar a si mesmo.')
+        # The target row stays locked until commit, so concurrent submissions
+        # check this condition after the previous transaction has completed.
+        if Report.objects.filter(reporter=p,reported=target).exists():
+            raise ValidationError('Você já denunciou este participante neste evento.')
         description=str(request.data.get('description','')).strip()
         reasons=request.data.get('reasons',[])
         if not description or len(description)>4000 or not isinstance(reasons,list) or not reasons or set(reasons)-set(REASONS):
@@ -87,7 +102,7 @@ class ReportView(APIView):
             ReportEvidence.objects.create(report=report,description='Mensagem relacionada',snapshot={'message':str(message.pk),'body':message.body,'sender':str(message.sender_id)})
         if evidence.get('context') or evidence.get('photoChanged'):
             ReportEvidence.objects.create(report=report,description=str(evidence.get('context','Foto alterada ou removida'))[:4000],snapshot={'photoChanged':bool(evidence.get('photoChanged'))})
-        case=ModerationCase.objects.create(report=report,priority=2 if target.reports_received.filter(is_unfounded=False,is_administrative=False).count()>=10 else 1)
+        case=ModerationCase.objects.create(report=report,priority=2 if relevant_reporter_count(target)>=10 else 1)
         record(request.user,'case.created',case,p.event)
         thresholds(target)
         return Response({'ok':True},status=201)

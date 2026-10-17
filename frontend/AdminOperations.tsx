@@ -1,3 +1,4 @@
+import { BIO_MIN_LENGTH, BIO_MAX_LENGTH } from "./profile-validation";
 import { CachedImage } from "./CachedImage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "./backend-client";
@@ -134,8 +135,8 @@ export function ProfileIntervention({
           <label>
             Descrição
             <textarea
-              minLength={50}
-              maxLength={4000}
+              minLength={BIO_MIN_LENGTH}
+              maxLength={BIO_MAX_LENGTH}
               required
               value={bio}
               onChange={(e) => {

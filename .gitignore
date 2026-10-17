@@ -1,4 +1,6 @@
 .env
+.env.prod
+data/production/
 .venv/
 node_modules/
 dist/

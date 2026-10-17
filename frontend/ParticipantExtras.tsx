@@ -6,6 +6,7 @@ import { FormattedText } from "./FormattedText";
 import { createPortal } from "react-dom";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { participantMock } from "./participant-mock";
+import { realtimeConnected, subscribeRealtime } from "./realtime";
 
 export type Notice = {
   id: string;
@@ -189,12 +190,28 @@ export function NotificationCenter({
     }
   };
   useEffect(() => {
-    void load();
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 5000);
-    return () => clearInterval(t);
-  }, []);
+    let disposed = false, pending = false, again = false;
+    let timer: number;
+    const refresh = async () => {
+      if (disposed || document.hidden) return;
+      if (pending) { again = true; return; }
+      pending = true;
+      clearTimeout(timer);
+      await load();
+      pending = false;
+      if (!disposed) {
+        timer = window.setTimeout(() => void refresh(), again ? 250 : !mock && realtimeConnected() ? 60000 : 5000);
+        again = false;
+      }
+    };
+    const unsubscribe = mock ? () => {} : subscribeRealtime(update => {
+      if (!update.connected || update.topics.some(topic => ['reconnected', 'notifications'].includes(topic))) void refresh();
+    });
+    const visible = () => { if (!document.hidden) void refresh(); };
+    void refresh();
+    document.addEventListener('visibilitychange', visible);
+    return () => { disposed = true; clearTimeout(timer); unsubscribe(); document.removeEventListener('visibilitychange', visible); };
+  }, [mock]);
   return (
     <>
       {onOpen &&

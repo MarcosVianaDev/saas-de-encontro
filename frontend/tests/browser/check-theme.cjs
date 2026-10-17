@@ -1,9 +1,9 @@
-const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const { BASE_URL, MOCK_URL, launch, testCredentials, mockSync } = require('./helpers.cjs');
 const {chromium}=require('playwright');const assert=require('assert/strict');
 (async()=>{const browser=await launch();try{
 const context=await browser.newContext({viewport:{width:390,height:844},colorScheme:'light'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const data={navigation:'participant',onboardingComplete:true,active:true,profile:{first:'Pessoa',last:'Teste',month:'1',year:'1990',gender:'Mulheres',bio:'Uma descrição de perfil com mais de cinquenta caracteres para completar o cadastro.',interests:[],purpose:''},photos:[],filters:{min:18,max:35,gender:'Todos',interests:[],purpose:''},people:[],discovery:[],chats:{},chatStates:{},seen:[],liked:[],saved:[],event:{id:'test',name:'Evento',state:'RUNNING',mode:'ONLINE'}};
-await page.route('**/api/**',async route=>{let body={};const path=new URL(route.request().url()).pathname;if(path==='/api/session/')body={authenticated:true,csrfToken:'test'};else if(path==='/api/bootstrap/')body=data;else if(path==='/api/notifications/')body={items:[],unread:0};else if(path==='/api/health/')body={status:'ok'};else if(path==='/api/support/')body=[];await route.fulfill({json:body});});
+await page.route('**/api/**',async route=>{let body={};const path=new URL(route.request().url()).pathname;if(path==='/api/session/')body={authenticated:true,csrfToken:'test'};else if(path==='/api/bootstrap/')body=data;else if(path==='/api/sync/')body=mockSync(data);else if(path==='/api/catalog/')body={people:data.people,discovery:data.discovery};else if(path==='/api/notifications/')body={items:[],unread:0};else if(path==='/api/health/')body={status:'ok'};else if(path==='/api/support/')body=[];await route.fulfill({json:body});});
 await page.goto(BASE_URL + '/#perfil');await page.locator('.profile-theme-selector').waitFor();
 const current=()=>page.evaluate(()=>document.documentElement.dataset.bsTheme);
 const choose=async label=>{await page.locator('.profile-theme-toggle').click();await page.locator('.profile-theme-selector .dropdown-menu').getByRole('button',{name:label,exact:true}).click();};

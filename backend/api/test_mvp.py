@@ -26,6 +26,7 @@ class FoundationTests(TestCase):
             starts_at=self.now+timedelta(minutes=30), ends_at=self.now+timedelta(hours=2))
         self.client = APIClient(); self.client.force_login(self.owner)
         session = self.client.session; session['event_id'] = str(self.event.pk); session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def test_transition_retries_do_not_duplicate_audit_or_notifications(self):
         transition(self.event, 'SCHEDULED', actor=self.owner)

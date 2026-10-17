@@ -16,6 +16,7 @@ from apps.events.export_snapshot import MODULES, digest
 from apps.events.export_service import artifact, export_lock_key
 from apps.events.export_tasks import generate
 from .global_admin import authorize
+from .event_scope import event_id
 
 
 class ExportRequestSerializer(serializers.Serializer):
@@ -29,13 +30,13 @@ def payload(job):
         'attempts': job.attempts, 'created': job.created_at, 'finished': job.finished_at,
         'canRetry': job.state == 'FAILED' or job.state == 'PROCESSING' and job.updated_at < timezone.now() - timedelta(hours=1),
         'expires': job.expires_at, 'sha256': job.zip_sha256,
-        'download': f'/api/event-admin/exports/{job.pk}/download/' if job.state == 'COMPLETED' else None,
-        'term': f'/api/event-admin/exports/{job.pk}/download/?artifact=pdf' if job.state == 'COMPLETED' else None}
+        'download': f'/api/events/{job.event_id}/event-admin/exports/{job.pk}/download/' if job.state == 'COMPLETED' else None,
+        'term': f'/api/events/{job.event_id}/event-admin/exports/{job.pk}/download/?artifact=pdf' if job.state == 'COMPLETED' else None}
 
 
 def event_for(request):
     authorize(request)
-    return get_object_or_404(Event, pk=request.session.get('event_id'))
+    return get_object_or_404(Event, pk=event_id(request))
 
 
 def job_for(request, identifier):

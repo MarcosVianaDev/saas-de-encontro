@@ -71,6 +71,7 @@ class ProfileTopicTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.actor.event_id)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         data = self.client.get('/api/bootstrap/').json()
         self.assertIn(str(topic.pk), [t['id'] for t in data['profileTopics']])
         answers = {'languages': ['Português', 'Inglês'], 'interests': ['Arte'], 'purpose': ['Amizade']}
@@ -98,6 +99,7 @@ class ProfileTopicTests(TestCase):
         session = self.client.session
         session['event_id'] = str(event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         data = self.client.get('/api/bootstrap/').json()
         self.assertEqual([topic['key'] for topic in data['profileTopics']], ['interests'])
         self.assertEqual(data['profileTopics'][0]['minimum'], 2)

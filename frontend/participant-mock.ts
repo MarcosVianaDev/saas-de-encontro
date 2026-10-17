@@ -1,3 +1,4 @@
+import { BIO_MIN_LENGTH, BIO_MAX_LENGTH } from "./profile-validation";
 import type { Person, Message, Profile, Bootstrap } from "./types";
 import type { Notice } from "./ParticipantExtras";
 
@@ -433,11 +434,12 @@ export const participantMock = {
     if (
       !profile.first.trim() ||
       !profile.last.trim() ||
-      profile.bio.trim().length < 50 ||
+      profile.bio.trim().length < BIO_MIN_LENGTH ||
+      profile.bio.trim().length > BIO_MAX_LENGTH ||
       onboardingPhotos.length !== 3
     ) {
       throw new Error(
-        "Complete o nome, sobrenome, a descrição com pelo menos 50 caracteres e as três fotos.",
+        `Complete o nome, sobrenome, a descrição com ${BIO_MIN_LENGTH} a ${BIO_MAX_LENGTH} caracteres e as três fotos.`,
       );
     }
     demoProfile = structuredClone(profile);

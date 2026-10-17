@@ -6,7 +6,7 @@
 
 As etapas 1 a 8 estão implementadas, com 45 cards em [concluídos](<docs/trilha de implementacao(fechado).md>). Consulte [cobertura, operação e validação](<docs/Implementacao - etapas 1 a 8.md>): 73 testes Django aprovados, build TypeScript/Vite e fluxos verificados no navegador. As etapas 9 a 12 permanecem no [backlog aberto](<docs/trilha de implementacao(aberto).md>).
 
-Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=django` no `.env` e execute `docker compose up -d --build`. `celery_beat` e `celery_worker` executam as automações do ciclo do evento, avisos e expiração de passes. O modo `mock` mantém a demonstração local.
+Para usar a aplicação conectada ao banco, configure `FRONTEND_DATA_MODE=django` no `.env` e execute `docker compose up -d --build`. `celery_beat` agenda as automações do ciclo do evento, avisos e passes; `celery_worker` executa a fila operacional `celery`. `celery_exports` processa somente a fila `exports`, isolando a geração de ZIP/PDF das automações. O modo `mock` mantém a demonstração local.
 
 ## Documentação consolidada
 
@@ -14,14 +14,16 @@ O [índice de documentação](docs/README.md) reúne escopo, manuais, fluxos, gu
 
 ## Estado atual e execução local
 
+Há configurações separadas para desenvolvimento e produção. Desenvolvimento: `docker compose -f docker-compose.dev.yml up -d --build --wait` (o comando padrão continua equivalente). Produção: configure `.env.prod` a partir de `.env.prod.example` e execute `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --wait`. O frontend de produção é compilado em multi-stage e servido por Nginx, sem Vite/HMR; o ambiente inclui HTTPS e persistência separados. Consulte [Docker: desenvolvimento e produção](<docs/Docker - desenvolvimento e producao.md>).
+
 O ambiente contém a infraestrutura, as seis telas React/TypeScript do participante, o painel administrativo do evento e o backend Django modular com migrações e Django Admin. As telas do participante seguem [docs/Imagens - Telas e Protótipos/screen0.png](<docs/Imagens - Telas e Protótipos/screen0.png>) e podem usar mocks locais ou a API real com dados persistidos no PostgreSQL. O painel administrativo segue [docs/Imagens - Telas e Protótipos/screen1.png](<docs/Imagens - Telas e Protótipos/screen1.png>), [docs/Imagens - Telas e Protótipos/screen2.png](<docs/Imagens - Telas e Protótipos/screen2.png>) e [docs/Imagens - Telas e Protótipos/screen3.png](<docs/Imagens - Telas e Protótipos/screen3.png>) e usa a API autenticada.
 
 - Python 3.14 no container, com virtualenv `/opt/venv`; `.venv` local usa o Python 3.12 disponível na máquina.
 - Django 5.2.17 LTS, DRF, Channels/Daphne, Celery e psycopg; versões resolvidas em `requirements.lock`.
-- Node 26.10.0 Current, React/TypeScript e Vite; dependências fixadas em `frontend/package-lock.json`.
+- Node 24.22.0 nos estágios Docker de desenvolvimento/build; produção executa Nginx com os assets compilados. Dependências React/TypeScript/Vite fixadas em `frontend/package-lock.json`.
 - PostgreSQL 18, Redis 8, Nginx stable e Traefik 3 em containers.
 - Fluxo HTTP: navegador → Traefik → Nginx → React ou Django. A porta 8080 é publicada em `0.0.0.0`, permitindo acesso por qualquer interface IPv4 do host. PostgreSQL e Redis permanecem na rede interna do Compose.
-- PostgreSQL e Redis usam volumes persistentes. Fotos enviadas usam storage local em `backend/media/`, persistido pelo bind mount. MinIO/S3 e Celery Beat ficam para uma próxima etapa.
+- PostgreSQL e Redis usam volumes persistentes. No desenvolvimento, fotos enviadas usam storage local em `backend/media/`; produção usa o diretório persistente próprio. Celery Beat agenda as automações; MinIO/S3 permanece como evolução futura.
 
 Na primeira execução, copie `.env.example` para `.env` e substitua os segredos de exemplo. O arquivo `.env` local já foi gerado com valores aleatórios e não deve ser versionado.
 
@@ -93,7 +95,7 @@ O Admin é restrito a usuários da equipe, conforme permissões nativas do Djang
 
 Perfil, filtros, descoberta, favoritos pós-match e mensagens têm endpoints autenticados e obedecem ao estado do evento. Encerrar um match preserva o histórico e impede novos envios. Passes por quantidade e tempo, concessão manual, revelação cronológica, expiração e notificações persistidas estão implementados. Políticas LGPD operacionais completas, processamento de pagamentos e repasse/settlement seguem pendentes. O dashboard consulta os dados operacionais; `EventMetric` mantém os exemplos históricos para inspeção no Admin.
 
-Os arquivos estáticos do Admin são servidos pelo Django apenas com `DJANGO_DEBUG=1`; o serviço definitivo de arquivos estáticos em produção continua pendente. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`.
+Os arquivos estáticos do Admin são coletados pelo backend e servidos diretamente pelo Nginx, inclusive com `DJANGO_DEBUG=0`. Para mudar a porta local, ajuste também `DJANGO_CSRF_TRUSTED_ORIGINS` no `.env`. Para produção, siga o Compose e o arquivo de ambiente separados descritos no guia Docker.
 
 ```powershell
 # Logs e encerramento (preserva dados)
@@ -180,7 +182,8 @@ O ambiente local deverá possuir, no mínimo, os seguintes serviços no `docker-
 | `backend` | Django + Django REST Framework + Channels |
 | `db` | PostgreSQL |
 | `redis` | Broker do Celery, cache e infraestrutura necessária ao tempo real quando aplicável |
-| `celery_worker` | Execução de tarefas assíncronas |
+| `celery_worker` | Tarefas operacionais na fila `celery` |
+| `celery_exports` | Exportações ZIP/PDF na fila `exports`, com worker dedicado |
 | `minio` | Storage S3-compatible para desenvolvimento, quando esta opção for adotada |
 
 ### Serviço adicional recomendado para rotinas agendadas

@@ -33,6 +33,7 @@ class EventRequestTests(TestCase):
         session['event_id'] = str((event or self.source).pk)
         session['navigation'] = 'administration'
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def request_event(self, payload=None):
         response = self.client.post('/api/event-admin/requests/', payload or self.payload, format='json')
@@ -130,4 +131,5 @@ class EventRequestTests(TestCase):
             response = self.client.post('/api/global/event/', {'event': str(event.pk)}, format='json')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['initialPage'], page)
+            self.client.defaults['HTTP_X_EVENT_ID'] = response.json()['eventId']
             self.assertEqual(self.client.get('/api/bootstrap/').json()['initialPage'], page)

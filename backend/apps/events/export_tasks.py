@@ -5,7 +5,7 @@ from .models import ExportJob
 from .export_service import generate_export
 
 
-@shared_task(bind=True, max_retries=2, acks_late=True)
+@shared_task(bind=True, max_retries=2, acks_late=True, queue='exports')
 def generate(self, identifier):
     try:
         return generate_export(identifier)

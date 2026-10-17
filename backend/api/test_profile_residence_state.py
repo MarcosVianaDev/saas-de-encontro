@@ -25,6 +25,7 @@ class ProfileResidenceStateTests(TestCase):
         session['event_id'] = str(event.pk)
         session['navigation'] = 'participant'
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         self.data = {'first': 'Pessoa', 'last': 'Teste', 'month': 1, 'year': 1990,
                      'gender': 'Prefiro não informar',
                      'bio': 'Uma descrição de perfil com mais de cinquenta caracteres para completar o cadastro.'}

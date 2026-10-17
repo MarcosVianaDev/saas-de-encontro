@@ -6,6 +6,12 @@ Revisão do código em **12/10/2026**. Este documento consolida a implementaçã
 
 ## Arquitetura e contextos
 
+O Docker tem ambientes separados: `docker-compose.dev.yml` preserva o desenvolvimento padrão com Vite/HMR, enquanto `docker-compose.prod.yml` usa frontend multi-stage servido por Nginx, backend sem montagem do código-fonte, DEBUG/carga automática desativados, HTTPS no Traefik e persistência própria. Guia e comandos em [Docker: desenvolvimento e produção](<Docker - desenvolvimento e producao.md>).
+
+A auditoria de **16/10/2026** confirmou os oito itens de prioridade alta, média e estrutural. Corrigiu a entrega de estáticos Django/Admin com DEBUG desativado (Nginx com pasta coletada somente para leitura e tipos MIME) e adicionou limite específico de denúncias de **10/min por conta**. Healthchecks foram ajustados para o ambiente atrás do proxy HTTPS. Resultados e evidências em [Verificação das prioridades](<Verificacao das prioridades.md>).
+
+Desde **16/10/2026**, `frontend/main.tsx` é apenas a entrada da aplicação. As páginas do participante, ícones, navegação, alertas e modais estão separados, com hooks para sessão, rotas por hash, perfil, ações sociais e sincronização. Buscas e rascunhos ficam nas próprias páginas. A biografia completa tem limite uniforme de **50 a 200 caracteres**, inclusive na intervenção administrativa e ativação. Erros de validação dos modelos preservam os campos e todas as mensagens na resposta HTTP 400. Organização e contratos em [Arquitetura do frontend](<Arquitetura do frontend.md>).
+
 Backend Django/DRF, autenticação por sessão e CSRF, PostgreSQL, Daphne, Redis, Celery e Celery Beat. Frontend React/TypeScript/Vite, React Bootstrap e CSS próprio. Docker Compose integra backend, frontend, worker, beat, banco, Redis, Nginx e Traefik.
 
 | Acesso | Autorização | Identidade visual |
@@ -15,7 +21,11 @@ Backend Django/DRF, autenticação por sessão e CSRF, PostgreSQL, Daphne, Redis
 | Administração global | Conta ativa com `is_superuser` | Azul no painel global; vermelho ao administrar um evento |
 | Django Admin | Acesso técnico com permissões nativas do Django | Interface técnica separada |
 
-`is_staff` sozinho não concede administração global. A sessão identifica o contexto e o evento; os endpoints administrativos validam o escopo. Login e seleção de contexto são tratados por `backend/api/contexts.py` e `event_admin.py`.
+`is_staff` sozinho não concede administração global. A sessão autentica a conta e conserva uma seleção inicial. Desde **16/10/2026**, cada operação administrativa de evento exige um escopo explícito em `X-Event-ID` ou `/api/events/<uuid>/...`, sempre revalidando vínculo ativo, papel e permissões. O frontend persiste a escolha em `sessionStorage` por aba e envia `X-App-Context` para distinguir participante, administração do evento e global. Trocar o evento em outra aba não redireciona as operações da aba original. Fotos privadas, evidências e downloads de exportação incluem o evento na URL. Login e seleção de contexto são tratados por `backend/api/contexts.py` e `event_admin.py`; resolução do escopo em `event_scope.py`.
+
+Com `DJANGO_DEBUG=0`, hosts explícitos são obrigatórios, `*` impede a inicialização e os cookies de sessão/CSRF usam `Secure`; HTTP é redirecionado para HTTPS. O Nginx encaminha o protocolo original do proxy confiável. O Compose local permanece em desenvolvimento HTTP; produção exige configurar hosts, origens e terminação TLS. Contratos e parâmetros em [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
+
+Desde **16/10/2026**, a API DRF limita requisições por IP anônimo (60/min) e conta autenticada (300/min), com contadores compartilhados em Redis. Login (10/min), cadastro (5/min), envio de mensagens (30/min) e interações de likes/skips (60/min) têm limites adicionais. Excesso retorna HTTP 429 com `Retry-After`; leituras não consomem o limite específico de escrita. Taxas e cadeia de proxies são configuráveis por ambiente. Veja configuração e limites da proteção em [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
 
 O frontend oferece modos `mock` e `django`. O mock simula interações locais e conserva seus catálogos estáticos. O modo real recebe catálogos, perfis, estados e permissões da API. O botão **Demonstração**, após **Novo evento** em Ações rápidas do acesso global, abre o mock em nova aba sem mudar o `.env`: login com credenciais fictícias preenchidas, cadastro do perfil/fotos, 50 perfis variados, likes, matches, mensagens, notificações e avisos. Veja [Demonstração do frontend](<Demonstracao do frontend.md>). Uma demonstração visual não comprova persistência nem autorização real.
 
@@ -82,6 +92,8 @@ Em Mais do evento, **Avisos do Evento**, **Suporte** e **Passes** usam acordeon 
 
 Relatórios financeiros são agregados de concessões declaradas; não existe confirmação externa de pagamento. Papéis e permissões são validados no servidor; ocultar um botão não substitui esse controle.
 
+Correção de segurança em **16/10/2026**: a API rejeita denúncias repetidas do mesmo participante contra o mesmo alvo no evento com HTTP 400, inclusive após decisão de denúncia infundada. A validação usa a transação e o bloqueio do denunciado para serializar requisições simultâneas. Alertas de 10, análise automática em 20 e prioridade dos casos consideram denunciantes distintos do mesmo evento, excluindo denúncias administrativas, infundadas e sem denunciante. Duplicatas históricas não aumentam essa contagem e são preservadas com suas evidências. A proteção está na API, sem nova constraint ou migração. Cobertura: `backend/api/test_report_abuse.py` e teste de limiares em `test_mvp_flows.py`.
+
 Fontes: `frontend/TeamManagement.tsx`, `Administration.tsx`, `AdminOperations.tsx`, `backend/api/team.py`, `event_admin.py`, `passes.py`, `profile_operations.py`.
 
 ## Participante, presença, notificações e passes
@@ -90,7 +102,11 @@ O participante possui ingresso por convite, cadastro/perfil, fotos, tópicos, fi
 
 O cadastro utiliza primeiro/sobrenome, mês/ano de nascimento, gênero e bio validada. A ativação exige três fotos públicas e uma principal, requisitos do evento e, no fluxo convencional, outfit capturado pela equipe. A ativação automática Online dispensa outfit e aprovação presencial; mantém fotos, bio e requisitos obrigatórios. Fotos públicas e substituições após intervenções obedecem às regras do backend.
 
+Desde **16/10/2026**, fotos de perfil, outfits, fotos administrativas e evidências locais usam `X-Accel-Redirect` no fluxo padrão pelo Compose: Django autoriza e Nginx transmite os bytes pela rota interna, com o diretório montado somente para leitura. Permanecem as verificações de evento, match, bloqueio, papel e auditoria. Caminhos e links simbólicos são validados; não há acesso público direto à pasta. Configuração e testes em [Mídia protegida](<Midia protegida.md>).
+
 Presença Online decorre da interação recente com o servidor, conforme intervalo do evento, sem GPS. Presencial/Híbrido possuem consentimento/localização, retries, exceções e investigação de anomalias. Consulta de histórico depende de papel, estado e auditoria. Favoritos pertencem ao pós-match. Likes revelados por passes são processados cronologicamente, dentro do saldo ou da duração, com proteção transacional.
+
+Desde **16/10/2026**, `current()` limita a gravação de atividade a uma vez por minuto também em Online, com revalidação da condição no UPDATE. O participante recebe avisos por [WebSocket autenticado](<WebSocket e tempo real.md>) e consulta `sync/` para mensagens incrementais e status, em páginas de até 100 mensagens. Mantém recuperação a cada 60–63 segundos conectado e 15–18 segundos sem WebSocket; não executa mais polling de `bootstrap/` nem recarrega todo o histórico da conversa. O catálogo é atualizado separadamente nas telas sociais, a cada minuto. Leituras são confirmadas somente para mensagens recebidas no chat aberto. Cursor assinado, paginação, índices e limites de consistência estão em [Sincronização de participantes](<Sincronizacao de participantes.md>).
 
 As notificações internas são persistidas e filtradas por conta, contexto e evento, incluindo eventos sociais, mensagens, avisos e passes. Notificações não devem revelar a identidade de likes sem passe ou match autorizado. Avisos podem ser rascunhos, enviados ou agendados; envio e agendamento são validados e auditados. Não há serviço transacional de e-mail/push de produção implementado apenas por existir notificação interna.
 
@@ -133,7 +149,9 @@ As etapas 1–8 têm registros históricos de conclusão; melhorias posteriores 
 | `apps.passes.tasks.expire` | 30 s | Expiração de passes |
 | `apps.passes.tasks.initial_gifts` | 30 s | Presente inicial |
 
-Exportação usa a tarefa sob demanda `apps.events.export_tasks.generate`, não Beat. Retenção ainda não possui tarefa periódica registrada. A separação por filas descrita no backlog é direção de arquitetura, não prova de roteamento implementado.
+Exportação usa a tarefa sob demanda `apps.events.export_tasks.generate`, não Beat. Desde **16/10/2026**, ela é roteada para `exports`, consumida exclusivamente por `celery_exports`. `celery_worker` consome somente a fila operacional `celery`; ambos têm concorrência 1 e prefetch 1. Uma exportação longa não ocupa o processo que executa as automações. Retenção ainda não possui tarefa periódica registrada. Configuração, atualização e teste real de isolamento em [Operação e desenvolvimento](<Operacao e desenvolvimento.md>).
+
+O bootstrap administrativo também carrega cards, suspensões, fotos, contagens de denúncias/bloqueios, sinais de bloqueio e dados das ocorrências em lote. `operational_status` aproveita os dados pré-carregados, mantendo as regras anteriores. Testes com 100 participantes e 99 ocorrências verificam quantidade constante de consultas SQL, incluindo notas, histórico e evidências. A resposta continua contendo a lista integral; esta correção não adiciona paginação.
 
 ## Migrações e validação
 

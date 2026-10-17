@@ -57,6 +57,7 @@ class EventExportTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def job(self):
         return ExportJob.objects.create(event=self.event, requested_by=self.admin, modules=MODULES)
@@ -124,13 +125,27 @@ class EventExportTests(TestCase):
             session = self.client.session
             session['event_id'] = str(self.event.pk)
             session.save()
+            self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
             self.assertEqual(self.client.get(url).status_code, 403)
             self.assertEqual(self.client.post('/api/event-admin/exports/', {}, format='json').status_code, 403)
         self.client.force_login(self.admin)
         session = self.client.session
         session['event_id'] = str(self.other.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         self.assertEqual(self.client.get(url).status_code, 404)
+        # Direct download links keep their own scope when another tab changes
+        # the session. No custom event header is available on an ordinary link.
+        self.client.defaults.pop('HTTP_X_EVENT_ID')
+        scoped = f'/api/events/{self.event.pk}/event-admin/exports/{job.pk}/'
+        data = self.client.get(scoped).json()
+        self.assertEqual(data['download'], scoped + 'download/')
+        response = self.client.get(data['download'])
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b''.join(response.streaming_content).startswith(b'PK'))
+        response = self.client.get(data['term'])
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b''.join(response.streaming_content).startswith(b'%PDF-'))
 
     def test_failure_retry_and_broker_failure_are_public_safe(self):
         job = self.job()

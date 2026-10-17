@@ -12,10 +12,11 @@ from apps.events.services import transition, is_manager, TRANSITIONS
 from apps.events.services import configure
 from apps.audit.services import record
 from apps.audit.models import AuditLog
+from .event_scope import event_id
 
 
 def managed_event(request):
-    event = get_object_or_404(Event, pk=request.session.get('event_id'))
+    event = get_object_or_404(Event, pk=event_id(request))
     if not is_manager(request.user, event):
         raise PermissionDenied('Seu papel não permite gerenciar o evento.')
     return event

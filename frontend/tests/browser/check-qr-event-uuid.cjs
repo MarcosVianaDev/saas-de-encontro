@@ -1,4 +1,4 @@
-const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const { BASE_URL, MOCK_URL, launch, testCredentials, mockSync } = require('./helpers.cjs');
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const eventId = '762d800f-40c3-4f8c-b899-b78523463097';
@@ -23,6 +23,8 @@ const participant = {
         const url = new URL(route.request().url());
         if (url.pathname === '/api/session/') return route.fulfill({json: {authenticated: false, csrfToken: 'qr-test-token', demoEmail: null}});
         if (url.pathname === '/api/bootstrap/') return route.fulfill({json: participant});
+        if (url.pathname === '/api/sync/') return route.fulfill({json: mockSync(participant)});
+        if (url.pathname === '/api/catalog/') return route.fulfill({json: {people: participant.people, discovery: participant.discovery}});
         if (url.pathname === '/api/join/test-invite/') {
           if (url.searchParams.get('event') !== eventId) return route.fulfill({status: 400, json: {detail: 'UUID não corresponde ao convite.'}});
           return route.fulfill({json: {id: eventId, name: 'Evento do QR Code'}});

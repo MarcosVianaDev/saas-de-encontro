@@ -90,6 +90,7 @@ class InitialGiftTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         for mode in ['ONLINE', 'PHYSICAL', 'HYBRID']:
             self.event.mode = mode
             self.event.save()
@@ -112,6 +113,7 @@ class InitialGiftTests(TestCase):
         session = client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         profile = client.get('/api/bootstrap/').json()['profile']
         response = client.put('/api/profile/', profile, format='json')
         self.assertEqual(response.status_code, 200, response.content)

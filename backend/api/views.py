@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -16,6 +16,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .protected_media import protected_media_response
 from apps.accounts.models import UserProfile
 from apps.events.models import Event
 from apps.participants.models import EventParticipant
@@ -26,16 +27,17 @@ from .serializers import LoginSerializer, ProfileSerializer, FilterSerializer, D
 from .services import current, bootstrap, target_for, blocked, visible_participants, match_for, photo_url, ordered_photos, person_payload, record_decision, audit, DEFAULT_FILTERS
 from .event_admin import navigation, invite_event, join_event
 from .services import ensure_social, ensure_writable
+from .event_scope import navigation_context
 
 
 def login_payload(request):
-    if request.session.get('navigation') == 'selection':
+    if navigation_context(request) == 'selection' and 'X-App-Context' not in request.headers:
         from .contexts import administration_context, select
         context = administration_context(request.user)
         if context:
             select(request, context['key'])
     nav = navigation(request)
-    if request.session.get('navigation') == 'participant':
+    if navigation_context(request) == 'participant':
         nav = {'navigation': 'participant'}
     if nav['navigation'] in ['administration','global','selection']:
         return nav
@@ -55,6 +57,7 @@ class SessionView(APIView):
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_scope = 'login'
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -75,6 +78,7 @@ class LoginView(APIView):
         contexts = available(user)
         if token:
             request.session['navigation'] = 'participant'; request.session['event_id'] = str(participant.event_id)
+            request.selected_context = {'navigation':'participant','event':str(participant.event_id)}
         elif any(context['navigation'] in ['global', 'administration'] for context in contexts):
             select(request, next(context['key'] for context in contexts if context['navigation'] in ['global', 'administration']))
         elif len(contexts) > 1:
@@ -88,6 +92,7 @@ class LoginView(APIView):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_scope = 'register'
 
     def post(self, request):
         token = request.data.get('invite')
@@ -112,6 +117,7 @@ class RegisterView(APIView):
         login(request, user)
         request.session["event_id"] = str(event.id)
         request.session['navigation'] = 'participant'
+        request.selected_context = {'navigation':'participant','event':str(event.id)}
         return Response({"csrfToken": get_token(request), "data": {**bootstrap(participant), 'navigation': 'participant'}}, status=201)
 
 
@@ -223,7 +229,7 @@ class ParticipantView(APIView):
         result["photos"] = [photo_url(p) for p in ordered_photos(peer) if p.visibility == "PRE_MATCH" or matched]
         outfit = getattr(peer, "outfit_photo", None)
         result["photoEvidence"] = [{'id':str(p.pk),'url':photo_url(p)} for p in ordered_photos(peer) if p.visibility=='PRE_MATCH' or matched]
-        result["outfit"] = f'/api/outfits/{peer.pk}/content/?v={outfit.updated_at.timestamp()}' if matched and outfit else None
+        result["outfit"] = f'/api/events/{peer.event_id}/outfits/{peer.pk}/content/?v={outfit.updated_at.timestamp()}' if matched and outfit else None
         return Response(result)
 
 
@@ -235,6 +241,8 @@ class DiscoveryView(APIView):
 
 
 class InteractionView(APIView):
+    throttle_scope = 'interactions'
+
     def post(self, request, peer_id):
         serializer = DecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -272,12 +280,18 @@ class ConversationsView(APIView):
 
 
 class MessagesView(APIView):
+    throttle_scope = 'messages'
+
     @transaction.atomic
     def get(self, request, peer_id):
         participant = current(request)
         match = match_for(participant, peer_id)
-        match.conversation.messages.exclude(sender=participant).filter(read_at__isnull=True).update(read_at=timezone.now())
-        return Response(bootstrap(participant)["chats"].get(str(peer_id), []))
+        from .sync import mark_read, message_payload
+        mark_read(participant, match)
+        messages = match.conversation.messages.order_by('created_at', 'id').values(
+            'id', 'body', 'sender_id', 'read_at', 'created_at', 'updated_at',
+        )
+        return Response([message_payload(message, participant) for message in messages])
 
     def post(self, request, peer_id):
         serializer = MessageSerializer(data=request.data)
@@ -422,9 +436,6 @@ class PhotoContentView(APIView):
                 match = match_for(participant, peer.pk)
                 if not match.is_active:
                     raise PermissionDenied("Foto disponível somente após match ativo.")
-        if photo.storage_key.startswith("/images/") or not default_storage.exists(photo.storage_key):
+        if photo.storage_key.startswith("/images/"):
             raise Http404
-        response = FileResponse(default_storage.open(photo.storage_key, "rb"))
-        response["Cache-Control"] = "private, no-store"
-        response["X-Content-Type-Options"] = "nosniff"
-        return response
+        return protected_media_response(photo.storage_key)

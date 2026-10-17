@@ -21,7 +21,7 @@ const lifetime = 5 * 60 * 1000;
 const byteLimit = 64 * 1024 * 1024;
 let generation = 0;
 const protectedImage = (src?: string) =>
-  !!src && /^\/api\/(?:photos|outfits|event-admin\/photos)\//.test(src);
+  !!src && /^\/api\/(?:events\/[\da-f-]+\/)?(?:photos|outfits|event-admin\/photos)\//i.test(src);
 function dispose(src: string, entry: Entry) {
   entries.delete(src);
   entry.controller.abort();

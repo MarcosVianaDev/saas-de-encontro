@@ -1,4 +1,4 @@
-const { BASE_URL, MOCK_URL, launch, testCredentials } = require('./helpers.cjs');
+const { BASE_URL, MOCK_URL, launch, testCredentials, mockSync } = require('./helpers.cjs');
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 
@@ -38,6 +38,8 @@ const globalData = {
         let body;
         if (path === '/api/session/') body = { authenticated: loggedIn, csrfToken: 'test-token', demoEmail: null };
         else if (path === '/api/bootstrap/') body = sessionData;
+        else if (path === '/api/sync/') body = mockSync(participant);
+        else if (path === '/api/catalog/') body = { people: participant.people, discovery: participant.discovery };
         else if (path === '/api/global/') body = globalData;
         else if (path === '/api/event-admin/') body = { ...admin, globalContext: mode === 'global-event' };
         else if (path === '/api/notifications/') body = { items: [], unread: 0 };

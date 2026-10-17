@@ -9,6 +9,7 @@ from apps.events.permissions import OPERATIONAL, effective_role
 from apps.events.services import notify_managers
 from apps.audit.services import record
 from .event_admin import access
+from .event_scope import event_id
 
 
 class TeamView(APIView):
@@ -23,7 +24,7 @@ class TeamView(APIView):
     def post(self,request):
         action = request.data.get('action','save')
         if action == 'reclaim':
-            member = get_object_or_404(EventAdministrator.objects.select_for_update(),user=request.user,event_id=request.session.get('event_id'),is_active=True,role='ADMIN')
+            member = get_object_or_404(EventAdministrator.objects.select_for_update(),user=request.user,event_id=event_id(request),is_active=True,role='ADMIN')
             member.delegated_to = None; member.save()
             record(request.user,'team.reclaimed',member,member.event)
             notify_managers(member.event,'Administração retomada','A gestão original reassumiu o evento.')

@@ -31,6 +31,7 @@ class AdminParticipantProfileTests(TestCase):
         session = self.client.session
         session['event_id'] = str(self.event.pk)
         session.save()
+        self.client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
 
     def test_profile_has_public_photos_and_admin_content_urls(self):
         response = self.client.get(self.url)
@@ -40,7 +41,7 @@ class AdminParticipantProfileTests(TestCase):
         self.assertEqual(profile['bio'], 'Descrição do perfil')
         self.assertEqual(profile['job'], 'Designer')
         self.assertEqual(profile['interests'], ['Música', 'Viagens'])
-        self.assertEqual(profile['image'], f'/api/event-admin/photos/{self.primary.pk}/content/')
+        self.assertEqual(profile['image'], f'/api/events/{self.event.pk}/event-admin/photos/{self.primary.pk}/content/')
         self.assertEqual(profile['photos'], [profile['image'], '/images/extra.jpg'])
 
     def test_all_roles_that_can_view_participants_can_open_profile(self):

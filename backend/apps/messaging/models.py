@@ -12,3 +12,9 @@ class Message(BaseModel):
     sender = models.ForeignKey("participants.EventParticipant", on_delete=models.PROTECT, related_name="messages_sent")
     body = models.TextField()
     read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['conversation', 'updated_at', 'id'], name='message_conversation_sync_idx'),
+            models.Index(fields=['conversation'], condition=models.Q(read_at__isnull=True), name='message_unread_sync_idx'),
+        ]

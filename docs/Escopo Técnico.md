@@ -368,7 +368,9 @@ Denúncias ficam disponíveis na Descoberta, perfil expandido e Mensagens, inclu
 
 Motivos incluem assédio/ofensa, importunação sexual, conteúdo sexual explícito, racismo/discriminação, ódio, violência/ameaça, fraude, uso indevido de imagem/identidade, possível ilegalidade e Outro.
 
-Bloqueios múltiplos não geram alerta. Com 10 denúncias válidas, a moderação do evento recebe alerta e acesso à fila filtrada pelo participante, podendo desativar o perfil para análise. Com 20 denúncias válidas, o perfil é desativado automaticamente para análise e a Administração Global é notificada. Denúncias consideradas infundadas não contam.
+Bloqueios múltiplos não geram alerta. A API permite uma única denúncia por par denunciante/denunciado no mesmo evento, inclusive após uma decisão de denúncia infundada; novas tentativas recebem HTTP 400. A validação ocorre dentro da transação, com bloqueio do participante denunciado para impedir duplicação por requisições simultâneas. Denúncias históricas e suas evidências são preservadas.
+
+Com 10 denunciantes distintos com denúncias válidas, a moderação do evento recebe alerta e acesso à fila filtrada pelo participante, podendo desativar o perfil para análise. Com 20 denunciantes distintos, o perfil é desativado automaticamente para análise e a Administração Global é notificada. Essa mesma contagem determina a prioridade do caso. Denúncias administrativas, infundadas, sem denunciante ou de denunciantes de outro evento não contam; duplicatas históricas do mesmo denunciante contam apenas uma vez.
 
 O histórico fica ligado ao perfil global. A Administração Global pode marcá-lo como Denunciado recorrente. Ao ingressar em novo evento, a Administração Global é notificada e decide se informa a administração local; não há banimento automático entre eventos.
 

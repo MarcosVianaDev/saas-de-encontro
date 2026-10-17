@@ -1,3 +1,4 @@
+import { BIO_MIN_LENGTH, BIO_MAX_LENGTH } from "./profile-validation";
 import { CachedImage } from "./CachedImage";
 import { useState, type FormEvent } from "react";
 import { api, request } from "./backend-client";
@@ -138,8 +139,8 @@ export function ParticipantOnboarding({
               Sobre você
               <textarea
                 required
-                minLength={50}
-                maxLength={200}
+                minLength={BIO_MIN_LENGTH}
+                maxLength={BIO_MAX_LENGTH}
                 value={profile.bio}
                 onChange={(e) => change("bio", e.target.value)}
               />

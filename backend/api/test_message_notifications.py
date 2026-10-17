@@ -32,6 +32,7 @@ class MessageNotificationTests(TestCase):
         session = client.session
         session['event_id'] = str(event.pk)
         session.save()
+        client.defaults['HTTP_X_EVENT_ID'] = session.get('event_id', '')
         response = client.post(f'/api/conversations/{recipient.pk}/messages/', {'text': 'Hello'}, format='json')
         self.assertEqual(response.status_code, 201, response.content)
         notice = Notification.objects.get(kind='message')

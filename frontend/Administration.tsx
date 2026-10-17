@@ -6,6 +6,7 @@ import { EventExportButton } from "./EventExportButton";
 import Accordion from "react-bootstrap/Accordion";
 import { closeDialogOnBackdrop } from "./modal-backdrop";
 import { request } from "./backend-client";
+import { realtimeConnected, subscribeRealtime } from "./realtime";
 import { adminMock } from "./administration-mock";
 import { mockAnnouncements } from "./participant-mock";
 import "./administration.css";
@@ -210,21 +211,31 @@ export function Administration({
   };
   useEffect(() => {
     let disposed = false;
+    let pending = false, refreshedAt = 0;
     const refresh = async () => {
+      if (pending) return;
+      pending = true;
       try {
         const result = await adminRequest<AdminData>("event-admin/");
         if (!disposed) setData(result);
+        refreshedAt = Date.now();
       } catch (e) {
         if (!disposed)
           setError(e instanceof Error ? e.message : "Falha ao carregar.");
+      } finally {
+        pending = false;
       }
     };
+    const unsubscribe = mock ? () => {} : subscribeRealtime(update => {
+      if (!document.hidden && !dialog.current?.open && update.topics.some(topic => ['reconnected', 'status'].includes(topic))) void refresh();
+    });
     void refresh();
     const timer = window.setInterval(() => {
-      if (!document.hidden && !dialog.current?.open) void refresh();
+      if (!document.hidden && !dialog.current?.open && (!realtimeConnected() || Date.now() - refreshedAt >= 60000)) void refresh();
     }, 15000);
     return () => {
       disposed = true;
+      unsubscribe();
       clearInterval(timer);
     };
   }, []);

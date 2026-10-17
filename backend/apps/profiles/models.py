@@ -1,7 +1,8 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, MinLengthValidator, MaxLengthValidator
 from common.models import BaseModel
 from .locations import BRAZIL_STATES
+from .constants import BIO_MIN_LENGTH, BIO_MAX_LENGTH
 
 
 class ParticipantProfile(BaseModel):
@@ -11,7 +12,8 @@ class ParticipantProfile(BaseModel):
     birth_month = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(12)])
     birth_year = models.PositiveSmallIntegerField(null=True, blank=True)
     gender = models.CharField(max_length=100, blank=True)
-    bio = models.TextField(blank=True)
+    bio = models.TextField(blank=True, max_length=BIO_MAX_LENGTH,
+                           validators=[MinLengthValidator(BIO_MIN_LENGTH), MaxLengthValidator(BIO_MAX_LENGTH)])
     job = models.CharField(max_length=200, blank=True)
     city = models.CharField(max_length=200, default="São Paulo, SP")
     residence_state = models.CharField(max_length=2, choices=BRAZIL_STATES, blank=True, default='')

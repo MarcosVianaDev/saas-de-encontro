@@ -30,6 +30,10 @@ class NotificationContextTests(TestCase):
         else:
             session.pop('event_id', None)
         session.save()
+        if event:
+            self.client.defaults['HTTP_X_EVENT_ID'] = str(event.pk)
+        else:
+            self.client.defaults.pop('HTTP_X_EVENT_ID', None)
 
     def test_participant_sees_only_own_event_notifications_and_cannot_read_administrative_notices(self):
         notices = [Notification.objects.create(participant=self.participant, event=self.event,

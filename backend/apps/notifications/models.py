@@ -3,7 +3,16 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from common.models import BaseModel
 
 
+class NotificationQuerySet(models.QuerySet):
+    def bulk_create(self, objs, *args, **kwargs):
+        from realtime.publishing import notifications_changed
+        result = super().bulk_create(objs, *args, **kwargs)
+        notifications_changed(result, using=self.db)
+        return result
+
+
 class Notification(BaseModel):
+    objects = NotificationQuerySet.as_manager()
     kind = models.CharField(max_length=50,blank=True)
     action_path = models.CharField(max_length=500,blank=True)
     dedupe_key = models.CharField(max_length=200,unique=True,null=True,blank=True)
